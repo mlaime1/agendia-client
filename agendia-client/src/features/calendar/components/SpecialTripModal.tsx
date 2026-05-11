@@ -8,12 +8,12 @@ type SpecialTripModalProps = {
 };
 
 export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripModalProps) {
-  const [specialType, setSpecialType] = useState('Extra stop');
+  const [specialType, setSpecialType] = useState('Parada extra');
   const [note, setNote] = useState('');
 
   useEffect(() => {
     if (visible) {
-      setSpecialType('Extra stop');
+      setSpecialType('Parada extra');
       setNote('');
     }
   }, [visible]);
@@ -22,34 +22,34 @@ export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripMod
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.panel}>
-          <Text style={styles.title}>Special trip</Text>
+          <Text style={styles.title}>Viaje especial</Text>
 
-          <Text style={styles.label}>Trip type</Text>
+          <Text style={styles.label}>Tipo de viaje</Text>
           <TextInput
             onChangeText={setSpecialType}
-            placeholder="Extra stop, detour..."
+            placeholder="Parada extra, desvío..."
             style={styles.input}
             value={specialType}
           />
 
-          <Text style={styles.label}>Note</Text>
+          <Text style={styles.label}>Nota</Text>
           <TextInput
             multiline
             onChangeText={setNote}
-            placeholder="Optional"
+            placeholder="Opcional"
             style={[styles.input, styles.noteInput]}
             value={note}
           />
 
           <View style={styles.actions}>
             <Pressable onPress={onClose} style={[styles.actionButton, styles.secondaryButton]}>
-              <Text style={styles.secondaryText}>Cancel</Text>
+              <Text style={styles.secondaryText}>Cancelar</Text>
             </Pressable>
             <Pressable
               onPress={() => onConfirm(specialType, note)}
               style={[styles.actionButton, styles.primaryButton]}
             >
-              <Text style={styles.primaryText}>Add trip</Text>
+              <Text style={styles.primaryText}>Agregar viaje</Text>
             </Pressable>
           </View>
         </View>

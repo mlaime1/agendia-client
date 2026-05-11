@@ -10,8 +10,26 @@ export const isSameDay = (left: Date, right: Date) =>
   left.getMonth() === right.getMonth() &&
   left.getDate() === right.getDate();
 
+const monthLabels = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+];
+
 export const getMonthLabel = (date: Date) =>
-  date.toLocaleDateString('en', { month: 'long', year: 'numeric' });
+  `${monthLabels[date.getMonth()]} ${date.getFullYear()}`;
+
+export const getLongDateLabel = (date: Date) =>
+  date.toLocaleDateString('es-AR', { weekday: 'long', month: 'long', day: 'numeric' });
 
 export const getMonthDays = (monthDate: Date): CalendarDay[] => {
   const year = monthDate.getFullYear();

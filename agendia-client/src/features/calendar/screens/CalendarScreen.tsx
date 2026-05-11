@@ -7,24 +7,23 @@ import { QuickActionBar } from '../components/QuickActionBar';
 import { SpecialTripModal } from '../components/SpecialTripModal';
 import { useCalendarTrips } from '../hooks/useCalendarTrips';
 import { TripMode } from '../types';
-import { getLeadingEmptyCells, getMonthDays, getMonthLabel } from '../utils/date';
+import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 
 export function CalendarScreen() {
   const monthDate = useMemo(() => new Date(), []);
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
-  const { addSpecialTrip, addTrip, trips, tripsByDate } = useCalendarTrips();
+  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip } = useCalendarTrips();
 
   const [selectedMode, setSelectedMode] = useState<TripMode>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
   const [detailDateKey, setDetailDateKey] = useState<string | null>(null);
 
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
-  const detailDateLabel = detailDay
-    ? detailDay.date.toLocaleDateString('en', { weekday: 'long', month: 'long', day: 'numeric' })
-    : '';
+  const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date) : '';
   const detailTrips = detailDateKey ? tripsByDate[detailDateKey] ?? [] : [];
+  const tripSummary = trips.length === 1 ? '1 viaje este mes' : `${trips.length} viajes este mes`;
 
   const handleDayPress = (dateKey: string) => {
     if (selectedMode === 'special') {
@@ -50,7 +49,7 @@ export function CalendarScreen() {
         <View style={styles.header}>
           <Text style={styles.appName}>Agendia</Text>
           <Text style={styles.month}>{monthLabel}</Text>
-          <Text style={styles.summary}>{trips.length} trips this month</Text>
+          <Text style={styles.summary}>{tripSummary}</Text>
         </View>
 
         <QuickActionBar selectedMode={selectedMode} onSelectMode={setSelectedMode} />
@@ -74,6 +73,7 @@ export function CalendarScreen() {
         dateLabel={detailDateLabel}
         onClose={() => setDetailDateKey(null)}
         trips={detailTrips}
+        onUpdateTrip={updateTrip}
         visible={detailDateKey !== null}
       />
     </SafeAreaView>

@@ -26,7 +26,7 @@ export function CalendarDayCell({
 
   return (
     <Pressable
-      accessibilityLabel={`Day ${day.dayNumber}`}
+      accessibilityLabel={`Día ${day.dayNumber}`}
       disabled={!isCurrentMonth}
       onLongPress={() => onLongPress(day.dateKey)}
       onPress={() => onPress(day.dateKey)}

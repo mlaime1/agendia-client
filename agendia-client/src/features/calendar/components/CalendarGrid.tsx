@@ -13,7 +13,7 @@ type CalendarGridProps = {
   onDayLongPress: (dateKey: string) => void;
 };
 
-const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const today = new Date();
 
 type CalendarCell = {

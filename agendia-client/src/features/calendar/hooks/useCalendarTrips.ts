@@ -1,9 +1,17 @@
 import { useMemo, useState } from 'react';
 
 import { mockTrips } from '../data/mockTrips';
-import { PendingSpecialTrip, Trip, TripMode } from '../types';
+import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 
 const createTripId = () => `trip-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+const getCurrentTime = () => {
+  const now = new Date();
+
+  return `${now.getHours().toString().padStart(2, '0')}:${now
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}`;
+};
 
 export const useCalendarTrips = () => {
   const [trips, setTrips] = useState<Trip[]>(mockTrips);
@@ -11,7 +19,9 @@ export const useCalendarTrips = () => {
   const tripsByDate = useMemo(
     () =>
       trips.reduce<Record<string, Trip[]>>((groupedTrips, trip) => {
-        groupedTrips[trip.date] = [...(groupedTrips[trip.date] ?? []), trip];
+        groupedTrips[trip.date] = [...(groupedTrips[trip.date] ?? []), trip].sort((left, right) =>
+          left.time.localeCompare(right.time),
+        );
         return groupedTrips;
       }, {}),
     [trips],
@@ -23,6 +33,7 @@ export const useCalendarTrips = () => {
       {
         id: createTripId(),
         date: dateKey,
+        time: getCurrentTime(),
         mode,
       },
     ]);
@@ -34,11 +45,18 @@ export const useCalendarTrips = () => {
       {
         id: createTripId(),
         date: dateKey,
+        time: getCurrentTime(),
         mode: 'special',
-        specialType: specialType.trim() || 'Special route',
+        specialType: specialType.trim() || 'Ruta especial',
         note: note.trim() || undefined,
       },
     ]);
+  };
+
+  const updateTrip = (tripId: string, updates: TripUpdates) => {
+    setTrips((currentTrips) =>
+      currentTrips.map((trip) => (trip.id === tripId ? { ...trip, ...updates } : trip)),
+    );
   };
 
   return {
@@ -46,5 +64,6 @@ export const useCalendarTrips = () => {
     tripsByDate,
     addTrip,
     addSpecialTrip,
+    updateTrip,
   };
 };

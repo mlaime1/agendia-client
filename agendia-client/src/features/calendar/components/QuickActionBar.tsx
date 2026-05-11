@@ -14,9 +14,9 @@ type QuickActionBarProps = {
 };
 
 const actions: QuickAction[] = [
-  { label: 'Outbound', mode: 'outbound' },
-  { label: 'Round Trip', mode: 'roundTrip' },
-  { label: 'Special', mode: 'special' },
+  { label: 'Ida', mode: 'outbound' },
+  { label: 'Ida y vuelta', mode: 'roundTrip' },
+  { label: 'Especial', mode: 'special' },
 ];
 
 export function QuickActionBar({ selectedMode, onSelectMode }: QuickActionBarProps) {
