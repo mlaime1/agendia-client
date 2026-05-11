@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
 
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
@@ -84,10 +84,11 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#F6FAF6',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   content: {
-    paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingHorizontal: 10,
+    paddingTop: 12,
     paddingBottom: 28,
   },
   header: {

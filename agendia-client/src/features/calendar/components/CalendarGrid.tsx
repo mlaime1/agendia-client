@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { CalendarDay, Trip } from '../types';
+import { isSameDay, toDateKey } from '../utils/date';
 import { CalendarDayCell } from './CalendarDayCell';
 
 type CalendarGridProps = {
@@ -13,6 +14,20 @@ type CalendarGridProps = {
 };
 
 const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const today = new Date();
+
+type CalendarCell = {
+  id: string;
+  day: CalendarDay;
+  isCurrentMonth: boolean;
+};
+
+const createCalendarDay = (date: Date): CalendarDay => ({
+  date,
+  dateKey: toDateKey(date),
+  dayNumber: date.getDate(),
+  isToday: isSameDay(date, today),
+});
 
 export function CalendarGrid({
   days,
@@ -21,23 +36,37 @@ export function CalendarGrid({
   onDayPress,
   onDayLongPress,
 }: CalendarGridProps) {
-  const monthCells = [
-    ...Array.from({ length: leadingEmptyCells }, (_, index) => ({
-      id: `empty-${index}`,
-      day: null,
-    })),
+  const monthStart = days[0]?.date ?? today;
+  const year = monthStart.getFullYear();
+  const month = monthStart.getMonth();
+  const monthCells: CalendarCell[] = [
+    ...Array.from({ length: leadingEmptyCells }, (_, index) => {
+      const date = new Date(year, month, index - leadingEmptyCells + 1);
+
+      return {
+        id: `leading-${toDateKey(date)}`,
+        day: createCalendarDay(date),
+        isCurrentMonth: false,
+      };
+    }),
     ...days.map((day) => ({
       id: day.dateKey,
       day,
+      isCurrentMonth: true,
     })),
   ];
   const trailingEmptyCells = (7 - (monthCells.length % 7)) % 7;
   const cells = [
     ...monthCells,
-    ...Array.from({ length: trailingEmptyCells }, (_, index) => ({
-      id: `trailing-empty-${index}`,
-      day: null,
-    })),
+    ...Array.from({ length: trailingEmptyCells }, (_, index) => {
+      const date = new Date(year, month, days.length + index + 1);
+
+      return {
+        id: `trailing-${toDateKey(date)}`,
+        day: createCalendarDay(date),
+        isCurrentMonth: false,
+      };
+    }),
   ];
   const rows = Array.from({ length: Math.ceil(cells.length / 7) }, (_, index) =>
     cells.slice(index * 7, index * 7 + 7),
@@ -56,19 +85,16 @@ export function CalendarGrid({
       <View style={styles.rows}>
         {rows.map((row, rowIndex) => (
           <View key={`row-${rowIndex}`} style={styles.row}>
-            {row.map((cell) =>
-              cell.day ? (
-                <CalendarDayCell
-                  day={cell.day}
-                  key={cell.id}
-                  onLongPress={onDayLongPress}
-                  onPress={onDayPress}
-                  trips={tripsByDate[cell.day.dateKey] ?? []}
-                />
-              ) : (
-                <View key={cell.id} style={styles.emptyCell} />
-              ),
-            )}
+            {row.map((cell) => (
+              <CalendarDayCell
+                day={cell.day}
+                isCurrentMonth={cell.isCurrentMonth}
+                key={cell.id}
+                onLongPress={onDayLongPress}
+                onPress={onDayPress}
+                trips={cell.isCurrentMonth ? tripsByDate[cell.day.dateKey] ?? [] : []}
+              />
+            ))}
           </View>
         ))}
       </View>
@@ -78,29 +104,26 @@ export function CalendarGrid({
 
 const styles = StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 7,
   },
   weekHeader: {
     flexDirection: 'row',
+    paddingHorizontal: 1,
   },
   weekday: {
     flex: 1,
-    color: '#7B877F',
-    fontSize: 11,
+    color: '#637067',
+    fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0,
     textAlign: 'center',
   },
   rows: {
-    gap: 6,
+    gap: 4,
   },
   row: {
     flexDirection: 'row',
-    gap: 6,
-  },
-  emptyCell: {
-    aspectRatio: 1,
-    flex: 1,
-    minHeight: 50,
+    gap: 4,
+    alignItems: 'stretch',
   },
 });

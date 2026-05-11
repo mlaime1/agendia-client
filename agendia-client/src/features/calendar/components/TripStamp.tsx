@@ -7,18 +7,21 @@ type TripStampProps = {
   mode: TripMode;
 };
 
-const stampStyles: Record<TripMode, { backgroundColor: string; color: string }> = {
+const stampStyles: Record<TripMode, { backgroundColor: string; color: string; label: string }> = {
   outbound: {
-    backgroundColor: '#DDF5E8',
-    color: '#1F8A52',
+    backgroundColor: '#D8F0E2',
+    color: '#176B43',
+    label: 'Ida',
   },
   roundTrip: {
-    backgroundColor: '#DCEBFF',
-    color: '#2E68B8',
+    backgroundColor: '#DDEBFF',
+    color: '#255EA8',
+    label: 'Vta',
   },
   special: {
-    backgroundColor: '#FFE7C7',
-    color: '#B56416',
+    backgroundColor: '#FFE3C2',
+    color: '#99510D',
+    label: 'Esp.',
   },
 };
 
@@ -27,21 +30,25 @@ export function TripStamp({ mode }: TripStampProps) {
 
   return (
     <View style={[styles.stamp, { backgroundColor: colors.backgroundColor }]}>
-      <Text style={[styles.car, { color: colors.color }]}>🚗</Text>
+      <Text numberOfLines={1} style={[styles.label, { color: colors.color }]}>
+        {colors.label}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   stamp: {
-    minWidth: 24,
-    height: 18,
-    alignItems: 'center',
+    width: '100%',
+    minHeight: 18,
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    borderRadius: 9,
+    borderRadius: 5,
+    paddingHorizontal: 5,
   },
-  car: {
-    fontSize: 11,
+  label: {
+    fontSize: 10,
+    fontWeight: '800',
     letterSpacing: 0,
   },
 });
