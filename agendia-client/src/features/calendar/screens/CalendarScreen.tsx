@@ -16,7 +16,7 @@ export function CalendarScreen() {
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
   const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip } = useCalendarTrips();
 
-  const [selectedMode, setSelectedMode] = useState<TripMode>('outbound');
+  const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
   const [detailDateKey, setDetailDateKey] = useState<string | null>(null);
 
@@ -26,6 +26,11 @@ export function CalendarScreen() {
   const tripSummary = trips.length === 1 ? '1 viaje este mes' : `${trips.length} viajes este mes`;
 
   const handleDayPress = (dateKey: string) => {
+    if (!selectedMode) {
+      setDetailDateKey(dateKey);
+      return;
+    }
+
     if (selectedMode === 'special') {
       setSpecialDateKey(dateKey);
       return;
