@@ -1,5 +1,14 @@
 import React, { useMemo, useState } from 'react';
-import { Platform, SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import {
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
@@ -10,7 +19,7 @@ import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 
 export function CalendarScreen() {
-  const monthDate = useMemo(() => new Date(), []);
+  const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
@@ -23,7 +32,24 @@ export function CalendarScreen() {
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
   const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date) : '';
   const detailTrips = detailDateKey ? tripsByDate[detailDateKey] ?? [] : [];
-  const tripSummary = trips.length === 1 ? '1 viaje este mes' : `${trips.length} viajes este mes`;
+  const visibleMonthKey = `${monthDate.getFullYear()}-${(monthDate.getMonth() + 1)
+    .toString()
+    .padStart(2, '0')}`;
+  const visibleMonthTrips = trips.filter((trip) => trip.date.startsWith(visibleMonthKey));
+  const tripSummary =
+    visibleMonthTrips.length === 1 ? '1 viaje este mes' : `${visibleMonthTrips.length} viajes este mes`;
+
+  const changeMonth = (offset: number) => {
+    setMonthDate((currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
+    setDetailDateKey(null);
+    setSpecialDateKey(null);
+  };
+
+  const goToCurrentMonth = () => {
+    setMonthDate(new Date());
+    setDetailDateKey(null);
+    setSpecialDateKey(null);
+  };
 
   const handleDayPress = (dateKey: string) => {
     if (!selectedMode) {
@@ -53,8 +79,36 @@ export function CalendarScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.appName}>Agendia</Text>
-          <Text style={styles.month}>{monthLabel}</Text>
-          <Text style={styles.summary}>{tripSummary}</Text>
+          <View style={styles.monthRow}>
+            <Pressable
+              accessibilityLabel="Mes anterior"
+              onPress={() => changeMonth(-1)}
+              style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
+            >
+              <Text style={styles.monthButtonText}>{'<'}</Text>
+            </Pressable>
+
+            <View style={styles.monthTitleGroup}>
+              <Text style={styles.month}>{monthLabel}</Text>
+              <Text style={styles.summary}>{tripSummary}</Text>
+            </View>
+
+            <Pressable
+              accessibilityLabel="Mes siguiente"
+              onPress={() => changeMonth(1)}
+              style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
+            >
+              <Text style={styles.monthButtonText}>{'>'}</Text>
+            </Pressable>
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={goToCurrentMonth}
+            style={({ pressed }) => [styles.todayButton, pressed && styles.pressedButton]}
+          >
+            <Text style={styles.todayButtonText}>Hoy</Text>
+          </Pressable>
         </View>
 
         <QuickActionBar selectedMode={selectedMode} onSelectMode={setSelectedMode} />
@@ -97,7 +151,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
   },
   header: {
-    gap: 3,
+    gap: 10,
   },
   appName: {
     color: '#233329',
@@ -110,11 +164,60 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: 0,
+    textAlign: 'center',
   },
   summary: {
     color: '#718077',
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0,
+    textAlign: 'center',
+  },
+  monthRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  monthTitleGroup: {
+    flex: 1,
+    gap: 2,
+  },
+  monthButton: {
+    width: 42,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D7E2D8',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  monthButtonText: {
+    color: '#314139',
+    fontSize: 22,
+    fontWeight: '900',
+    letterSpacing: 0,
+    lineHeight: 24,
+  },
+  todayButton: {
+    alignSelf: 'center',
+    minHeight: 34,
+    minWidth: 78,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: '#CFE0D3',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  todayButtonText: {
+    color: '#247145',
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+  pressedButton: {
+    opacity: 0.72,
   },
 });
