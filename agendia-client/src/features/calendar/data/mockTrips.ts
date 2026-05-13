@@ -1,4 +1,4 @@
-import { Trip } from '../types';
+import { TripRecord } from '../types';
 import { toDateKey } from '../utils/date';
 
 const dayKey = (day: number) => {
@@ -7,14 +7,41 @@ const dayKey = (day: number) => {
   return toDateKey(new Date(now.getFullYear(), now.getMonth(), day));
 };
 
-export const mockTrips: Trip[] = [
-  { id: 'mock-1', date: dayKey(3), time: '08:10', mode: 'outbound' },
-  { id: 'mock-2', date: dayKey(5), time: '08:25', mode: 'roundTrip' },
-  { id: 'mock-3', date: dayKey(8), time: '07:55', mode: 'outbound' },
-  { id: 'mock-4', date: dayKey(8), time: '17:20', mode: 'special', specialType: 'Parada extra' },
-  { id: 'mock-5', date: dayKey(12), time: '07:45', mode: 'outbound' },
-  { id: 'mock-6', date: dayKey(12), time: '12:30', mode: 'roundTrip' },
-  { id: 'mock-7', date: dayKey(12), time: '16:10', mode: 'special', specialType: 'Desvío' },
-  { id: 'mock-8', date: dayKey(12), time: '18:05', mode: 'outbound' },
-  { id: 'mock-9', date: dayKey(18), time: '09:00', mode: 'roundTrip' },
+const createMockTrip = (
+  id: string,
+  day: number,
+  trip_time: string,
+  trip_type: TripRecord['trip_type'],
+  special_type: string | null = null,
+): TripRecord => ({
+  id,
+  user_id: 'demo-user',
+  client_id: 'demo-client',
+  route_id: 'demo-route',
+  rate_id: 'demo-rate',
+  summary_id: null,
+  trip_date: dayKey(day),
+  trip_time,
+  trip_type,
+  final_price: 0,
+  has_surcharge: false,
+  surcharge_reason: null,
+  special_type,
+  notes: null,
+  created_at: new Date().toISOString(),
+});
+
+export const mockTripRecords: TripRecord[] = [
+  createMockTrip('mock-1', 3, '08:10', 'outbound'),
+  createMockTrip('mock-2-a', 5, '08:25', 'outbound'),
+  createMockTrip('mock-2-b', 5, '08:25', 'return'),
+  createMockTrip('mock-3', 8, '07:55', 'outbound'),
+  createMockTrip('mock-4', 8, '17:20', 'outbound', 'Parada extra'),
+  createMockTrip('mock-5', 12, '07:45', 'outbound'),
+  createMockTrip('mock-6-a', 12, '12:30', 'outbound'),
+  createMockTrip('mock-6-b', 12, '12:30', 'return'),
+  createMockTrip('mock-7', 12, '16:10', 'outbound', 'Desvio'),
+  createMockTrip('mock-8', 12, '18:05', 'outbound'),
+  createMockTrip('mock-9-a', 18, '09:00', 'outbound'),
+  createMockTrip('mock-9-b', 18, '09:00', 'return'),
 ];

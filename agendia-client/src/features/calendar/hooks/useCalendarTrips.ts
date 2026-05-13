@@ -1,20 +1,11 @@
 import { useMemo, useState } from 'react';
 
-import { mockTrips } from '../data/mockTrips';
+import { toCreateTripPayloads } from '../data/tripMappers';
+import { tripRepository } from '../data/tripRepository';
 import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 
-const createTripId = () => `trip-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-const getCurrentTime = () => {
-  const now = new Date();
-
-  return `${now.getHours().toString().padStart(2, '0')}:${now
-    .getMinutes()
-    .toString()
-    .padStart(2, '0')}`;
-};
-
 export const useCalendarTrips = () => {
-  const [trips, setTrips] = useState<Trip[]>(mockTrips);
+  const [trips, setTrips] = useState<Trip[]>(() => tripRepository.listCalendarTrips());
 
   const tripsByDate = useMemo(
     () =>
@@ -28,35 +19,30 @@ export const useCalendarTrips = () => {
   );
 
   const addTrip = (dateKey: string, mode: TripMode) => {
-    setTrips((currentTrips) => [
-      ...currentTrips,
-      {
-        id: createTripId(),
-        date: dateKey,
-        time: getCurrentTime(),
-        mode,
-      },
-    ]);
+    const trip = tripRepository.createTrips(toCreateTripPayloads({ dateKey, mode }));
+    setTrips(tripRepository.listCalendarTrips());
+
+    return trip;
   };
 
   const addSpecialTrip = ({ dateKey, specialType, note }: PendingSpecialTrip) => {
-    setTrips((currentTrips) => [
-      ...currentTrips,
-      {
-        id: createTripId(),
-        date: dateKey,
-        time: getCurrentTime(),
-        mode: 'special',
-        specialType: specialType.trim() || 'Ruta especial',
-        note: note.trim() || undefined,
-      },
-    ]);
+    const trip = tripRepository.createTrips(
+      toCreateTripPayloads({ dateKey, mode: 'special', specialType, note }),
+    );
+    setTrips(tripRepository.listCalendarTrips());
+
+    return trip;
   };
 
   const updateTrip = (tripId: string, updates: TripUpdates) => {
-    setTrips((currentTrips) =>
-      currentTrips.map((trip) => (trip.id === tripId ? { ...trip, ...updates } : trip)),
-    );
+    const trip = trips.find((currentTrip) => currentTrip.id === tripId);
+
+    if (!trip) {
+      return;
+    }
+
+    tripRepository.updateCalendarTrip(trip, updates);
+    setTrips(tripRepository.listCalendarTrips());
   };
 
   return {
