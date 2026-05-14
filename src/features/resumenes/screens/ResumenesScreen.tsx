@@ -16,6 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
+import { getLeadingEmptyCells, getMonthDays } from '../../calendar/utils/date';
 import { summariesService } from '../../../services/summaries';
 import { clientsService } from '../../../services/clients';
 import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
@@ -72,6 +73,117 @@ function getStatusActionLabel(status: SummaryStatus) {
   if (status === 'sent') return 'Marcar como abonado';
   if (status === 'paid') return 'Archivar';
   return null;
+}
+
+function formatMonthLabel(date: Date) {
+  return date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+}
+
+function formatLongDateLabel(date: Date) {
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
+}
+
+function isSameCalendarDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+function isDateInRange(date: Date, start: Date, end: Date) {
+  const currentTime = date.getTime();
+  return currentTime >= start.getTime() && currentTime <= end.getTime();
+}
+
+type MiniRangeCalendarProps = {
+  monthDate: Date;
+  startDate: Date | null;
+  endDate: Date | null;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  onSelectDate: (date: Date) => void;
+};
+
+function MiniRangeCalendar({
+  monthDate,
+  startDate,
+  endDate,
+  onPrevMonth,
+  onNextMonth,
+  onSelectDate,
+}: MiniRangeCalendarProps) {
+  const days = getMonthDays(monthDate);
+  const leadingEmptyCells = getLeadingEmptyCells(monthDate);
+
+  const handleDayPress = (day: { date: Date }) => onSelectDate(day.date);
+
+  return (
+    <View style={styles.calendarCard}>
+      <View style={styles.calendarHeader}>
+        <Pressable style={({ pressed }) => [styles.calendarNavButton, pressed && styles.calendarNavPressed]} onPress={onPrevMonth}>
+          <Ionicons name="chevron-back" size={18} color="#1A1A1A" />
+        </Pressable>
+        <Text style={styles.calendarMonthLabel}>{formatMonthLabel(monthDate)}</Text>
+        <Pressable style={({ pressed }) => [styles.calendarNavButton, pressed && styles.calendarNavPressed]} onPress={onNextMonth}>
+          <Ionicons name="chevron-forward" size={18} color="#1A1A1A" />
+        </Pressable>
+      </View>
+
+      <View style={styles.weekRow}>
+        {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((label) => (
+          <Text key={label} style={styles.weekLabel}>
+            {label}
+          </Text>
+        ))}
+      </View>
+
+      <View style={styles.calendarGrid}>
+        {Array.from({ length: leadingEmptyCells }).map((_, index) => (
+          <View key={`empty-${index}`} style={styles.calendarCellPlaceholder} />
+        ))}
+
+        {days.map((day) => {
+          const isStart = startDate ? isSameCalendarDay(day.date, startDate) : false;
+          const isEnd = endDate ? isSameCalendarDay(day.date, endDate) : false;
+          const isInSelectedRange = startDate && endDate ? isDateInRange(day.date, startDate, endDate) : false;
+
+          return (
+            <Pressable
+              key={day.dateKey}
+              style={({ pressed }) => [
+                styles.calendarCell,
+                isInSelectedRange && styles.calendarCellInRange,
+                (isStart || isEnd) && styles.calendarCellSelected,
+                day.isToday && styles.calendarCellToday,
+                pressed && styles.calendarCellPressed,
+              ]}
+              onPress={() => handleDayPress(day)}
+            >
+              <Text
+                style={[
+                  styles.calendarCellText,
+                  (isStart || isEnd) && styles.calendarCellTextSelected,
+                ]}
+              >
+                {day.dayNumber}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 export function ResumenesScreen({
@@ -384,8 +496,9 @@ function NuevoResumenModal({
   const [notes, setNotes] = useState('');
 
   // Manual tab state
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [manualMonthDate, setManualMonthDate] = useState(() => new Date());
+  const [manualStartDate, setManualStartDate] = useState<Date | null>(null);
+  const [manualEndDate, setManualEndDate] = useState<Date | null>(null);
 
   const [clientSelectorVisible, setClientSelectorVisible] = useState(false);
 
@@ -393,8 +506,9 @@ function NuevoResumenModal({
     if (visible) {
       setSelectedClient(selectedClientId);
       setActiveTab('auto');
-      setFromDate('');
-      setToDate('');
+      setManualMonthDate(new Date());
+      setManualStartDate(null);
+      setManualEndDate(null);
       setNotes('');
       setPreview(null);
       setPreviewError(null);
@@ -406,7 +520,7 @@ function NuevoResumenModal({
     if (visible && selectedClient) {
       loadPreview();
     }
-  }, [visible, selectedClient, activeTab, fromDate, toDate]);
+  }, [visible, selectedClient, activeTab]);
 
   const loadClients = async () => {
     try {
@@ -434,22 +548,36 @@ function NuevoResumenModal({
     }
   };
 
-  const parseDateInput = (value: string) => {
-    const [day, month, year] = value.split('/');
-    if (!day || !month || !year) return null;
+  const selectManualDate = (date: Date) => {
+    if (!manualStartDate || (manualStartDate && manualEndDate)) {
+      setManualStartDate(date);
+      setManualEndDate(null);
+      return;
+    }
 
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    if (isSameCalendarDay(date, manualStartDate)) {
+      setManualEndDate(date);
+      return;
+    }
+
+    if (date.getTime() < manualStartDate.getTime()) {
+      setManualEndDate(manualStartDate);
+      setManualStartDate(date);
+      return;
+    }
+
+    setManualEndDate(date);
   };
 
   const handleCreate = async () => {
     if (!selectedClient || creating) return;
 
     if (activeTab === 'manual') {
-      const periodStart = parseDateInput(fromDate);
-      const periodEnd = parseDateInput(toDate);
+      const periodStart = manualStartDate ? toDateKey(manualStartDate) : null;
+      const periodEnd = manualEndDate ? toDateKey(manualEndDate) : periodStart;
 
       if (!periodStart || !periodEnd) {
-        setPreviewError('Ingresá un rango válido en formato DD/MM/YYYY');
+        setPreviewError('Seleccioná un rango de fechas en el calendario');
         return;
       }
 
@@ -461,14 +589,17 @@ function NuevoResumenModal({
 
     setCreating(true);
     try {
+      const trimmedNotes = notes.trim() || undefined;
+      const isNumericId = (id?: string) => Boolean(id && /^[0-9]+$/.test(id));
+
       if (activeTab === 'auto') {
         await summariesService.createAuto(selectedClient, {
           driver_id: driverId,
-          notes: notes.trim() || undefined,
+          notes: trimmedNotes,
         });
       } else {
-        const periodStart = parseDateInput(fromDate);
-        const periodEnd = parseDateInput(toDate);
+        const periodStart = manualStartDate ? toDateKey(manualStartDate) : null;
+        const periodEnd = manualEndDate ? toDateKey(manualEndDate) : periodStart;
 
         if (!periodStart || !periodEnd) {
           return;
@@ -479,7 +610,7 @@ function NuevoResumenModal({
           driver_id: driverId,
           period_start: periodStart,
           period_end: periodEnd,
-          notes: notes.trim() || undefined,
+          notes: trimmedNotes,
         });
       }
       onSuccess();
@@ -545,30 +676,52 @@ function NuevoResumenModal({
               <Ionicons name="chevron-down" size={18} color="#888888" />
             </Pressable>
 
-            {/* Manual tab date pickers */}
+            {/* Manual tab date picker */}
             {activeTab === 'manual' && (
-              <View style={styles.datePickerRow}>
-                <View style={styles.datePickerField}>
-                  <Text style={styles.fieldLabel}>Desde</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="DD/MM/YYYY"
-                    value={fromDate}
-                    onChangeText={setFromDate}
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
+              <View style={styles.manualRangeSection}>
+                <View style={styles.manualRangeHeader}>
+                  <Text style={styles.fieldLabel}>Rango manual</Text>
+                  <Pressable
+                    onPress={() => {
+                      setManualStartDate(null);
+                      setManualEndDate(null);
+                    }}
+                    style={({ pressed }) => [styles.clearRangeButton, pressed && styles.clearRangeButtonPressed]}
+                  >
+                    <Text style={styles.clearRangeButtonText}>Limpiar</Text>
+                  </Pressable>
                 </View>
-                <View style={styles.datePickerField}>
-                  <Text style={styles.fieldLabel}>Hasta</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="DD/MM/YYYY"
-                    value={toDate}
-                    onChangeText={setToDate}
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
+
+                <MiniRangeCalendar
+                  monthDate={manualMonthDate}
+                  startDate={manualStartDate}
+                  endDate={manualEndDate}
+                  onPrevMonth={() =>
+                    setManualMonthDate(
+                      (currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
+                    )
+                  }
+                  onNextMonth={() =>
+                    setManualMonthDate(
+                      (currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
+                    )
+                  }
+                  onSelectDate={selectManualDate}
+                />
+
+                <View style={styles.manualRangeSummary}>
+                  <View style={styles.manualRangeSummaryItem}>
+                    <Text style={styles.manualRangeSummaryLabel}>Desde</Text>
+                    <Text style={styles.manualRangeSummaryValue}>
+                      {manualStartDate ? formatLongDateLabel(manualStartDate) : 'Seleccionar fecha'}
+                    </Text>
+                  </View>
+                  <View style={styles.manualRangeSummaryItem}>
+                    <Text style={styles.manualRangeSummaryLabel}>Hasta</Text>
+                    <Text style={styles.manualRangeSummaryValue}>
+                      {manualEndDate ? formatLongDateLabel(manualEndDate) : 'Seleccionar fecha'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}
@@ -1068,6 +1221,130 @@ const styles = StyleSheet.create({
     color: '#854F0B',
     fontSize: 13,
     flex: 1,
+  },
+  manualRangeSection: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  manualRangeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  clearRangeButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F5F7F0',
+  },
+  clearRangeButtonPressed: {
+    opacity: 0.8,
+  },
+  clearRangeButtonText: {
+    color: '#3A6B2A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  calendarCard: {
+    borderWidth: 1,
+    borderColor: '#E8EDE0',
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  calendarNavButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F7F0',
+  },
+  calendarNavPressed: {
+    opacity: 0.8,
+  },
+  calendarMonthLabel: {
+    color: '#1A1A1A',
+    fontSize: 15,
+    fontWeight: '800',
+    textTransform: 'capitalize',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  weekLabel: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarCellPlaceholder: {
+    width: '14.2857%',
+    aspectRatio: 1,
+  },
+  calendarCell: {
+    width: '14.2857%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  calendarCellPressed: {
+    opacity: 0.85,
+  },
+  calendarCellToday: {
+    borderWidth: 1,
+    borderColor: '#BFD6A3',
+  },
+  calendarCellInRange: {
+    backgroundColor: '#EAF3DE',
+  },
+  calendarCellSelected: {
+    backgroundColor: '#3A6B2A',
+  },
+  calendarCellText: {
+    color: '#1A1A1A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  calendarCellTextSelected: {
+    color: '#FFFFFF',
+  },
+  manualRangeSummary: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  manualRangeSummaryItem: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E8EDE0',
+    borderRadius: 12,
+    backgroundColor: '#FAFAF7',
+    padding: 10,
+  },
+  manualRangeSummaryLabel: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  manualRangeSummaryValue: {
+    color: '#1A1A1A',
+    fontSize: 13,
+    fontWeight: '700',
   },
   notesSection: {
     marginBottom: 16,
