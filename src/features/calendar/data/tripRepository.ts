@@ -8,6 +8,22 @@ const createTripId = () => `trip-${Date.now()}-${Math.random().toString(16).slic
 
 const normalizeServiceTripDate = (tripDate: string) => tripDate.slice(0, 10);
 
+const normalizeServiceTripType = (tripType: ServiceTrip['trip_type']): TripRecord['trip_type'] => {
+  if (tripType === 'ida' || tripType === 'outbound') {
+    return 'outbound';
+  }
+
+  if (tripType === 'vuelta' || tripType === 'return') {
+    return 'return';
+  }
+
+  if (tripType === 'ida y vuelta' || tripType === 'ida_y_vuelta' || tripType === 'roundTrip') {
+    return 'roundTrip';
+  }
+
+  return 'special';
+};
+
 let tripRecords: TripRecord[] = [...mockTripRecords];
 
 const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecord => ({
@@ -42,14 +58,7 @@ const mapServiceTripToRecord = (s: ServiceTrip): TripRecord => ({
   summary_id: s.summary_id ?? null,
   trip_date: normalizeServiceTripDate(s.trip_date),
   trip_time: s.created_at ? new Date(s.created_at).toTimeString().slice(0, 5) : '08:00',
-  trip_type:
-    s.trip_type === 'ida'
-      ? 'outbound'
-      : s.trip_type === 'vuelta'
-        ? 'return'
-        : s.trip_type === 'ida y vuelta'
-          ? 'roundTrip'
-          : 'special',
+  trip_type: normalizeServiceTripType(s.trip_type),
   final_price: Number(s.final_price) || 0,
   has_surcharge: s.has_surcharge,
   surcharge_reason: s.surcharge_reason ?? null,
@@ -118,7 +127,7 @@ export const tripRepository = {
           user_id: userId,
           client_id: p.client_id,
           route_id: p.route_id,
-          rate_id: p.rate_id,
+          rate_id: null,
           trip_date: p.trip_date,
           trip_type: p.trip_type,
           final_price: 0,
@@ -129,9 +138,13 @@ export const tripRepository = {
         if (p.special_type) body.special_type = p.special_type;
         if (p.notes) body.notes = p.notes;
 
+        console.log('[tripRepository] createTrips body:', body);
+
         return tripsService.create(body);
       }),
     );
+
+    console.log('[tripRepository] createTrips response:', created);
 
     const records = created.map(mapServiceTripToRecord);
     tripRecords = [...tripRecords, ...records];

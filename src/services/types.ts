@@ -103,7 +103,7 @@ export interface CreateTripDto {
   user_id: string;
   client_id: string;
   route_id: string;
-  rate_id: string;
+  rate_id: string | null;
   trip_date: string;
   trip_type: TripType;
   final_price: number;

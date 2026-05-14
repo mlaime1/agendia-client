@@ -6,7 +6,7 @@ export type TripRecord = {
   user_id: string;
   client_id: string;
   route_id: string;
-  rate_id: string;
+  rate_id: string | null;
   summary_id: string | null;
   trip_date: string;
   trip_time: string;
@@ -22,7 +22,7 @@ export type TripRecord = {
 export type CreateTripPayload = {
   client_id: string;
   route_id: string;
-  rate_id: string;
+  rate_id: string | null;
   trip_date: string;
   trip_time: string;
   trip_type: 'ida' | 'ida y vuelta' | 'especial';
