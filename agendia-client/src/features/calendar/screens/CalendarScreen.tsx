@@ -12,6 +12,7 @@ import {
 
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { QuickActionBar } from '../components/QuickActionBar';
 import { SpecialTripModal } from '../components/SpecialTripModal';
 import { useCalendarTrips } from '../hooks/useCalendarTrips';
@@ -25,7 +26,7 @@ export function CalendarScreen() {
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
-  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip } = useCalendarTrips();
+  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip, error, clearError } = useCalendarTrips();
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
@@ -78,6 +79,7 @@ export function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ErrorBanner message={error} onDismiss={clearError} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.appTitleRow}>
