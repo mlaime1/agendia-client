@@ -81,13 +81,20 @@ export interface Summary {
   whatsapp_msg?: string | null;
   notes?: string | null;
   clients?: Client;
+  users?: {
+    id: string;
+    name: string;
+  };
   trips?: Trip[];
 }
 
 export interface BillingPreview {
+  client: string;
+  billing_cycle: BillingCycle;
   period_start: string;
   period_end: string;
   period_type: BillingCycle;
+  available_trips: number;
 }
 
 // --- DTOs de creación/actualización ---
@@ -129,8 +136,14 @@ export interface CreateSummaryManualDto {
   driver_id: string;
   period_start: string;
   period_end: string;
+  notes?: string;
 }
 
 export interface UpdateSummaryStatusDto {
   status: SummaryStatus;
+}
+
+export interface CreateSummaryAutoDto {
+  driver_id: string;
+  notes?: string;
 }

@@ -4,9 +4,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthScreen } from './src/features/auth/screens/AuthScreen';
 import { CalendarScreen } from './src/features/calendar/screens/CalendarScreen';
+import { ClientesScreen } from './src/features/clientes/screens/ClientesScreen';
 import { ResumenesScreen } from './src/features/resumenes/screens/ResumenesScreen';
 import { ResumenDetailScreen } from './src/features/resumenes/screens/ResumenDetailScreen';
 import { CustomDrawer } from './src/components/CustomDrawer';
+import { FeedbackProvider } from './src/state/FeedbackContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
 import { clientsService } from './src/services/clients';
 import type { Client } from './src/services/types';
@@ -100,6 +102,13 @@ function AppContent() {
             onBack={handleBackFromDetail}
           />
         );
+      case 'Clientes':
+        return (
+          <ClientesScreen
+            selectedClientId={selectedClientId}
+            onMenuPress={() => setDrawerVisible(true)}
+          />
+        );
       case 'Calendario':
       default:
         return (
@@ -138,9 +147,11 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <FeedbackProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </FeedbackProvider>
     </SafeAreaProvider>
   );
 }

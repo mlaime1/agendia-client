@@ -2,6 +2,7 @@
 
 import { api } from './apiClient';
 import type {
+  CreateSummaryAutoDto,
   Summary,
   BillingPreview,
   CreateSummaryManualDto,
@@ -15,8 +16,8 @@ export const summariesService = {
   },
 
   /** POST /summaries/auto/:clientId — calcula período según billing config */
-  createAuto(clientId: string): Promise<Summary> {
-    return api.post<Summary>(`/summaries/auto/${clientId}`, {});
+  createAuto(clientId: string, body: CreateSummaryAutoDto): Promise<Summary> {
+    return api.post<Summary>(`/summaries/auto/${clientId}`, body);
   },
 
   /** GET /summaries/preview/:clientId?date=YYYY-MM-DD */
