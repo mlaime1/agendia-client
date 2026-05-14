@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
   Animated,
+  Alert,
   Modal,
   PanResponder,
   Pressable,
@@ -20,6 +21,7 @@ type DayDetailsModalProps = {
   trips: Trip[];
   onClose: () => void;
   onUpdateTrip: (tripId: string, updates: TripUpdates) => void;
+  onDeleteTrip: (tripId: string) => void;
 };
 
 const tripLabels: Record<TripMode, string> = {
@@ -39,6 +41,7 @@ export function DayDetailsModal({
   trips,
   onClose,
   onUpdateTrip,
+  onDeleteTrip,
 }: DayDetailsModalProps) {
   const translateY = useRef(new Animated.Value(0)).current;
 
@@ -95,6 +98,17 @@ export function DayDetailsModal({
       mode,
       specialType: mode === 'special' ? trip.specialType?.trim() || 'Ruta especial' : undefined,
     });
+  };
+
+  const confirmDeleteTrip = (trip: Trip) => {
+    Alert.alert('Borrar viaje', 'Esta acción eliminará este viaje del día.', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Borrar',
+        style: 'destructive',
+        onPress: () => onDeleteTrip(trip.id),
+      },
+    ]);
   };
 
   return (
@@ -184,6 +198,14 @@ export function DayDetailsModal({
                     style={[styles.input, styles.noteInput]}
                     value={trip.note ?? ''}
                   />
+
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => confirmDeleteTrip(trip)}
+                    style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+                  >
+                    <Text style={styles.deleteButtonText}>Borrar viaje</Text>
+                  </Pressable>
                 </View>
               ))}
             </ScrollView>
@@ -341,5 +363,21 @@ const styles = StyleSheet.create({
     minHeight: 64,
     paddingTop: 9,
     textAlignVertical: 'top',
+  },
+  deleteButton: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 7,
+    backgroundColor: '#FCEEEE',
+  },
+  deleteButtonPressed: {
+    opacity: 0.85,
+  },
+  deleteButtonText: {
+    color: '#B63A34',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0,
   },
 });

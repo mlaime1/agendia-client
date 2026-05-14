@@ -184,6 +184,14 @@ export const tripRepository = {
     tripRecords = serviceTrips.map(mapServiceTripToRecord);
   },
 
+  // Intenta borrar en API; lanza si falla
+  deleteCalendarTrip: async (trip: Trip): Promise<void> => {
+    await Promise.all(trip.recordIds.map((id) => tripsService.remove(id)));
+
+    const remainingServiceTrips = await tripsService.getAll();
+    tripRecords = remainingServiceTrips.map(mapServiceTripToRecord);
+  },
+
   // Local fallback update
   updateLocalCalendarTrip: (trip: Trip, updates: TripUpdates): void => {
     tripRecords = tripRecords.map((record) => {
@@ -201,5 +209,10 @@ export const tripRepository = {
         notes: updates.note ?? record.notes,
       };
     });
+  },
+
+  // Local fallback delete
+  deleteLocalCalendarTrip: (trip: Trip): void => {
+    tripRecords = tripRecords.filter((record) => !trip.recordIds.includes(record.id));
   },
 };

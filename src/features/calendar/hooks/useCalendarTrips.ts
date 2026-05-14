@@ -156,12 +156,33 @@ export const useCalendarTrips = (selectedClientId?: string) => {
     })();
   };
 
+  const deleteTrip = (tripId: string) => {
+    const trip = trips.find((currentTrip) => currentTrip.id === tripId);
+
+    if (!trip) {
+      return;
+    }
+
+    (async () => {
+      try {
+        await tripRepository.deleteCalendarTrip(trip);
+        const list = await tripRepository.listCalendarTrips(selectedClientId);
+        setTrips(list);
+      } catch (err: any) {
+        tripRepository.deleteLocalCalendarTrip(trip);
+        setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
+        setError(err?.message ?? 'Error eliminando viaje');
+      }
+    })();
+  };
+
   return {
     trips,
     tripsByDate,
     addTrip,
     addSpecialTrip,
     updateTrip,
+    deleteTrip,
     isLoadingTrips,
     error,
     clearError,

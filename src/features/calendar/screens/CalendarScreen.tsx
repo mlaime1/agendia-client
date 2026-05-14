@@ -32,8 +32,17 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
-  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip, isLoadingTrips, error, clearError } =
-    useCalendarTrips(selectedClientId);
+  const {
+    addSpecialTrip,
+    addTrip,
+    deleteTrip,
+    trips,
+    tripsByDate,
+    updateTrip,
+    isLoadingTrips,
+    error,
+    clearError,
+  } = useCalendarTrips(selectedClientId);
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
@@ -183,6 +192,7 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
 
       <DayDetailsModal
         dateLabel={detailDateLabel}
+        onDeleteTrip={deleteTrip}
         onClose={() => setDetailDateKey(null)}
         trips={detailTrips}
         onUpdateTrip={updateTrip}
