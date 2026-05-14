@@ -9,6 +9,7 @@ import { defaultsService } from '../../../services/defaults';
 export const useCalendarTrips = () => {
   const { userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
+  const [isLoadingTrips, setIsLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string>('3');
   const [routeId, setRouteId] = useState<string>('3');
@@ -31,6 +32,7 @@ export const useCalendarTrips = () => {
       updateTrip: () => {
         setError('No estás autenticado. Inicia sesión para actualizar viajes.');
       },
+      isLoadingTrips: false,
       error,
       clearError,
     };
@@ -40,6 +42,10 @@ export const useCalendarTrips = () => {
     let mounted = true;
 
     (async () => {
+      if (mounted) {
+        setIsLoadingTrips(true);
+      }
+
       try {
         const defaults = await defaultsService.getDefaults();
         if (mounted && defaults.clientId && defaults.routeId) {
@@ -56,6 +62,10 @@ export const useCalendarTrips = () => {
         if (mounted) {
           setTrips(tripRepository.getLocalCalendarTrips());
           setError(err?.message ?? 'Error cargando viajes');
+        }
+      } finally {
+        if (mounted) {
+          setIsLoadingTrips(false);
         }
       }
     })();
@@ -152,6 +162,7 @@ export const useCalendarTrips = () => {
     addTrip,
     addSpecialTrip,
     updateTrip,
+    isLoadingTrips,
     error,
     clearError,
   };

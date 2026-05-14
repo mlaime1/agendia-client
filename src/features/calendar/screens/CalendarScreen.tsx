@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Platform,
   Pressable,
   SafeAreaView,
@@ -31,7 +32,8 @@ export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
-  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip, error, clearError } = useCalendarTrips();
+  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip, isLoadingTrips, error, clearError } =
+    useCalendarTrips();
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
@@ -150,15 +152,27 @@ export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
 
         </View>
 
-        <QuickActionBar selectedMode={selectedMode} onSelectMode={setSelectedMode} />
+        {isLoadingTrips ? (
+          <View style={styles.loadingCard}>
+            <ActivityIndicator size="small" color="#247145" />
+            <Text style={styles.loadingTitle}>Cargando viajes...</Text>
+            <View style={styles.loadingLine} />
+            <View style={styles.loadingLine} />
+            <View style={[styles.loadingLine, styles.loadingLineShort]} />
+          </View>
+        ) : (
+          <>
+            <QuickActionBar selectedMode={selectedMode} onSelectMode={setSelectedMode} />
 
-        <CalendarGrid
-          days={days}
-          leadingEmptyCells={leadingEmptyCells}
-          onDayLongPress={setDetailDateKey}
-          onDayPress={handleDayPress}
-          tripsByDate={tripsByDate}
-        />
+            <CalendarGrid
+              days={days}
+              leadingEmptyCells={leadingEmptyCells}
+              onDayLongPress={setDetailDateKey}
+              onDayPress={handleDayPress}
+              tripsByDate={tripsByDate}
+            />
+          </>
+        )}
       </ScrollView>
 
       <SpecialTripModal
@@ -311,5 +325,29 @@ const styles = StyleSheet.create({
   },
   pressedButton: {
     opacity: 0.72,
+  },
+  loadingCard: {
+    marginTop: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: '#DFE8E2',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  loadingTitle: {
+    color: '#3F4C44',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+  loadingLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#EDF3EE',
+  },
+  loadingLineShort: {
+    width: '72%',
   },
 });
