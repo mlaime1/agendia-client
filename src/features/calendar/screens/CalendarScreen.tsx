@@ -105,6 +105,7 @@ export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
                   {isLoading ? 'Cargando...' : userProfile?.name ?? 'No autenticado'}
                 </Text>
               </View>
+            </View>
 
             <Pressable
               accessibilityRole="button"

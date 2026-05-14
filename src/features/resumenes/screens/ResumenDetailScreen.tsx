@@ -11,9 +11,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { summariesService } from '../../services/summaries';
-import type { Summary, SummaryStatus, Trip } from '../../services/types';
+import { ScreenWrapper } from '../../../components/ScreenWrapper';
+import { summariesService } from '../../../services/summaries';
+import type { Summary, SummaryStatus, Trip } from '../../../services/types';
 
 type ResumenDetailScreenProps = {
   summaryId: string;

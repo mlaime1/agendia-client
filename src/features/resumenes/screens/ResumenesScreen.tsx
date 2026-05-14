@@ -13,10 +13,10 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ScreenWrapper } from '../../components/ScreenWrapper';
-import { summariesService } from '../../services/summaries';
-import { clientsService } from '../../services/clients';
-import type { Summary, SummaryStatus, Client, BillingPreview } from '../../services/types';
+import { ScreenWrapper } from '../../../components/ScreenWrapper';
+import { summariesService } from '../../../services/summaries';
+import { clientsService } from '../../../services/clients';
+import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
 
 type PeriodOption = '7dias' | '15dias' | 'mensual';
 
