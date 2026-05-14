@@ -12,6 +12,7 @@ import {
 
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { QuickActionBar } from '../components/QuickActionBar';
 import { SpecialTripModal } from '../components/SpecialTripModal';
 import { useCalendarTrips } from '../hooks/useCalendarTrips';
@@ -20,12 +21,12 @@ import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } f
 import { useAuth } from '../../../state/AuthContext';
 
 export function CalendarScreen() {
-  const { logout, profileError, refreshProfile, userProfile } = useAuth();
+  const { logout, profileError, refreshProfile, userProfile, isAuthenticated, isLoading } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
-  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip } = useCalendarTrips();
+  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip, error, clearError } = useCalendarTrips();
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
@@ -78,12 +79,15 @@ export function CalendarScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <ErrorBanner message={error} onDismiss={clearError} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.appTitleRow}>
             <View style={styles.appTitleGroup}>
               <Text style={styles.appName}>Agendia</Text>
-              <Text style={styles.userLabel}>{userProfile?.name ?? 'Sesion activa'}</Text>
+              <Text style={styles.userLabel}>
+                {isLoading ? 'Cargando...' : userProfile?.name ?? 'No autenticado'}
+              </Text>
             </View>
 
             <Pressable
@@ -97,7 +101,7 @@ export function CalendarScreen() {
 
           {profileError ? (
             <View style={styles.profileWarning}>
-              <Text style={styles.profileWarningText}>No se pudo cargar /users/me.</Text>
+              <Text style={styles.profileWarningText}>No se pudo cargar perfil: {profileError}</Text>
               <Pressable accessibilityRole="button" onPress={refreshProfile}>
                 <Text style={styles.profileWarningAction}>Reintentar</Text>
               </Pressable>

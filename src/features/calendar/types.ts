@@ -1,5 +1,5 @@
 export type TripMode = 'outbound' | 'roundTrip' | 'special';
-export type TripType = 'outbound' | 'return';
+export type TripType = 'outbound' | 'return' | 'roundTrip' | 'special';
 
 export type TripRecord = {
   id: string;
@@ -22,9 +22,10 @@ export type TripRecord = {
 export type CreateTripPayload = {
   client_id: string;
   route_id: string;
+  rate_id: string;
   trip_date: string;
   trip_time: string;
-  trip_type: TripType;
+  trip_type: 'ida' | 'ida y vuelta' | 'especial';
   special_type?: string | null;
   notes?: string | null;
 };
