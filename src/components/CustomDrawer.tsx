@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   FlatList,
   Modal,
+  PanResponder,
   Pressable,
   StyleSheet,
   Text,
@@ -66,6 +67,7 @@ export function CustomDrawer({
 }: CustomDrawerProps) {
   const insets = useSafeAreaInsets();
   const [clientModalVisible, setClientModalVisible] = useState(false);
+  const translateX = useRef(new Animated.Value(0)).current;
 
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
@@ -102,6 +104,48 @@ export function CustomDrawer({
     onClose();
   };
 
+  useEffect(() => {
+    if (visible) {
+      translateX.setValue(0);
+    }
+  }, [translateX, visible]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const isHorizontalGesture = Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+          return isHorizontalGesture && Math.abs(gestureState.dx) > 8;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          const nextTranslate = Math.max(Math.min(gestureState.dx, 0), -DRAWER_WIDTH);
+          translateX.setValue(nextTranslate);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const shouldClose = gestureState.dx < -(DRAWER_WIDTH * 0.25) || gestureState.vx < -0.6;
+          if (shouldClose) {
+            Animated.timing(translateX, {
+              toValue: -DRAWER_WIDTH,
+              duration: 140,
+              useNativeDriver: true,
+            }).start(({ finished }) => {
+              if (finished) {
+                onClose();
+              }
+            });
+            return;
+          }
+
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 0,
+          }).start();
+        },
+      }),
+    [onClose, translateX],
+  );
+
   return (
     <Modal
       animationType="fade"
@@ -112,7 +156,10 @@ export function CustomDrawer({
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         
-        <Animated.View style={[styles.drawer, { paddingTop: insets.top }]}>
+        <Animated.View
+          style={[styles.drawer, { paddingTop: insets.top, transform: [{ translateX }] }]}
+          {...panResponder.panHandlers}
+        >
           {/* Header - Blue section */}
           <View style={styles.header}>
             <View style={styles.userInfo}>
