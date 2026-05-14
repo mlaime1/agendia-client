@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
@@ -20,7 +21,11 @@ import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 import { useAuth } from '../../../state/AuthContext';
 
-export function CalendarScreen() {
+type CalendarScreenProps = {
+  onMenuPress?: () => void;
+};
+
+export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
   const { logout, profileError, refreshProfile, userProfile, isAuthenticated, isLoading } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
@@ -83,12 +88,23 @@ export function CalendarScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <View style={styles.appTitleRow}>
-            <View style={styles.appTitleGroup}>
-              <Text style={styles.appName}>Agendia</Text>
-              <Text style={styles.userLabel}>
-                {isLoading ? 'Cargando...' : userProfile?.name ?? 'No autenticado'}
-              </Text>
-            </View>
+            <View style={styles.appTitleRowLeft}>
+              {onMenuPress && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={onMenuPress}
+                  style={({ pressed }) => [styles.menuButton, pressed && styles.pressedButton]}
+                  accessibilityLabel="Abrir menú"
+                >
+                  <Ionicons name="menu" size={24} color="#1A1A1A" />
+                </Pressable>
+              )}
+              <View style={styles.appTitleGroup}>
+                <Text style={styles.appName}>Agendia</Text>
+                <Text style={styles.userLabel}>
+                  {isLoading ? 'Cargando...' : userProfile?.name ?? 'No autenticado'}
+                </Text>
+              </View>
 
             <Pressable
               accessibilityRole="button"
@@ -187,6 +203,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  appTitleRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 12,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 8,
   },
   appTitleGroup: {
     flex: 1,
