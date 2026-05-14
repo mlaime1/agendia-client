@@ -1,5 +1,15 @@
-import React from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useRef } from 'react';
+import {
+  Animated,
+  Modal,
+  PanResponder,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Trip, TripMode, TripUpdates } from '../types';
 import { TripStamp } from './TripStamp';
@@ -19,6 +29,9 @@ const tripLabels: Record<TripMode, string> = {
 };
 
 const modeOptions: TripMode[] = ['outbound', 'roundTrip', 'special'];
+const SWIPE_CLOSE_DISTANCE = 120;
+const SWIPE_CLOSE_VELOCITY = 1;
+const PANEL_EXIT_TRANSLATE_Y = 520;
 
 export function DayDetailsModal({
   visible,
@@ -27,6 +40,56 @@ export function DayDetailsModal({
   onClose,
   onUpdateTrip,
 }: DayDetailsModalProps) {
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      translateY.setValue(0);
+    }
+  }, [translateY, visible]);
+
+  const closeWithSwipeAnimation = () => {
+    Animated.timing(translateY, {
+      toValue: PANEL_EXIT_TRANSLATE_Y,
+      duration: 170,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        onClose();
+      }
+    });
+  };
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const vertical = Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+          return vertical && gestureState.dy > 8;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          const nextTranslate = Math.max(0, gestureState.dy);
+          translateY.setValue(nextTranslate);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const shouldClose =
+            gestureState.dy > SWIPE_CLOSE_DISTANCE || gestureState.vy > SWIPE_CLOSE_VELOCITY;
+
+          if (shouldClose) {
+            closeWithSwipeAnimation();
+            return;
+          }
+
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 0,
+          }).start();
+        },
+      }),
+    [translateY],
+  );
+
   const handleModeChange = (trip: Trip, mode: TripMode) => {
     onUpdateTrip(trip.id, {
       mode,
@@ -37,8 +100,12 @@ export function DayDetailsModal({
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.panel}>
-          <View style={styles.header}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+
+        <Animated.View
+          style={[styles.panel, { transform: [{ translateY }] }]}
+        >
+          <View style={styles.header} {...panResponder.panHandlers}>
             <View style={styles.headerText}>
               <Text style={styles.eyebrow}>Detalle del día</Text>
               <Text style={styles.title}>{dateLabel}</Text>
@@ -121,7 +188,7 @@ export function DayDetailsModal({
               ))}
             </ScrollView>
           )}
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
