@@ -26,7 +26,7 @@ type CalendarScreenProps = {
 };
 
 export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
-  const { logout, profileError, refreshProfile, userProfile, isAuthenticated, isLoading } = useAuth();
+  const { profileError, refreshProfile, userProfile, isAuthenticated, isLoading } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
@@ -109,10 +109,10 @@ export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
 
             <Pressable
               accessibilityRole="button"
-              onPress={logout}
-              style={({ pressed }) => [styles.logoutButton, pressed && styles.pressedButton]}
+              onPress={goToCurrentMonth}
+              style={({ pressed }) => [styles.headerTodayButton, pressed && styles.pressedButton]}
             >
-              <Text style={styles.logoutButtonText}>Salir</Text>
+              <Text style={styles.headerTodayButtonText}>Hoy</Text>
             </Pressable>
           </View>
 
@@ -148,13 +148,6 @@ export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
             </Pressable>
           </View>
 
-          <Pressable
-            accessibilityRole="button"
-            onPress={goToCurrentMonth}
-            style={({ pressed }) => [styles.todayButton, pressed && styles.pressedButton]}
-          >
-            <Text style={styles.todayButtonText}>Hoy</Text>
-          </Pressable>
         </View>
 
         <QuickActionBar selectedMode={selectedMode} onSelectMode={setSelectedMode} />
@@ -234,7 +227,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0,
   },
-  logoutButton: {
+  headerTodayButton: {
     minHeight: 36,
     minWidth: 64,
     alignItems: 'center',
@@ -245,8 +238,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
   },
-  logoutButtonText: {
-    color: '#A33A34',
+  headerTodayButtonText: {
+    color: '#247145',
     fontSize: 13,
     fontWeight: '900',
     letterSpacing: 0,
@@ -315,24 +308,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0,
     lineHeight: 24,
-  },
-  todayButton: {
-    alignSelf: 'center',
-    minHeight: 34,
-    minWidth: 78,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: '#CFE0D3',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  todayButtonText: {
-    color: '#247145',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0,
   },
   pressedButton: {
     opacity: 0.72,
