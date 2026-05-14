@@ -2,7 +2,7 @@
 // Tipos que reflejan los modelos del backend (IDs como string por BigInt)
 
 export type BillingCycle = 'weekly' | 'biweekly' | 'monthly';
-export type TripType = 'ida' | 'vuelta' | 'ida y vuelta';
+export type TripType = 'ida' | 'vuelta' | 'ida y vuelta' | 'especial';
 export type SummaryStatus = 'draft' | 'sent' | 'paid' | 'archived';
 
 export interface Client {

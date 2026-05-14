@@ -28,7 +28,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [profileError, setProfileError] = useState<string | null>(null);
 
   const loadProfile = useCallback(async (currentSession: Session | null) => {
-    if (!currentSession?.access_token) {
+    if (!currentSession?.user?.id) {
       setUserProfile(null);
       setProfileError(null);
       return;
@@ -36,9 +36,18 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     try {
       setProfileError(null);
-      const profile = await getCurrentUserProfile(currentSession.access_token);
+      // Use Supabase user data directly instead of calling /users/me
+      const supabaseUser = currentSession.user;
+      const profile: UserProfile = {
+        id: supabaseUser.id,
+        name: supabaseUser.user_metadata?.name || supabaseUser.email || 'Usuario',
+        email: supabaseUser.email || '',
+        alias: supabaseUser.user_metadata?.alias || null,
+        role: supabaseUser.user_metadata?.role || 'driver',
+      };
       setUserProfile(profile);
     } catch (error) {
+      console.error('[AuthContext] Failed to load profile:', error);
       setUserProfile(null);
       setProfileError(getErrorMessage(error));
     }

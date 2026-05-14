@@ -3,18 +3,53 @@ import { useEffect, useMemo, useState } from 'react';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
 import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
+import { useAuth } from '../../../state/AuthContext';
+import { defaultsService } from '../../../services/defaults';
 
 export const useCalendarTrips = () => {
+  const { userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [clientId, setClientId] = useState<string>('3');
+  const [routeId, setRouteId] = useState<string>('3');
+  const [rateId, setRateId] = useState<string>('1');
 
   const clearError = () => setError(null);
+
+  const userId = userProfile?.id;
+
+  if (!userId) {
+    return {
+      trips: [],
+      tripsByDate: {},
+      addTrip: () => {
+        setError('No estás autenticado. Inicia sesión para crear viajes.');
+      },
+      addSpecialTrip: () => {
+        setError('No estás autenticado. Inicia sesión para crear viajes.');
+      },
+      updateTrip: () => {
+        setError('No estás autenticado. Inicia sesión para actualizar viajes.');
+      },
+      error,
+      clearError,
+    };
+  }
 
   useEffect(() => {
     let mounted = true;
 
     (async () => {
       try {
+        const defaults = await defaultsService.getDefaults();
+        if (mounted && defaults.clientId && defaults.routeId) {
+          setClientId(defaults.clientId);
+          setRouteId(defaults.routeId);
+          if (defaults.rateId) {
+            setRateId(defaults.rateId);
+          }
+        }
+
         const list = await tripRepository.listCalendarTrips();
         if (mounted) setTrips(list);
       } catch (err: any) {
@@ -41,16 +76,30 @@ export const useCalendarTrips = () => {
     [trips],
   );
 
+  const mergeTripIntoState = (nextTrip: Trip) => {
+    setTrips((currentTrips) => {
+      const remainingTrips = currentTrips.filter((trip) => trip.id !== nextTrip.id);
+      return [...remainingTrips, nextTrip].sort((left, right) =>
+        left.date.localeCompare(right.date) || left.time.localeCompare(right.time),
+      );
+    });
+  };
+
   const addTrip = (dateKey: string, mode: TripMode) => {
     (async () => {
       try {
-        await tripRepository.createTrips(toCreateTripPayloads({ dateKey, mode }));
-        const list = await tripRepository.listCalendarTrips();
-        setTrips(list);
+        const createdTrip = await tripRepository.createTrips(
+          toCreateTripPayloads({ dateKey, mode, clientId, routeId, rateId }),
+          userId,
+        );
+        mergeTripIntoState(createdTrip);
       } catch (err: any) {
         // fallback local create
-        const fallback = tripRepository.createLocalTrips(toCreateTripPayloads({ dateKey, mode }));
-        setTrips(tripRepository.getLocalCalendarTrips());
+        const fallback = tripRepository.createLocalTrips(
+          toCreateTripPayloads({ dateKey, mode, clientId, routeId, rateId }),
+          userId,
+        );
+        mergeTripIntoState(fallback);
         setError(err?.message ?? 'Error creando viaje');
         return fallback;
       }
@@ -60,16 +109,17 @@ export const useCalendarTrips = () => {
   const addSpecialTrip = ({ dateKey, specialType, note }: PendingSpecialTrip) => {
     (async () => {
       try {
-        await tripRepository.createTrips(
-          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note }),
+        const createdTrip = await tripRepository.createTrips(
+          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId, routeId, rateId }),
+          userId,
         );
-        const list = await tripRepository.listCalendarTrips();
-        setTrips(list);
+        mergeTripIntoState(createdTrip);
       } catch (err: any) {
         const fallback = tripRepository.createLocalTrips(
-          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note }),
+          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId, routeId, rateId }),
+          userId,
         );
-        setTrips(tripRepository.getLocalCalendarTrips());
+        mergeTripIntoState(fallback);
         setError(err?.message ?? 'Error creando viaje especial');
         return fallback;
       }

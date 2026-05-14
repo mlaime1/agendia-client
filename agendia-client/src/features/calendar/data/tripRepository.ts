@@ -6,18 +6,25 @@ import type { Trip as ServiceTrip } from '../../../services/types';
 
 const createTripId = () => `trip-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+const normalizeServiceTripDate = (tripDate: string) => tripDate.slice(0, 10);
+
 let tripRecords: TripRecord[] = [...mockTripRecords];
 
-const createTripRecord = (payload: CreateTripPayload): TripRecord => ({
+const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecord => ({
   id: createTripId(),
-  user_id: 'demo-user',
+  user_id: userId,
   client_id: payload.client_id,
   route_id: payload.route_id,
-  rate_id: 'demo-rate',
+  rate_id: payload.rate_id,
   summary_id: null,
   trip_date: payload.trip_date,
   trip_time: payload.trip_time,
-  trip_type: payload.trip_type,
+  trip_type:
+    payload.trip_type === 'ida y vuelta'
+      ? 'roundTrip'
+      : payload.trip_type === 'especial'
+        ? 'special'
+        : 'outbound',
   final_price: 0,
   has_surcharge: false,
   surcharge_reason: null,
@@ -33,9 +40,16 @@ const mapServiceTripToRecord = (s: ServiceTrip): TripRecord => ({
   route_id: s.route_id,
   rate_id: s.rate_id,
   summary_id: s.summary_id ?? null,
-  trip_date: s.trip_date,
+  trip_date: normalizeServiceTripDate(s.trip_date),
   trip_time: s.created_at ? new Date(s.created_at).toTimeString().slice(0, 5) : '08:00',
-  trip_type: s.trip_type === 'ida' ? 'outbound' : s.trip_type === 'vuelta' ? 'return' : 'outbound',
+  trip_type:
+    s.trip_type === 'ida'
+      ? 'outbound'
+      : s.trip_type === 'vuelta'
+        ? 'return'
+        : s.trip_type === 'ida y vuelta'
+          ? 'roundTrip'
+          : 'special',
   final_price: Number(s.final_price) || 0,
   has_surcharge: s.has_surcharge,
   surcharge_reason: s.surcharge_reason ?? null,
@@ -91,21 +105,26 @@ export const tripRepository = {
   getLocalCalendarTrips: (): Trip[] => groupRecordsForCalendar(tripRecords),
 
   // Intenta crear en API; lanza si falla
-  createTrips: async (payloads: CreateTripPayload[]): Promise<Trip> => {
+  createTrips: async (payloads: CreateTripPayload[], userId: string): Promise<Trip> => {
     const created: ServiceTrip[] = await Promise.all(
-      payloads.map((p) =>
-        tripsService.create({
-          user_id: 'demo-user',
+      payloads.map((p) => {
+        const body: any = {
+          user_id: userId,
           client_id: p.client_id,
           route_id: p.route_id,
-          rate_id: 'demo-rate',
+          rate_id: p.rate_id,
           trip_date: p.trip_date,
-          trip_type: p.trip_type === 'outbound' ? 'ida' : 'vuelta',
+          trip_type: p.trip_type,
           final_price: 0,
-          special_type: p.special_type ?? undefined,
-          notes: p.notes ?? undefined,
-        }),
-      ),
+        };
+
+        // Agregar campos opcionales solo si existen
+        if (p.trip_time) body.trip_time = p.trip_time;
+        if (p.special_type) body.special_type = p.special_type;
+        if (p.notes) body.notes = p.notes;
+
+        return tripsService.create(body);
+      }),
     );
 
     const records = created.map(mapServiceTripToRecord);
@@ -114,8 +133,8 @@ export const tripRepository = {
   },
 
   // Local fallback create (no API)
-  createLocalTrips: (payloads: CreateTripPayload[]): Trip => {
-    const records = payloads.map(createTripRecord);
+  createLocalTrips: (payloads: CreateTripPayload[], userId: string): Trip => {
+    const records = payloads.map((p) => createTripRecord(p, userId));
     tripRecords = [...tripRecords, ...records];
     return toCalendarTrip(records);
   },
@@ -130,7 +149,12 @@ export const tripRepository = {
         if (updates.note !== undefined) body.notes = updates.note ?? null;
 
         if (updates.mode === 'special') {
+          body.trip_type = 'especial';
           body.special_type = updates.specialType?.trim() || 'Ruta especial';
+        } else if (updates.mode === 'roundTrip') {
+          body.trip_type = 'ida y vuelta';
+        } else if (updates.mode === 'outbound') {
+          body.trip_type = 'ida';
         }
 
         return tripsService.update(id, body);
