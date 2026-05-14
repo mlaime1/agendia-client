@@ -17,8 +17,10 @@ import { SpecialTripModal } from '../components/SpecialTripModal';
 import { useCalendarTrips } from '../hooks/useCalendarTrips';
 import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
+import { useAuth } from '../../../state/AuthContext';
 
 export function CalendarScreen() {
+  const { logout, profileError, refreshProfile, userProfile } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
@@ -78,7 +80,30 @@ export function CalendarScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Text style={styles.appName}>Agendia</Text>
+          <View style={styles.appTitleRow}>
+            <View style={styles.appTitleGroup}>
+              <Text style={styles.appName}>Agendia</Text>
+              <Text style={styles.userLabel}>{userProfile?.name ?? 'Sesion activa'}</Text>
+            </View>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={logout}
+              style={({ pressed }) => [styles.logoutButton, pressed && styles.pressedButton]}
+            >
+              <Text style={styles.logoutButtonText}>Salir</Text>
+            </Pressable>
+          </View>
+
+          {profileError ? (
+            <View style={styles.profileWarning}>
+              <Text style={styles.profileWarningText}>No se pudo cargar /users/me.</Text>
+              <Pressable accessibilityRole="button" onPress={refreshProfile}>
+                <Text style={styles.profileWarningAction}>Reintentar</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <View style={styles.monthRow}>
             <Pressable
               accessibilityLabel="Mes anterior"
@@ -153,9 +178,67 @@ const styles = StyleSheet.create({
   header: {
     gap: 10,
   },
+  appTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  appTitleGroup: {
+    flex: 1,
+    gap: 2,
+  },
   appName: {
     color: '#233329',
     fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  userLabel: {
+    color: '#718077',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0,
+  },
+  logoutButton: {
+    minHeight: 36,
+    minWidth: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#D7E2D8',
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+  },
+  logoutButtonText: {
+    color: '#A33A34',
+    fontSize: 13,
+    fontWeight: '900',
+    letterSpacing: 0,
+  },
+  profileWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#F0D2CF',
+    borderRadius: 8,
+    backgroundColor: '#FFF7F6',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  profileWarningText: {
+    flex: 1,
+    color: '#7A3732',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0,
+  },
+  profileWarningAction: {
+    color: '#247145',
+    fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0,
   },
