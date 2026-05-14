@@ -19,6 +19,8 @@ import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { getLeadingEmptyCells, getMonthDays } from '../../calendar/utils/date';
 import { summariesService } from '../../../services/summaries';
 import { clientsService } from '../../../services/clients';
+import { api } from '../../../services/apiClient';
+import { useAuth } from '../../../state/AuthContext';
 import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
 
 type PeriodOption = '7dias' | '15dias' | 'mensual';
@@ -488,6 +490,8 @@ function NuevoResumenModal({
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
   const [clients, setClients] = useState<Client[]>([]);
+  const [numericDriverId, setNumericDriverId] = useState<string | null>(null);
+  const { session } = useAuth();
   const [selectedClient, setSelectedClient] = useState(selectedClientId);
   const [preview, setPreview] = useState<BillingPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -515,6 +519,33 @@ function NuevoResumenModal({
       loadClients();
     }
   }, [visible, selectedClientId]);
+
+  // Resolve numeric driver id once when modal opens to avoid sending UUIDs where backend expects BigInt
+  useEffect(() => {
+    if (!visible) return;
+
+    let mounted = true;
+    setNumericDriverId(null);
+
+    (async () => {
+      try {
+        const token = session?.access_token ?? null;
+        const profile = await api.get<{ id: string }>('/users/me', {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!mounted) return;
+        if (profile?.id) {
+          setNumericDriverId(String(profile.id));
+        }
+      } catch (err) {
+        console.error('Failed to resolve numeric driver id:', err);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (visible && selectedClient) {
@@ -590,11 +621,11 @@ function NuevoResumenModal({
     setCreating(true);
     try {
       const trimmedNotes = notes.trim() || undefined;
-      const isNumericId = (id?: string) => Boolean(id && /^[0-9]+$/.test(id));
+      const sendingDriverId = numericDriverId ?? driverId;
 
       if (activeTab === 'auto') {
         await summariesService.createAuto(selectedClient, {
-          driver_id: driverId,
+          driver_id: sendingDriverId,
           notes: trimmedNotes,
         });
       } else {
@@ -607,7 +638,7 @@ function NuevoResumenModal({
 
         await summariesService.createManual({
           client_id: selectedClient,
-          driver_id: driverId,
+          driver_id: sendingDriverId,
           period_start: periodStart,
           period_end: periodEnd,
           notes: trimmedNotes,

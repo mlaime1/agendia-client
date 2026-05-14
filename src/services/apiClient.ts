@@ -41,15 +41,15 @@ async function request<T>(
 
 // Helpers para cada verbo
 export const api = {
-  get: <T>(path: string) => request<T>(path),
+  get: <T>(path: string, options?: RequestInit) => request<T>(path, options),
 
-  post: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  post: <T>(path: string, body: unknown, options?: RequestInit) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body), ...(options ?? {}) }),
 
-  patch: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
+  patch: <T>(path: string, body: unknown, options?: RequestInit) =>
+    request<T>(path, { method: 'PATCH', body: JSON.stringify(body), ...(options ?? {}) }),
 
-  delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  delete: <T>(path: string, options?: RequestInit) => request<T>(path, { method: 'DELETE', ...(options ?? {}) }),
 };
 
 export { ApiError };
