@@ -9,12 +9,11 @@ export const toCreateTripPayloads = ({
   note,
   clientId = '3',
   routeId = '3',
-  rateId = '1',
 }: CreateCalendarTripInput & { clientId?: string; routeId?: string; rateId?: string }): CreateTripPayload[] => {
   const basePayload = {
     client_id: clientId,
     route_id: routeId,
-    rate_id: rateId,
+    rate_id: null,
     trip_date: dateKey,
     trip_time: getCurrentTime(),
     notes: note?.trim() || null,
@@ -48,7 +47,7 @@ export const toCalendarTrip = (records: TripRecord[]): Trip => {
     recordIds: records.map((record) => record.id),
     date: firstRecord.trip_date,
     time: firstRecord.trip_time,
-    mode: isRoundTrip || isSingleRoundTrip ? 'roundTrip' : isSpecial || specialType ? 'special' : 'outbound',
+    mode: isRoundTrip || isSingleRoundTrip ? 'roundTrip' : isSpecial ? 'special' : 'outbound',
     specialType,
     note: firstRecord.notes ?? undefined,
   };

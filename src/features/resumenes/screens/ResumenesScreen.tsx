@@ -1,7 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -14,11 +16,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
+import { getLeadingEmptyCells, getMonthDays } from '../../calendar/utils/date';
 import { summariesService } from '../../../services/summaries';
 import { clientsService } from '../../../services/clients';
+import { api } from '../../../services/apiClient';
+import { useAuth } from '../../../state/AuthContext';
 import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
 
 type PeriodOption = '7dias' | '15dias' | 'mensual';
+type SummaryFilter = 'all' | SummaryStatus;
 
 type ResumenesScreenProps = {
   selectedClientId: string;
@@ -30,9 +36,166 @@ type ResumenesScreenProps = {
 const STATUS_CONFIG: Record<SummaryStatus, { bg: string; text: string; label: string }> = {
   draft: { bg: '#FAEEDA', text: '#854F0B', label: 'Borrador' },
   sent: { bg: '#E6F1FB', text: '#185FA5', label: 'Enviado' },
-  paid: { bg: '#EAF3DE', text: '#3B6D11', label: 'Pagado' },
+  paid: { bg: '#EAF3DE', text: '#3B6D11', label: 'Abonado' },
   archived: { bg: '#F1EFE8', text: '#5F5E5A', label: 'Archivado' },
 };
+
+const SUMMARY_FILTER_OPTIONS: Array<{ value: SummaryFilter; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'draft', label: 'Borrador' },
+  { value: 'sent', label: 'Enviado' },
+  { value: 'paid', label: 'Abonado' },
+  { value: 'archived', label: 'Archivado' },
+];
+
+function parseDateKey(value: string) {
+  return value.split('T')[0];
+}
+
+function formatDateLabel(dateKey: string) {
+  const [year, month, day] = dateKey.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function formatPeriodLabel(start: string, end: string) {
+  return `${formatDateLabel(parseDateKey(start))} — ${formatDateLabel(parseDateKey(end))}`;
+}
+
+function formatCurrency(value: string | number) {
+  const amount = typeof value === 'number' ? value : parseFloat(value || '0');
+  return amount.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+}
+
+function getCycleLabel(periodType: Summary['period_type']) {
+  if (periodType === 'weekly') return 'Semanal';
+  if (periodType === 'biweekly') return 'Quincenal';
+  return 'Mensual';
+}
+
+function getNextStatus(status: SummaryStatus): SummaryStatus | null {
+  if (status === 'draft') return 'sent';
+  if (status === 'sent') return 'paid';
+  if (status === 'paid') return 'archived';
+  return null;
+}
+
+function getStatusActionLabel(status: SummaryStatus) {
+  if (status === 'draft') return 'Marcar como enviado';
+  if (status === 'sent') return 'Marcar como abonado';
+  if (status === 'paid') return 'Archivar';
+  return null;
+}
+
+function formatMonthLabel(date: Date) {
+  return date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
+}
+
+function formatLongDateLabel(date: Date) {
+  return date.toLocaleDateString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function toDateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
+    date.getDate(),
+  ).padStart(2, '0')}`;
+}
+
+function isSameCalendarDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  );
+}
+
+function isDateInRange(date: Date, start: Date, end: Date) {
+  const currentTime = date.getTime();
+  return currentTime >= start.getTime() && currentTime <= end.getTime();
+}
+
+type MiniRangeCalendarProps = {
+  monthDate: Date;
+  startDate: Date | null;
+  endDate: Date | null;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  onSelectDate: (date: Date) => void;
+};
+
+function MiniRangeCalendar({
+  monthDate,
+  startDate,
+  endDate,
+  onPrevMonth,
+  onNextMonth,
+  onSelectDate,
+}: MiniRangeCalendarProps) {
+  const days = getMonthDays(monthDate);
+  const leadingEmptyCells = getLeadingEmptyCells(monthDate);
+
+  const handleDayPress = (day: { date: Date }) => onSelectDate(day.date);
+
+  return (
+    <View style={styles.calendarCard}>
+      <View style={styles.calendarHeader}>
+        <Pressable style={({ pressed }) => [styles.calendarNavButton, pressed && styles.calendarNavPressed]} onPress={onPrevMonth}>
+          <Ionicons name="chevron-back" size={18} color="#1A1A1A" />
+        </Pressable>
+        <Text style={styles.calendarMonthLabel}>{formatMonthLabel(monthDate)}</Text>
+        <Pressable style={({ pressed }) => [styles.calendarNavButton, pressed && styles.calendarNavPressed]} onPress={onNextMonth}>
+          <Ionicons name="chevron-forward" size={18} color="#1A1A1A" />
+        </Pressable>
+      </View>
+
+      <View style={styles.weekRow}>
+        {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((label) => (
+          <Text key={label} style={styles.weekLabel}>
+            {label}
+          </Text>
+        ))}
+      </View>
+
+      <View style={styles.calendarGrid}>
+        {Array.from({ length: leadingEmptyCells }).map((_, index) => (
+          <View key={`empty-${index}`} style={styles.calendarCellPlaceholder} />
+        ))}
+
+        {days.map((day) => {
+          const isStart = startDate ? isSameCalendarDay(day.date, startDate) : false;
+          const isEnd = endDate ? isSameCalendarDay(day.date, endDate) : false;
+          const isInSelectedRange = startDate && endDate ? isDateInRange(day.date, startDate, endDate) : false;
+
+          return (
+            <Pressable
+              key={day.dateKey}
+              style={({ pressed }) => [
+                styles.calendarCell,
+                isInSelectedRange && styles.calendarCellInRange,
+                (isStart || isEnd) && styles.calendarCellSelected,
+                day.isToday && styles.calendarCellToday,
+                pressed && styles.calendarCellPressed,
+              ]}
+              onPress={() => handleDayPress(day)}
+            >
+              <Text
+                style={[
+                  styles.calendarCellText,
+                  (isStart || isEnd) && styles.calendarCellTextSelected,
+                ]}
+              >
+                {day.dayNumber}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
 
 export function ResumenesScreen({
   selectedClientId,
@@ -44,17 +207,32 @@ export function ResumenesScreen({
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [defaultPeriod, setDefaultPeriod] = useState<PeriodOption>('15dias');
+  const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [modalVisible, setModalVisible] = useState(false);
 
+  const filteredSummaries = useMemo(() => {
+    if (summaryFilter === 'all') {
+      return summaries;
+    }
+
+    return summaries.filter((summary) => summary.status === summaryFilter);
+  }, [summaries, summaryFilter]);
+
   const loadSummaries = useCallback(async () => {
-    if (!selectedClientId) return;
+    if (!selectedClientId) {
+      setSummaries([]);
+      setLoading(false);
+      return;
+    }
     
     setLoading(true);
     setError(null);
     try {
       const data = await summariesService.getAllByClient(selectedClientId);
-      setSummaries(data);
+      const ordered = [...data].sort(
+        (left, right) => new Date(right.period_end).getTime() - new Date(left.period_end).getTime(),
+      );
+      setSummaries(ordered);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error cargando resúmenes');
     } finally {
@@ -66,19 +244,56 @@ export function ResumenesScreen({
     loadSummaries();
   }, [loadSummaries]);
 
-  const handleStatusChange = async (id: string, newStatus: SummaryStatus) => {
-    try {
-      await summariesService.updateStatus(id, { status: newStatus });
-      loadSummaries();
-    } catch (err) {
-      console.error('Error updating status:', err);
+  const handleStatusChange = (summary: Summary, newStatus: SummaryStatus) => {
+    const actionLabel = getStatusActionLabel(newStatus);
+    if (!actionLabel) return;
+
+    if (newStatus === 'sent' || newStatus === 'paid' || newStatus === 'archived') {
+      (async () => {
+        try {
+          await summariesService.updateStatus(summary.id, { status: newStatus });
+          loadSummaries();
+        } catch (err) {
+          console.error('Error updating status:', err);
+        }
+      })();
+
+      return;
     }
+
+    Alert.alert('Confirmar cambio', `¿Quieres ${actionLabel.toLowerCase()} este resumen?`, [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Confirmar',
+        onPress: async () => {
+          try {
+            const updated = await summariesService.updateStatus(summary.id, { status: newStatus });
+
+            loadSummaries();
+          } catch (err) {
+            console.error('Error updating status:', err);
+          }
+        },
+      },
+    ]);
   };
 
   const handleDownload = (id: string) => {
     const url = summariesService.getPdfUrl(id);
-    // In a real app, use Linking.openURL(url) or WebBrowser.openBrowserAsync(url)
-    console.log('Download PDF:', url);
+    Linking.openURL(url).catch((err) => {
+      console.error('Error opening PDF:', err);
+    });
+  };
+
+  const handleDelete = (summary: Summary) => {
+    (async () => {
+      try {
+        await summariesService.remove(summary.id);
+        loadSummaries();
+      } catch (err) {
+        console.error('Error deleting summary:', err);
+      }
+    })();
   };
 
   // Calculate stats
@@ -96,21 +311,12 @@ export function ResumenesScreen({
   });
   const thisMonthAmount = thisMonthSummaries.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
 
-  const formatPeriod = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    const startDay = startDate.getDate();
-    const endDay = endDate.getDate();
-    const months = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-    const month = months[endDate.getMonth()];
-    const year = endDate.getFullYear();
-    return `${startDay} – ${endDay} ${month} ${year}`;
-  };
-
   const renderSummaryItem = ({ item }: { item: Summary }) => {
     const statusConfig = STATUS_CONFIG[item.status];
-    const period = formatPeriod(item.period_start, item.period_end);
+    const period = formatPeriodLabel(item.period_start, item.period_end);
     const clientName = item.clients?.nombre || 'Cliente';
+    const cycleLabel = getCycleLabel(item.period_type);
+    const nextStatus = getNextStatus(item.status);
 
     return (
       <Pressable
@@ -123,20 +329,20 @@ export function ResumenesScreen({
             <Text style={styles.clientText}>{clientName}</Text>
           </View>
           <View style={styles.summaryRightCol}>
-            <Text style={styles.amountText}>${parseFloat(item.total_amount).toFixed(2)}</Text>
+            <Text style={styles.amountText}>${formatCurrency(item.total_amount)}</Text>
             <Text style={styles.tripsText}>{item.total_trips} viajes</Text>
           </View>
         </View>
 
         <View style={styles.summaryBottomRow}>
-          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
-            <View style={[styles.statusDot, { backgroundColor: statusConfig.text }]} />
-            <Text style={[styles.statusText, { color: statusConfig.text }]}>
-              {statusConfig.label}
-            </Text>
-          </View>
-
           <View style={styles.actionButtons}>
+            <Pressable
+              style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+              onPress={() => onOpenDetail(item.id)}
+            >
+              <Ionicons name="eye-outline" size={16} color="#1A1A1A" />
+            </Pressable>
+
             <Pressable
               style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
               onPress={() => handleDownload(item.id)}
@@ -144,31 +350,45 @@ export function ResumenesScreen({
               <Ionicons name="download-outline" size={16} color="#1A1A1A" />
             </Pressable>
 
-            {item.status === 'draft' && (
-              <>
-                <Pressable
-                  style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                  onPress={() => handleStatusChange(item.id, 'sent')}
-                >
-                  <Ionicons name="send-outline" size={16} color="#1A1A1A" />
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                  onPress={() => handleStatusChange(item.id, 'paid')}
-                >
-                  <Ionicons name="checkmark-circle-outline" size={16} color="#1A1A1A" />
-                </Pressable>
-              </>
-            )}
-
-            {item.status === 'sent' && (
+            {nextStatus && (
               <Pressable
                 style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-                onPress={() => handleStatusChange(item.id, 'paid')}
+                onPress={() => handleStatusChange(item, nextStatus)}
               >
-                <Ionicons name="checkmark-circle-outline" size={16} color="#1A1A1A" />
+                <Ionicons
+                  name={
+                    nextStatus === 'sent'
+                      ? 'send-outline'
+                      : nextStatus === 'paid'
+                        ? 'checkmark-circle-outline'
+                        : 'archive-outline'
+                  }
+                  size={16}
+                  color="#1A1A1A"
+                />
               </Pressable>
             )}
+
+            {item.status === 'draft' && (
+              <Pressable
+                style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+                onPress={() => handleDelete(item)}
+              >
+                <Ionicons name="trash-outline" size={16} color="#B42318" />
+              </Pressable>
+            )}
+
+            <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
+              <View style={[styles.statusDot, { backgroundColor: statusConfig.text }]} />
+              <Text style={[styles.statusText, { color: statusConfig.text }]}>
+                {statusConfig.label}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.cycleBadgeRow}>
+          <View style={styles.cycleBadge}>
+            <Text style={styles.cycleBadgeText}>{cycleLabel}</Text>
           </View>
         </View>
       </Pressable>
@@ -185,31 +405,30 @@ export function ResumenesScreen({
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Pendientes</Text>
-            <Text style={styles.statValue}>${pendingAmount.toFixed(2)}</Text>
+            <Text style={styles.statValue}>${formatCurrency(pendingAmount)}</Text>
             <Text style={styles.statSubtitle}>{pendingCount} resúmenes</Text>
           </View>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Este mes</Text>
-            <Text style={styles.statValue}>${thisMonthAmount.toFixed(2)}</Text>
+            <Text style={styles.statValue}>${formatCurrency(thisMonthAmount)}</Text>
             <Text style={styles.statSubtitle}>{thisMonthSummaries.length} cobrados</Text>
           </View>
         </View>
 
-        {/* Period selector */}
+        {/* Status filters */}
         <View style={styles.periodSection}>
-          <Text style={styles.periodLabel}>PERÍODO POR DEFECTO</Text>
+          <Text style={styles.periodLabel}>FILTROS</Text>
           <View style={styles.periodPills}>
-            {(['7dias', '15dias', 'mensual'] as PeriodOption[]).map((period) => {
-              const isActive = defaultPeriod === period;
-              const label = period === '7dias' ? '7 días' : period === '15dias' ? '15 días' : 'Mensual';
+            {SUMMARY_FILTER_OPTIONS.map((option) => {
+              const isActive = summaryFilter === option.value;
               return (
                 <Pressable
-                  key={period}
+                  key={option.value}
                   style={[styles.periodPill, isActive && styles.periodPillActive]}
-                  onPress={() => setDefaultPeriod(period)}
+                  onPress={() => setSummaryFilter(option.value)}
                 >
                   <Text style={[styles.periodPillText, isActive && styles.periodPillTextActive]}>
-                    {label}
+                    {option.label}
                   </Text>
                 </Pressable>
               );
@@ -229,13 +448,15 @@ export function ResumenesScreen({
               <Text style={styles.retryButtonText}>Reintentar</Text>
             </Pressable>
           </View>
-        ) : summaries.length === 0 ? (
+        ) : filteredSummaries.length === 0 ? (
           <View style={styles.centered}>
-            <Text style={styles.emptyText}>No hay resúmenes</Text>
+            <Text style={styles.emptyText}>
+              {summaryFilter === 'all' ? 'No hay resúmenes' : 'No hay resúmenes con este filtro'}
+            </Text>
           </View>
         ) : (
           <FlatList
-            data={summaries}
+            data={filteredSummaries}
             keyExtractor={(item) => item.id}
             renderItem={renderSummaryItem}
             scrollEnabled={false}
@@ -260,7 +481,6 @@ export function ResumenesScreen({
         onClose={() => setModalVisible(false)}
         selectedClientId={selectedClientId}
         driverId={driverId}
-        defaultPeriod={defaultPeriod}
         onSuccess={() => {
           setModalVisible(false);
           loadSummaries();
@@ -279,7 +499,6 @@ type NuevoResumenModalProps = {
   onClose: () => void;
   selectedClientId: string;
   driverId: string;
-  defaultPeriod: PeriodOption;
   onSuccess: () => void;
 };
 
@@ -288,36 +507,73 @@ function NuevoResumenModal({
   onClose,
   selectedClientId,
   driverId,
-  defaultPeriod,
   onSuccess,
 }: NuevoResumenModalProps) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
   const [clients, setClients] = useState<Client[]>([]);
+  const [numericDriverId, setNumericDriverId] = useState<string | null>(null);
+  const { session } = useAuth();
   const [selectedClient, setSelectedClient] = useState(selectedClientId);
   const [preview, setPreview] = useState<BillingPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [notes, setNotes] = useState('');
 
   // Manual tab state
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [manualMonthDate, setManualMonthDate] = useState(() => new Date());
+  const [manualStartDate, setManualStartDate] = useState<Date | null>(null);
+  const [manualEndDate, setManualEndDate] = useState<Date | null>(null);
 
   const [clientSelectorVisible, setClientSelectorVisible] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setSelectedClient(selectedClientId);
+      setActiveTab('auto');
+      setManualMonthDate(new Date());
+      setManualStartDate(null);
+      setManualEndDate(null);
+      setNotes('');
+      setPreview(null);
+      setPreviewError(null);
       loadClients();
     }
   }, [visible, selectedClientId]);
+
+  // Resolve numeric driver id once when modal opens to avoid sending UUIDs where backend expects BigInt
+  useEffect(() => {
+    if (!visible) return;
+
+    let mounted = true;
+    setNumericDriverId(null);
+
+    (async () => {
+      try {
+        const token = session?.access_token ?? null;
+        const profile = await api.get<{ id: string }>('/users/me', {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        if (!mounted) return;
+        if (profile?.id) {
+          setNumericDriverId(String(profile.id));
+        }
+      } catch (err) {
+        console.error('Failed to resolve numeric driver id:', err);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (visible && selectedClient) {
       loadPreview();
     }
-  }, [visible, selectedClient, activeTab, fromDate, toDate]);
+  }, [visible, selectedClient, activeTab]);
 
   const loadClients = async () => {
     try {
@@ -336,15 +592,7 @@ function NuevoResumenModal({
     setPreview(null);
 
     try {
-      let dateParam: string | undefined;
-      if (activeTab === 'manual' && fromDate && toDate) {
-        // Convert DD/MM/YYYY to YYYY-MM-DD
-        const [day, month, year] = toDate.split('/');
-        if (day && month && year) {
-          dateParam = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        }
-      }
-      const data = await summariesService.preview(selectedClient, dateParam);
+      const data = await summariesService.preview(selectedClient);
       setPreview(data);
     } catch (err) {
       setPreviewError(err instanceof Error ? err.message : 'Error cargando preview');
@@ -353,23 +601,69 @@ function NuevoResumenModal({
     }
   };
 
+  const selectManualDate = (date: Date) => {
+    if (!manualStartDate || (manualStartDate && manualEndDate)) {
+      setManualStartDate(date);
+      setManualEndDate(null);
+      return;
+    }
+
+    if (isSameCalendarDay(date, manualStartDate)) {
+      setManualEndDate(date);
+      return;
+    }
+
+    if (date.getTime() < manualStartDate.getTime()) {
+      setManualEndDate(manualStartDate);
+      setManualStartDate(date);
+      return;
+    }
+
+    setManualEndDate(date);
+  };
+
   const handleCreate = async () => {
     if (!selectedClient || creating) return;
 
+    if (activeTab === 'manual') {
+      const periodStart = manualStartDate ? toDateKey(manualStartDate) : null;
+      const periodEnd = manualEndDate ? toDateKey(manualEndDate) : periodStart;
+
+      if (!periodStart || !periodEnd) {
+        setPreviewError('Seleccioná un rango de fechas en el calendario');
+        return;
+      }
+
+      if (periodStart > periodEnd) {
+        setPreviewError('La fecha desde no puede ser mayor que la fecha hasta');
+        return;
+      }
+    }
+
     setCreating(true);
     try {
+      const trimmedNotes = notes.trim() || undefined;
+      const sendingDriverId = numericDriverId ?? driverId;
+
       if (activeTab === 'auto') {
-        await summariesService.createAuto(selectedClient);
+        await summariesService.createAuto(selectedClient, {
+          driver_id: sendingDriverId,
+          notes: trimmedNotes,
+        });
       } else {
-        // Convert dates DD/MM/YYYY to YYYY-MM-DD
-        const [fromDay, fromMonth, fromYear] = fromDate.split('/');
-        const [toDay, toMonth, toYear] = toDate.split('/');
-        
+        const periodStart = manualStartDate ? toDateKey(manualStartDate) : null;
+        const periodEnd = manualEndDate ? toDateKey(manualEndDate) : periodStart;
+
+        if (!periodStart || !periodEnd) {
+          return;
+        }
+
         await summariesService.createManual({
           client_id: selectedClient,
-          driver_id: driverId,
-          period_start: `${fromYear}-${fromMonth.padStart(2, '0')}-${fromDay.padStart(2, '0')}`,
-          period_end: `${toYear}-${toMonth.padStart(2, '0')}-${toDay.padStart(2, '0')}`,
+          driver_id: sendingDriverId,
+          period_start: periodStart,
+          period_end: periodEnd,
+          notes: trimmedNotes,
         });
       }
       onSuccess();
@@ -382,9 +676,7 @@ function NuevoResumenModal({
 
   const formatPreviewPeriod = () => {
     if (!preview) return '';
-    const start = new Date(preview.period_start);
-    const end = new Date(preview.period_end);
-    return `${start.getDate()}/${start.getMonth() + 1}/${start.getFullYear()} – ${end.getDate()}/${end.getMonth() + 1}/${end.getFullYear()}`;
+    return `${formatDateLabel(parseDateKey(preview.period_start))} → ${formatDateLabel(parseDateKey(preview.period_end))}`;
   };
 
   const selectedClientData = clients.find((c) => c.id === selectedClient);
@@ -437,33 +729,66 @@ function NuevoResumenModal({
               <Ionicons name="chevron-down" size={18} color="#888888" />
             </Pressable>
 
-            {/* Manual tab date pickers */}
+            {/* Manual tab date picker */}
             {activeTab === 'manual' && (
-              <View style={styles.datePickerRow}>
-                <View style={styles.datePickerField}>
-                  <Text style={styles.fieldLabel}>Desde</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="DD/MM/YYYY"
-                    value={fromDate}
-                    onChangeText={setFromDate}
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
+              <View style={styles.manualRangeSection}>
+                <View style={styles.manualRangeHeader}>
+                  <Text style={styles.fieldLabel}>Rango manual</Text>
+                  <Pressable
+                    onPress={() => {
+                      setManualStartDate(null);
+                      setManualEndDate(null);
+                    }}
+                    style={({ pressed }) => [styles.clearRangeButton, pressed && styles.clearRangeButtonPressed]}
+                  >
+                    <Text style={styles.clearRangeButtonText}>Limpiar</Text>
+                  </Pressable>
                 </View>
-                <View style={styles.datePickerField}>
-                  <Text style={styles.fieldLabel}>Hasta</Text>
-                  <TextInput
-                    style={styles.dateInput}
-                    placeholder="DD/MM/YYYY"
-                    value={toDate}
-                    onChangeText={setToDate}
-                    keyboardType="numeric"
-                    maxLength={10}
-                  />
+
+                <MiniRangeCalendar
+                  monthDate={manualMonthDate}
+                  startDate={manualStartDate}
+                  endDate={manualEndDate}
+                  onPrevMonth={() =>
+                    setManualMonthDate(
+                      (currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1),
+                    )
+                  }
+                  onNextMonth={() =>
+                    setManualMonthDate(
+                      (currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1),
+                    )
+                  }
+                  onSelectDate={selectManualDate}
+                />
+
+                <View style={styles.manualRangeSummary}>
+                  <View style={styles.manualRangeSummaryItem}>
+                    <Text style={styles.manualRangeSummaryLabel}>Desde</Text>
+                    <Text style={styles.manualRangeSummaryValue}>
+                      {manualStartDate ? formatLongDateLabel(manualStartDate) : 'Seleccionar fecha'}
+                    </Text>
+                  </View>
+                  <View style={styles.manualRangeSummaryItem}>
+                    <Text style={styles.manualRangeSummaryLabel}>Hasta</Text>
+                    <Text style={styles.manualRangeSummaryValue}>
+                      {manualEndDate ? formatLongDateLabel(manualEndDate) : 'Seleccionar fecha'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             )}
+
+            <View style={styles.notesSection}>
+              <Text style={styles.fieldLabel}>Notas</Text>
+              <TextInput
+                style={styles.notesInput}
+                placeholder="Opcional"
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+              />
+            </View>
 
             {/* Preview card */}
             <View style={styles.previewCard}>
@@ -473,7 +798,7 @@ function NuevoResumenModal({
                 <View style={styles.previewWarning}>
                   <Ionicons name="warning-outline" size={18} color="#854F0B" />
                   <Text style={styles.previewWarningText}>
-                    No hay viajes sin resumen para este período
+                    {previewError}
                   </Text>
                 </View>
               ) : preview ? (
@@ -481,8 +806,16 @@ function NuevoResumenModal({
                   <Text style={styles.previewTitle}>Vista previa</Text>
                   <Text style={styles.previewPeriod}>{formatPreviewPeriod()}</Text>
                   <Text style={styles.previewInfo}>
-                    Tipo de período: {preview.period_type}
+                    Tipo de período: {getCycleLabel(preview.period_type)}
                   </Text>
+                  <Text style={styles.previewInfo}>
+                    Viajes disponibles: {preview.available_trips}
+                  </Text>
+                  {preview.available_trips === 0 && (
+                    <Text style={styles.previewWarningText}>
+                      No hay viajes sin resumen para este período
+                    </Text>
+                  )}
                 </>
               ) : (
                 <Text style={styles.previewPlaceholder}>
@@ -504,10 +837,10 @@ function NuevoResumenModal({
               style={({ pressed }) => [
                 styles.confirmButton,
                 pressed && styles.confirmButtonPressed,
-                (!preview || creating) && styles.confirmButtonDisabled,
+                (!preview || preview.available_trips === 0 || creating) && styles.confirmButtonDisabled,
               ]}
               onPress={handleCreate}
-              disabled={!preview || creating}
+              disabled={!preview || preview.available_trips === 0 || creating}
             >
               {creating ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
@@ -723,6 +1056,8 @@ const styles = StyleSheet.create({
   actionButtons: {
     flexDirection: 'row',
     gap: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   actionButton: {
     width: 26,
@@ -736,6 +1071,22 @@ const styles = StyleSheet.create({
   },
   actionButtonPressed: {
     backgroundColor: '#F5F7F0',
+  },
+  cycleBadgeRow: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    alignItems: 'flex-start',
+  },
+  cycleBadge: {
+    backgroundColor: '#F5F7F0',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  cycleBadgeText: {
+    color: '#5F5E5A',
+    fontSize: 11,
+    fontWeight: '600',
   },
   centered: {
     alignItems: 'center',
@@ -923,6 +1274,145 @@ const styles = StyleSheet.create({
     color: '#854F0B',
     fontSize: 13,
     flex: 1,
+  },
+  manualRangeSection: {
+    gap: 12,
+    marginBottom: 16,
+  },
+  manualRangeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  clearRangeButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: '#F5F7F0',
+  },
+  clearRangeButtonPressed: {
+    opacity: 0.8,
+  },
+  clearRangeButtonText: {
+    color: '#3A6B2A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  calendarCard: {
+    borderWidth: 1,
+    borderColor: '#E8EDE0',
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    padding: 12,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  calendarNavButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F7F0',
+  },
+  calendarNavPressed: {
+    opacity: 0.8,
+  },
+  calendarMonthLabel: {
+    color: '#1A1A1A',
+    fontSize: 15,
+    fontWeight: '800',
+    textTransform: 'capitalize',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  weekLabel: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarCellPlaceholder: {
+    width: '14.2857%',
+    aspectRatio: 1,
+  },
+  calendarCell: {
+    width: '14.2857%',
+    aspectRatio: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+  },
+  calendarCellPressed: {
+    opacity: 0.85,
+  },
+  calendarCellToday: {
+    borderWidth: 1,
+    borderColor: '#BFD6A3',
+  },
+  calendarCellInRange: {
+    backgroundColor: '#EAF3DE',
+  },
+  calendarCellSelected: {
+    backgroundColor: '#3A6B2A',
+  },
+  calendarCellText: {
+    color: '#1A1A1A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  calendarCellTextSelected: {
+    color: '#FFFFFF',
+  },
+  manualRangeSummary: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  manualRangeSummaryItem: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E8EDE0',
+    borderRadius: 12,
+    backgroundColor: '#FAFAF7',
+    padding: 10,
+  },
+  manualRangeSummaryLabel: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  manualRangeSummaryValue: {
+    color: '#1A1A1A',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  notesSection: {
+    marginBottom: 16,
+  },
+  notesInput: {
+    minHeight: 88,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8EDE0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#1A1A1A',
+    textAlignVertical: 'top',
   },
   modalActions: {
     flexDirection: 'row',

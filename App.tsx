@@ -4,9 +4,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthScreen } from './src/features/auth/screens/AuthScreen';
 import { CalendarScreen } from './src/features/calendar/screens/CalendarScreen';
+import { ClientesScreen } from './src/features/clientes/screens/ClientesScreen';
 import { ResumenesScreen } from './src/features/resumenes/screens/ResumenesScreen';
 import { ResumenDetailScreen } from './src/features/resumenes/screens/ResumenDetailScreen';
 import { CustomDrawer } from './src/components/CustomDrawer';
+import { FeedbackProvider } from './src/state/FeedbackContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
 import { clientsService } from './src/services/clients';
 import type { Client } from './src/services/types';
@@ -80,6 +82,8 @@ function AppContent() {
   const driverId = userProfile?.id || '';
   const activeRoute = navigation.screen === 'ResumenDetail' ? 'Resumenes' : navigation.screen;
 
+  const selectedClientName = clients.find((c) => c.id === selectedClientId)?.nombre ?? '';
+
   const renderCurrentScreen = () => {
     switch (navigation.screen) {
       case 'Resumenes':
@@ -98,9 +102,22 @@ function AppContent() {
             onBack={handleBackFromDetail}
           />
         );
+      case 'Clientes':
+        return (
+          <ClientesScreen
+            selectedClientId={selectedClientId}
+            onMenuPress={() => setDrawerVisible(true)}
+          />
+        );
       case 'Calendario':
       default:
-        return <CalendarScreen onMenuPress={() => setDrawerVisible(true)} />;
+        return (
+          <CalendarScreen
+            onMenuPress={() => setDrawerVisible(true)}
+            selectedClientId={selectedClientId}
+            selectedClientName={selectedClientName}
+          />
+        );
     }
   };
 
@@ -130,9 +147,11 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <AppContent />
-      </AuthProvider>
+      <FeedbackProvider>
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
+      </FeedbackProvider>
     </SafeAreaProvider>
   );
 }

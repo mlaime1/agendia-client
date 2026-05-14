@@ -2,11 +2,15 @@
 
 import { api } from './apiClient';
 import type {
+  CreateSummaryAutoDto,
   Summary,
   BillingPreview,
   CreateSummaryManualDto,
   UpdateSummaryStatusDto,
 } from './types';
+
+const apiBaseUrl = (globalThis as { process?: { env?: { EXPO_PUBLIC_API_URL?: string } } }).process?.env
+  ?.EXPO_PUBLIC_API_URL;
 
 export const summariesService = {
   /** POST /summaries — creación manual con rango explícito */
@@ -15,8 +19,8 @@ export const summariesService = {
   },
 
   /** POST /summaries/auto/:clientId — calcula período según billing config */
-  createAuto(clientId: string): Promise<Summary> {
-    return api.post<Summary>(`/summaries/auto/${clientId}`, {});
+  createAuto(clientId: string, body: CreateSummaryAutoDto): Promise<Summary> {
+    return api.post<Summary>(`/summaries/auto/${clientId}`, body);
   },
 
   /** GET /summaries/preview/:clientId?date=YYYY-MM-DD */
@@ -40,7 +44,7 @@ export const summariesService = {
    * Devuelve la URL lista para abrir con Linking.openURL() o WebBrowser
    */
   getPdfUrl(id: string): string {
-    const base = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+    const base = apiBaseUrl ?? 'http://localhost:3000';
     return `${base}/summaries/${id}/pdf`;
   },
 

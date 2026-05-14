@@ -26,14 +26,23 @@ type CalendarScreenProps = {
   onMenuPress?: () => void;
 };
 
-export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
+export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientName }: CalendarScreenProps & { selectedClientId?: string; selectedClientName?: string }) {
   const { profileError, refreshProfile, userProfile, isAuthenticated, isLoading } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
-  const { addSpecialTrip, addTrip, trips, tripsByDate, updateTrip, isLoadingTrips, error, clearError } =
-    useCalendarTrips();
+  const {
+    addSpecialTrip,
+    addTrip,
+    deleteTrip,
+    trips,
+    tripsByDate,
+    updateTrip,
+    isLoadingTrips,
+    error,
+    clearError,
+  } = useCalendarTrips(selectedClientId);
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
@@ -104,7 +113,7 @@ export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
               <View style={styles.appTitleGroup}>
                 <Text style={styles.appName}>Agendia</Text>
                 <Text style={styles.userLabel}>
-                  {isLoading ? 'Cargando...' : userProfile?.name ?? 'No autenticado'}
+                  {isLoading ? 'Cargando...' : selectedClientName ? `Viendo la agenda de: ${selectedClientName}` : userProfile?.name ?? 'No autenticado'}
                 </Text>
               </View>
             </View>
@@ -183,6 +192,7 @@ export function CalendarScreen({ onMenuPress }: CalendarScreenProps) {
 
       <DayDetailsModal
         dateLabel={detailDateLabel}
+        onDeleteTrip={deleteTrip}
         onClose={() => setDetailDateKey(null)}
         trips={detailTrips}
         onUpdateTrip={updateTrip}

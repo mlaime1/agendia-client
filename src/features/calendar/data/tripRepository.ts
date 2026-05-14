@@ -8,6 +8,22 @@ const createTripId = () => `trip-${Date.now()}-${Math.random().toString(16).slic
 
 const normalizeServiceTripDate = (tripDate: string) => tripDate.slice(0, 10);
 
+const normalizeServiceTripType = (tripType: ServiceTrip['trip_type']): TripRecord['trip_type'] => {
+  if (tripType === 'ida' || tripType === 'outbound') {
+    return 'outbound';
+  }
+
+  if (tripType === 'vuelta' || tripType === 'return') {
+    return 'return';
+  }
+
+  if (tripType === 'ida y vuelta' || tripType === 'ida_y_vuelta' || tripType === 'roundTrip') {
+    return 'roundTrip';
+  }
+
+  return 'special';
+};
+
 let tripRecords: TripRecord[] = [...mockTripRecords];
 
 const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecord => ({
@@ -42,14 +58,7 @@ const mapServiceTripToRecord = (s: ServiceTrip): TripRecord => ({
   summary_id: s.summary_id ?? null,
   trip_date: normalizeServiceTripDate(s.trip_date),
   trip_time: s.created_at ? new Date(s.created_at).toTimeString().slice(0, 5) : '08:00',
-  trip_type:
-    s.trip_type === 'ida'
-      ? 'outbound'
-      : s.trip_type === 'vuelta'
-        ? 'return'
-        : s.trip_type === 'ida y vuelta'
-          ? 'roundTrip'
-          : 'special',
+  trip_type: normalizeServiceTripType(s.trip_type),
   final_price: Number(s.final_price) || 0,
   has_surcharge: s.has_surcharge,
   surcharge_reason: s.surcharge_reason ?? null,
@@ -94,15 +103,21 @@ const groupRecordsForCalendar = (records: TripRecord[]) => {
 
 export const tripRepository = {
   // Intenta cargar desde el API; lanza si falla
-  listCalendarTrips: async (): Promise<Trip[]> => {
+  listCalendarTrips: async (clientId?: string): Promise<Trip[]> => {
     const serviceTrips = await tripsService.getAll();
-    const records = serviceTrips.map(mapServiceTripToRecord);
+    let records = serviceTrips.map(mapServiceTripToRecord);
     tripRecords = records.length ? records : tripRecords;
-    return groupRecordsForCalendar(records.length ? records : tripRecords);
+
+    if (clientId) {
+      records = records.filter((r) => r.client_id === clientId);
+    }
+
+    return groupRecordsForCalendar(records.length ? records : (clientId ? tripRecords.filter(r => r.client_id === clientId) : tripRecords));
   },
 
   // Local-only list (fallback)
-  getLocalCalendarTrips: (): Trip[] => groupRecordsForCalendar(tripRecords),
+  getLocalCalendarTrips: (clientId?: string): Trip[] =>
+    groupRecordsForCalendar(clientId ? tripRecords.filter((r) => r.client_id === clientId) : tripRecords),
 
   // Intenta crear en API; lanza si falla
   createTrips: async (payloads: CreateTripPayload[], userId: string): Promise<Trip> => {
@@ -112,7 +127,7 @@ export const tripRepository = {
           user_id: userId,
           client_id: p.client_id,
           route_id: p.route_id,
-          rate_id: p.rate_id,
+          rate_id: null,
           trip_date: p.trip_date,
           trip_type: p.trip_type,
           final_price: 0,
@@ -123,9 +138,13 @@ export const tripRepository = {
         if (p.special_type) body.special_type = p.special_type;
         if (p.notes) body.notes = p.notes;
 
+        console.log('[tripRepository] createTrips body:', body);
+
         return tripsService.create(body);
       }),
     );
+
+    console.log('[tripRepository] createTrips response:', created);
 
     const records = created.map(mapServiceTripToRecord);
     tripRecords = [...tripRecords, ...records];
@@ -165,6 +184,14 @@ export const tripRepository = {
     tripRecords = serviceTrips.map(mapServiceTripToRecord);
   },
 
+  // Intenta borrar en API; lanza si falla
+  deleteCalendarTrip: async (trip: Trip): Promise<void> => {
+    await Promise.all(trip.recordIds.map((id) => tripsService.remove(id)));
+
+    const remainingServiceTrips = await tripsService.getAll();
+    tripRecords = remainingServiceTrips.map(mapServiceTripToRecord);
+  },
+
   // Local fallback update
   updateLocalCalendarTrip: (trip: Trip, updates: TripUpdates): void => {
     tripRecords = tripRecords.map((record) => {
@@ -182,5 +209,10 @@ export const tripRepository = {
         notes: updates.note ?? record.notes,
       };
     });
+  },
+
+  // Local fallback delete
+  deleteLocalCalendarTrip: (trip: Trip): void => {
+    tripRecords = tripRecords.filter((record) => !trip.recordIds.includes(record.id));
   },
 };
