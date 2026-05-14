@@ -80,6 +80,8 @@ function AppContent() {
   const driverId = userProfile?.id || '';
   const activeRoute = navigation.screen === 'ResumenDetail' ? 'Resumenes' : navigation.screen;
 
+  const selectedClientName = clients.find((c) => c.id === selectedClientId)?.nombre ?? '';
+
   const renderCurrentScreen = () => {
     switch (navigation.screen) {
       case 'Resumenes':
@@ -100,7 +102,13 @@ function AppContent() {
         );
       case 'Calendario':
       default:
-        return <CalendarScreen onMenuPress={() => setDrawerVisible(true)} />;
+        return (
+          <CalendarScreen
+            onMenuPress={() => setDrawerVisible(true)}
+            selectedClientId={selectedClientId}
+            selectedClientName={selectedClientName}
+          />
+        );
     }
   };
 

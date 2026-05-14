@@ -94,15 +94,21 @@ const groupRecordsForCalendar = (records: TripRecord[]) => {
 
 export const tripRepository = {
   // Intenta cargar desde el API; lanza si falla
-  listCalendarTrips: async (): Promise<Trip[]> => {
+  listCalendarTrips: async (clientId?: string): Promise<Trip[]> => {
     const serviceTrips = await tripsService.getAll();
-    const records = serviceTrips.map(mapServiceTripToRecord);
+    let records = serviceTrips.map(mapServiceTripToRecord);
     tripRecords = records.length ? records : tripRecords;
-    return groupRecordsForCalendar(records.length ? records : tripRecords);
+
+    if (clientId) {
+      records = records.filter((r) => r.client_id === clientId);
+    }
+
+    return groupRecordsForCalendar(records.length ? records : (clientId ? tripRecords.filter(r => r.client_id === clientId) : tripRecords));
   },
 
   // Local-only list (fallback)
-  getLocalCalendarTrips: (): Trip[] => groupRecordsForCalendar(tripRecords),
+  getLocalCalendarTrips: (clientId?: string): Trip[] =>
+    groupRecordsForCalendar(clientId ? tripRecords.filter((r) => r.client_id === clientId) : tripRecords),
 
   // Intenta crear en API; lanza si falla
   createTrips: async (payloads: CreateTripPayload[], userId: string): Promise<Trip> => {

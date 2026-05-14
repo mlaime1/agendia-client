@@ -6,7 +6,7 @@ import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { useAuth } from '../../../state/AuthContext';
 import { defaultsService } from '../../../services/defaults';
 
-export const useCalendarTrips = () => {
+export const useCalendarTrips = (selectedClientId?: string) => {
   const { userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
@@ -56,11 +56,11 @@ export const useCalendarTrips = () => {
           }
         }
 
-        const list = await tripRepository.listCalendarTrips();
+        const list = await tripRepository.listCalendarTrips(selectedClientId || defaults.clientId || undefined);
         if (mounted) setTrips(list);
       } catch (err: any) {
         if (mounted) {
-          setTrips(tripRepository.getLocalCalendarTrips());
+          setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
           setError(err?.message ?? 'Error cargando viajes');
         }
       } finally {
@@ -73,7 +73,7 @@ export const useCalendarTrips = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [selectedClientId]);
 
   const tripsByDate = useMemo(
     () =>
@@ -99,14 +99,14 @@ export const useCalendarTrips = () => {
     (async () => {
       try {
         const createdTrip = await tripRepository.createTrips(
-          toCreateTripPayloads({ dateKey, mode, clientId, routeId, rateId }),
+          toCreateTripPayloads({ dateKey, mode, clientId: selectedClientId || clientId, routeId, rateId }),
           userId,
         );
         mergeTripIntoState(createdTrip);
       } catch (err: any) {
         // fallback local create
         const fallback = tripRepository.createLocalTrips(
-          toCreateTripPayloads({ dateKey, mode, clientId, routeId, rateId }),
+          toCreateTripPayloads({ dateKey, mode, clientId: selectedClientId || clientId, routeId, rateId }),
           userId,
         );
         mergeTripIntoState(fallback);
@@ -120,13 +120,13 @@ export const useCalendarTrips = () => {
     (async () => {
       try {
         const createdTrip = await tripRepository.createTrips(
-          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId, routeId, rateId }),
+          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId: selectedClientId || clientId, routeId, rateId }),
           userId,
         );
         mergeTripIntoState(createdTrip);
       } catch (err: any) {
         const fallback = tripRepository.createLocalTrips(
-          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId, routeId, rateId }),
+          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId: selectedClientId || clientId, routeId, rateId }),
           userId,
         );
         mergeTripIntoState(fallback);
@@ -146,11 +146,11 @@ export const useCalendarTrips = () => {
     (async () => {
       try {
         await tripRepository.updateCalendarTrip(trip, updates);
-        const list = await tripRepository.listCalendarTrips();
+        const list = await tripRepository.listCalendarTrips(selectedClientId);
         setTrips(list);
       } catch (err: any) {
         tripRepository.updateLocalCalendarTrip(trip, updates);
-        setTrips(tripRepository.getLocalCalendarTrips());
+        setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
         setError(err?.message ?? 'Error actualizando viaje');
       }
     })();
