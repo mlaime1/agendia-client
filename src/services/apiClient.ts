@@ -1,7 +1,9 @@
 // src/services/apiClient.ts
 // Wrapper base para todas las llamadas al backend Express
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+const BASE_URL =
+  (globalThis as { process?: { env?: { EXPO_PUBLIC_API_URL?: string } } }).process?.env
+    ?.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; message: string };
 
@@ -29,10 +31,20 @@ async function request<T>(
     ...options,
   });
 
-  const json: ApiResponse<T> = await res.json();
+  const responseText = await res.text();
+  const json = responseText ? (JSON.parse(responseText) as ApiResponse<T>) : null;
 
-  if (!res.ok || !json.success) {
-    const message = !json.success ? json.message : `HTTP ${res.status}`;
+  if (!res.ok) {
+    const message = json && !json.success ? json.message : `HTTP ${res.status}`;
+    throw new ApiError(res.status, message);
+  }
+
+  if (!json) {
+    return undefined as T;
+  }
+
+  if (!json.success) {
+    const message = json.message;
     throw new ApiError(res.status, message);
   }
 

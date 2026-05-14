@@ -134,6 +134,21 @@ export function ResumenDetailScreen({ summaryId, onBack }: ResumenDetailScreenPr
   const handleStatusChange = async (newStatus: SummaryStatus) => {
     if (!summary || updating) return;
 
+    if (newStatus === 'sent' || newStatus === 'paid' || newStatus === 'archived') {
+      setUpdating(true);
+
+      try {
+        const updated = await summariesService.updateStatus(summaryId, { status: newStatus });
+        setSummary(updated);
+      } catch (err) {
+        console.error('Error updating status:', err);
+      } finally {
+        setUpdating(false);
+      }
+
+      return;
+    }
+
     Alert.alert('Confirmar cambio', `¿Quieres pasar este resumen a ${STATUS_CONFIG[newStatus].label.toLowerCase()}?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -142,6 +157,7 @@ export function ResumenDetailScreen({ summaryId, onBack }: ResumenDetailScreenPr
           setUpdating(true);
           try {
             const updated = await summariesService.updateStatus(summaryId, { status: newStatus });
+
             setSummary(updated);
           } catch (err) {
             console.error('Error updating status:', err);
@@ -156,24 +172,17 @@ export function ResumenDetailScreen({ summaryId, onBack }: ResumenDetailScreenPr
   const handleDelete = () => {
     if (!summary || updating) return;
 
-    Alert.alert('Eliminar resumen', 'Esta acción solo está disponible en borrador. ¿Deseas continuar?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          setUpdating(true);
-          try {
-            await summariesService.remove(summaryId);
-            onBack();
-          } catch (err) {
-            console.error('Error deleting summary:', err);
-          } finally {
-            setUpdating(false);
-          }
-        },
-      },
-    ]);
+    (async () => {
+      setUpdating(true);
+      try {
+        await summariesService.remove(summaryId);
+        onBack();
+      } catch (err) {
+        console.error('Error deleting summary:', err);
+      } finally {
+        setUpdating(false);
+      }
+    })();
   };
 
   const handleDownloadPdf = async () => {

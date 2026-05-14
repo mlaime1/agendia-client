@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,6 +24,7 @@ import { useAuth } from '../../../state/AuthContext';
 import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
 
 type PeriodOption = '7dias' | '15dias' | 'mensual';
+type SummaryFilter = 'all' | SummaryStatus;
 
 type ResumenesScreenProps = {
   selectedClientId: string;
@@ -38,6 +39,14 @@ const STATUS_CONFIG: Record<SummaryStatus, { bg: string; text: string; label: st
   paid: { bg: '#EAF3DE', text: '#3B6D11', label: 'Abonado' },
   archived: { bg: '#F1EFE8', text: '#5F5E5A', label: 'Archivado' },
 };
+
+const SUMMARY_FILTER_OPTIONS: Array<{ value: SummaryFilter; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'draft', label: 'Borrador' },
+  { value: 'sent', label: 'Enviado' },
+  { value: 'paid', label: 'Abonado' },
+  { value: 'archived', label: 'Archivado' },
+];
 
 function parseDateKey(value: string) {
   return value.split('T')[0];
@@ -198,8 +207,16 @@ export function ResumenesScreen({
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [defaultPeriod, setDefaultPeriod] = useState<PeriodOption>('15dias');
+  const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [modalVisible, setModalVisible] = useState(false);
+
+  const filteredSummaries = useMemo(() => {
+    if (summaryFilter === 'all') {
+      return summaries;
+    }
+
+    return summaries.filter((summary) => summary.status === summaryFilter);
+  }, [summaries, summaryFilter]);
 
   const loadSummaries = useCallback(async () => {
     if (!selectedClientId) {
@@ -231,13 +248,27 @@ export function ResumenesScreen({
     const actionLabel = getStatusActionLabel(newStatus);
     if (!actionLabel) return;
 
+    if (newStatus === 'sent' || newStatus === 'paid' || newStatus === 'archived') {
+      (async () => {
+        try {
+          await summariesService.updateStatus(summary.id, { status: newStatus });
+          loadSummaries();
+        } catch (err) {
+          console.error('Error updating status:', err);
+        }
+      })();
+
+      return;
+    }
+
     Alert.alert('Confirmar cambio', `¿Quieres ${actionLabel.toLowerCase()} este resumen?`, [
       { text: 'Cancelar', style: 'cancel' },
       {
         text: 'Confirmar',
         onPress: async () => {
           try {
-            await summariesService.updateStatus(summary.id, { status: newStatus });
+            const updated = await summariesService.updateStatus(summary.id, { status: newStatus });
+
             loadSummaries();
           } catch (err) {
             console.error('Error updating status:', err);
@@ -255,21 +286,14 @@ export function ResumenesScreen({
   };
 
   const handleDelete = (summary: Summary) => {
-    Alert.alert('Eliminar resumen', 'Esta acción solo se permite en borrador. ¿Deseas continuar?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await summariesService.remove(summary.id);
-            loadSummaries();
-          } catch (err) {
-            console.error('Error deleting summary:', err);
-          }
-        },
-      },
-    ]);
+    (async () => {
+      try {
+        await summariesService.remove(summary.id);
+        loadSummaries();
+      } catch (err) {
+        console.error('Error deleting summary:', err);
+      }
+    })();
   };
 
   // Calculate stats
@@ -391,21 +415,20 @@ export function ResumenesScreen({
           </View>
         </View>
 
-        {/* Period selector */}
+        {/* Status filters */}
         <View style={styles.periodSection}>
-          <Text style={styles.periodLabel}>PERÍODO POR DEFECTO</Text>
+          <Text style={styles.periodLabel}>FILTROS</Text>
           <View style={styles.periodPills}>
-            {(['7dias', '15dias', 'mensual'] as PeriodOption[]).map((period) => {
-              const isActive = defaultPeriod === period;
-              const label = period === '7dias' ? '7 días' : period === '15dias' ? '15 días' : 'Mensual';
+            {SUMMARY_FILTER_OPTIONS.map((option) => {
+              const isActive = summaryFilter === option.value;
               return (
                 <Pressable
-                  key={period}
+                  key={option.value}
                   style={[styles.periodPill, isActive && styles.periodPillActive]}
-                  onPress={() => setDefaultPeriod(period)}
+                  onPress={() => setSummaryFilter(option.value)}
                 >
                   <Text style={[styles.periodPillText, isActive && styles.periodPillTextActive]}>
-                    {label}
+                    {option.label}
                   </Text>
                 </Pressable>
               );
@@ -425,13 +448,15 @@ export function ResumenesScreen({
               <Text style={styles.retryButtonText}>Reintentar</Text>
             </Pressable>
           </View>
-        ) : summaries.length === 0 ? (
+        ) : filteredSummaries.length === 0 ? (
           <View style={styles.centered}>
-            <Text style={styles.emptyText}>No hay resúmenes</Text>
+            <Text style={styles.emptyText}>
+              {summaryFilter === 'all' ? 'No hay resúmenes' : 'No hay resúmenes con este filtro'}
+            </Text>
           </View>
         ) : (
           <FlatList
-            data={summaries}
+            data={filteredSummaries}
             keyExtractor={(item) => item.id}
             renderItem={renderSummaryItem}
             scrollEnabled={false}
@@ -456,7 +481,6 @@ export function ResumenesScreen({
         onClose={() => setModalVisible(false)}
         selectedClientId={selectedClientId}
         driverId={driverId}
-        defaultPeriod={defaultPeriod}
         onSuccess={() => {
           setModalVisible(false);
           loadSummaries();
@@ -475,7 +499,6 @@ type NuevoResumenModalProps = {
   onClose: () => void;
   selectedClientId: string;
   driverId: string;
-  defaultPeriod: PeriodOption;
   onSuccess: () => void;
 };
 
@@ -484,7 +507,6 @@ function NuevoResumenModal({
   onClose,
   selectedClientId,
   driverId,
-  defaultPeriod,
   onSuccess,
 }: NuevoResumenModalProps) {
   const insets = useSafeAreaInsets();
