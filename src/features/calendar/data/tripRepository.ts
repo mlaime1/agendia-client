@@ -7,6 +7,7 @@ import type { Trip as ServiceTrip } from '../../../services/types';
 const createTripId = () => `trip-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const normalizeServiceTripDate = (tripDate: string) => tripDate.slice(0, 10);
+const normalizeLocalTripDate = (tripDate: string) => tripDate.slice(0, 10);
 
 const normalizeServiceTripType = (tripType: ServiceTrip['trip_type']): TripRecord['trip_type'] => {
   if (tripType === 'ida' || tripType === 'outbound') {
@@ -33,7 +34,7 @@ const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecor
   route_id: payload.route_id,
   rate_id: payload.rate_id,
   summary_id: null,
-  trip_date: payload.trip_date,
+  trip_date: normalizeLocalTripDate(payload.trip_date),
   trip_time: payload.trip_time,
   trip_type:
     payload.trip_type === 'ida y vuelta'

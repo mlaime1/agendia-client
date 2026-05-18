@@ -163,14 +163,14 @@ export const useCalendarTrips = (selectedClientId?: string) => {
       return;
     }
 
+    const previousTrips = trips;
+    setTrips((currentTrips) => currentTrips.filter((currentTrip) => currentTrip.id !== tripId));
+
     (async () => {
       try {
         await tripRepository.deleteCalendarTrip(trip);
-        const list = await tripRepository.listCalendarTrips(selectedClientId);
-        setTrips(list);
       } catch (err: any) {
-        tripRepository.deleteLocalCalendarTrip(trip);
-        setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
+        setTrips(previousTrips);
         setError(err?.message ?? 'Error eliminando viaje');
       }
     })();

@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Alert,
   Modal,
   PanResponder,
   Pressable,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { Trip, TripMode, TripUpdates } from '../types';
 import { TripStamp } from './TripStamp';
@@ -44,12 +44,21 @@ export function DayDetailsModal({
   onDeleteTrip,
 }: DayDetailsModalProps) {
   const translateY = useRef(new Animated.Value(0)).current;
+  const [openNoteEditors, setOpenNoteEditors] = useState<Record<string, boolean>>({});
+  const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (visible) {
       translateY.setValue(0);
     }
   }, [translateY, visible]);
+
+  useEffect(() => {
+    if (!visible) {
+      setOpenNoteEditors({});
+      setNoteDrafts({});
+    }
+  }, [visible]);
 
   const closeWithSwipeAnimation = () => {
     Animated.timing(translateY, {
@@ -100,15 +109,54 @@ export function DayDetailsModal({
     });
   };
 
+  const toggleNoteEditor = (tripId: string) => {
+    setOpenNoteEditors((current) => {
+      const isOpen = !current[tripId];
+
+      if (isOpen) {
+        const currentTrip = trips.find((trip) => trip.id === tripId);
+        setNoteDrafts((drafts) => ({
+          ...drafts,
+          [tripId]: currentTrip?.note ?? '',
+        }));
+      }
+
+      return {
+        ...current,
+        [tripId]: isOpen,
+      };
+    });
+  };
+
+  const saveNote = (tripId: string) => {
+    const draft = noteDrafts[tripId] ?? '';
+    const trimmedDraft = draft.trim();
+
+    if (!trimmedDraft) {
+      return;
+    }
+
+    onUpdateTrip(tripId, { note: trimmedDraft });
+    setOpenNoteEditors((current) => ({
+      ...current,
+      [tripId]: false,
+    }));
+  };
+
+  const cancelNote = (tripId: string) => {
+    setNoteDrafts((current) => ({
+      ...current,
+      [tripId]: '',
+    }));
+
+    setOpenNoteEditors((current) => ({
+      ...current,
+      [tripId]: false,
+    }));
+  };
+
   const confirmDeleteTrip = (trip: Trip) => {
-    Alert.alert('Borrar viaje', 'Esta acción eliminará este viaje del día.', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Borrar',
-        style: 'destructive',
-        onPress: () => onDeleteTrip(trip.id),
-      },
-    ]);
+    onDeleteTrip(trip.id);
   };
 
   return (
@@ -190,22 +238,68 @@ export function DayDetailsModal({
                     </>
                   ) : null}
 
-                  <Text style={styles.inputLabel}>Nota</Text>
-                  <TextInput
-                    multiline
-                    onChangeText={(note) => onUpdateTrip(trip.id, { note })}
-                    placeholder="Nota opcional"
-                    style={[styles.input, styles.noteInput]}
-                    value={trip.note ?? ''}
-                  />
+                  {openNoteEditors[trip.id] ? (
+                    <View style={styles.noteEditor}>
+                      <TextInput
+                        multiline
+                        onChangeText={(note) =>
+                          setNoteDrafts((current) => ({
+                            ...current,
+                            [trip.id]: note,
+                          }))
+                        }
+                        placeholder="Nota opcional"
+                        style={[styles.input, styles.noteInput]}
+                        value={noteDrafts[trip.id] ?? trip.note ?? ''}
+                      />
 
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => confirmDeleteTrip(trip)}
-                    style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
-                  >
-                    <Text style={styles.deleteButtonText}>Borrar viaje</Text>
-                  </Pressable>
+                      <View style={styles.noteActionsRow}>
+                        <Pressable
+                          accessibilityLabel="Cancelar nota"
+                          accessibilityRole="button"
+                          onPress={() => cancelNote(trip.id)}
+                          style={({ pressed }) => [styles.noteActionButton, pressed && styles.iconActionButtonPressed]}
+                        >
+                          <Ionicons name="close-circle-outline" size={18} color="#8D5B08" />
+                          <Text style={styles.noteActionText}>Cancelar</Text>
+                        </Pressable>
+
+                        <Pressable
+                          accessibilityLabel="Guardar nota"
+                          accessibilityRole="button"
+                          onPress={() => saveNote(trip.id)}
+                          style={({ pressed }) => [styles.noteActionButton, styles.noteActionPrimary, pressed && styles.iconActionButtonPressed]}
+                        >
+                          <Ionicons name="checkmark-circle-outline" size={18} color="#247145" />
+                          <Text style={[styles.noteActionText, styles.noteActionPrimaryText]}>Guardar</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.actionsRow}>
+                    <Pressable
+                      accessibilityLabel="Agregar nota"
+                      accessibilityRole="button"
+                      onPress={() => toggleNoteEditor(trip.id)}
+                      style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
+                    >
+                      <Ionicons
+                        name={openNoteEditors[trip.id] ? 'chatbox-ellipses' : 'create-outline'}
+                        size={18}
+                        color="#247145"
+                      />
+                    </Pressable>
+
+                    <Pressable
+                      accessibilityLabel="Borrar viaje"
+                      accessibilityRole="button"
+                      onPress={() => confirmDeleteTrip(trip)}
+                      style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
+                    >
+                      <Ionicons name="trash-outline" size={18} color="#B63A34" />
+                    </Pressable>
+                  </View>
                 </View>
               ))}
             </ScrollView>
@@ -364,20 +458,57 @@ const styles = StyleSheet.create({
     paddingTop: 9,
     textAlignVertical: 'top',
   },
-  deleteButton: {
+  noteEditor: {
+    gap: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#F8FBF8',
+    borderWidth: 1,
+    borderColor: '#E3EDE6',
+  },
+  noteActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  noteActionButton: {
+    minHeight: 38,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DDE7DF',
+  },
+  noteActionPrimary: {
+    backgroundColor: '#EAF7EE',
+    borderColor: '#CDE7D5',
+  },
+  noteActionText: {
+    color: '#4A5A50',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+  noteActionPrimaryText: {
+    color: '#247145',
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  iconActionButton: {
     minHeight: 40,
+    width: 40,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 7,
-    backgroundColor: '#FCEEEE',
+    backgroundColor: '#EFF4F0',
   },
-  deleteButtonPressed: {
+  iconActionButtonPressed: {
     opacity: 0.85,
-  },
-  deleteButtonText: {
-    color: '#B63A34',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0,
   },
 });
