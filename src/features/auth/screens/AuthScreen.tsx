@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -75,6 +76,7 @@ export function AuthScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
+            <Image source={require('../../../../assets/icon/isotipo.png')} style={styles.icon} />
             <Text style={styles.appName}>Agendia</Text>
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.subtitle}>
@@ -110,7 +112,7 @@ export function AuthScreen() {
 
             <AuthTextField
               autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
-              label="Contrasena"
+              label="Contraseña"
               onChangeText={setPassword}
               placeholder="Minimo 6 caracteres"
               returnKeyType="done"
@@ -170,6 +172,12 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: 8,
+    alignItems: 'center',
+  },
+  icon: {
+    width: 80,
+    height: 80,
+    marginBottom: 8,
   },
   appName: {
     color: '#233329',

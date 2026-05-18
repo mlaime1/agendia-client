@@ -2,7 +2,7 @@
   "expo": {
     "name": "Agendia",
     "slug": "agendia-client",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
@@ -11,6 +11,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.maurolaime.agendia"
+    },
+    "splash": {
+      "image": "./assets/icon/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F3EE"
     },
     "android": {
       "package": "com.maurolaime.agendia",
