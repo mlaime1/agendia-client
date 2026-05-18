@@ -9,11 +9,24 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.maurolaime.agendia"
     },
     "android": {
+      "package": "com.maurolaime.agendia",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon/icon.png",
         "backgroundColor": "#F7FAF7"
+      },
+      "splash": {
+        "image": "./assets/icon/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#F4F3EE"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c9616bb2-90e4-4bac-b8e0-19fea893e357"
       }
     }
   }
