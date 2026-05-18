@@ -1,13 +1,12 @@
-// src/services/apiClient.ts
-// Wrapper base para todas las llamadas al backend Express
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
-const BASE_URL =
-  (globalThis as { process?: { env?: { EXPO_PUBLIC_API_URL?: string } } }).process?.env
-    ?.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
+if (!apiUrl) {
+  throw new Error('Missing EXPO_PUBLIC_API_URL');
+}
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; message: string };
 
-class ApiError extends Error {
+export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
@@ -17,13 +16,15 @@ class ApiError extends Error {
   }
 }
 
+export const getBackendApiBaseUrl = () => apiUrl.replace(/\/$/, '');
+
+const buildUrl = (path: string) => `${getBackendApiBaseUrl()}${path}`;
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const url = `${BASE_URL}${path}`;
-
-  const res = await fetch(url, {
+  const res = await fetch(buildUrl(path), {
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
@@ -44,14 +45,12 @@ async function request<T>(
   }
 
   if (!json.success) {
-    const message = json.message;
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, json.message);
   }
 
   return json.data;
 }
 
-// Helpers para cada verbo
 export const api = {
   get: <T>(path: string, options?: RequestInit) => request<T>(path, options),
 
@@ -63,5 +62,3 @@ export const api = {
 
   delete: <T>(path: string, options?: RequestInit) => request<T>(path, { method: 'DELETE', ...(options ?? {}) }),
 };
-
-export { ApiError };

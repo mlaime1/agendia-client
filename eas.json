@@ -4,6 +4,10 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://kmezfkcxzmoupmrkdwas.supabase.co",
+        "EXPO_PUBLIC_API_URL": "https://agendia-production-06d5.up.railway.app"
       }
     },
 

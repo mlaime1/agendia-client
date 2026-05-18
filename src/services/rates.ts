@@ -1,6 +1,6 @@
 // src/services/rates.ts
 
-import { api } from './apiClient';
+import { api } from './backendApi';
 import type { Rate } from './types';
 
 export const ratesService = {

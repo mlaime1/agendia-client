@@ -1,6 +1,6 @@
 // src/services/clients.ts
 
-import { api } from './apiClient';
+import { api } from './backendApi';
 import type { Client, CreateClientDto, UpdateClientDto, UpdateBillingDto } from './types';
 
 export const clientsService = {

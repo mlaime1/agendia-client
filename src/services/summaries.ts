@@ -1,6 +1,6 @@
 // src/services/summaries.ts
 
-import { api } from './apiClient';
+import { api, getBackendApiBaseUrl } from './backendApi';
 import type {
   CreateSummaryAutoDto,
   Summary,
@@ -8,9 +8,6 @@ import type {
   CreateSummaryManualDto,
   UpdateSummaryStatusDto,
 } from './types';
-
-const apiBaseUrl = (globalThis as { process?: { env?: { EXPO_PUBLIC_API_URL?: string } } }).process?.env
-  ?.EXPO_PUBLIC_API_URL;
 
 export const summariesService = {
   /** POST /summaries — creación manual con rango explícito */
@@ -44,8 +41,7 @@ export const summariesService = {
    * Devuelve la URL lista para abrir con Linking.openURL() o WebBrowser
    */
   getPdfUrl(id: string): string {
-    const base = apiBaseUrl ?? 'http://localhost:3000';
-    return `${base}/summaries/${id}/pdf`;
+    return `${getBackendApiBaseUrl()}/summaries/${id}/pdf`;
   },
 
   /** PATCH /summaries/:id/status */

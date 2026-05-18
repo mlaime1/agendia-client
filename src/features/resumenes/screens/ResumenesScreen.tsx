@@ -19,7 +19,7 @@ import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { getLeadingEmptyCells, getMonthDays } from '../../calendar/utils/date';
 import { summariesService } from '../../../services/summaries';
 import { clientsService } from '../../../services/clients';
-import { api } from '../../../services/apiClient';
+import { api } from '../../../services/backendApi';
 import { useAuth } from '../../../state/AuthContext';
 import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
 
