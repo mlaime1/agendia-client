@@ -69,7 +69,13 @@ export function QuickActionBar({ selectedMode, onSelectMode }: QuickActionBarPro
               pressed && styles.pressedButton,
             ]}
           >
-            <Text style={[styles.label, isSelected && { color: action.colors.textColor }]}>
+            <Text
+              style={[
+                styles.label,
+                isSelected && { color: action.colors.textColor },
+                isSelected && styles.selectedLabel,
+              ]}
+            >
               {action.label}
             </Text>
           </Pressable>
@@ -83,26 +89,31 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 18,
-    marginBottom: 16,
+    marginTop: 14,
+    marginBottom: 18,
   },
   button: {
     flex: 1,
-    minHeight: 42,
+      minHeight: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D7E2D8',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+      paddingVertical: 9,
+      paddingHorizontal: 0,
+      borderWidth: 1,
+      borderColor: 'transparent',
+      borderRadius: 12,
+      backgroundColor: '#F7FAF7',
   },
   pressedButton: {
     opacity: 0.72,
   },
   label: {
-    color: '#58665B',
+      color: '#7A9E8A',
     fontSize: 13,
-    fontWeight: '700',
+      fontWeight: '600',
     letterSpacing: 0,
+  },
+  selectedLabel: {
+    fontWeight: '700',
   },
 });

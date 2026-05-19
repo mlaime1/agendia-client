@@ -2,18 +2,36 @@
   "expo": {
     "name": "Agendia",
     "slug": "agendia-client",
-    "version": "0.1.0",
+    "version": "0.1.5",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.maurolaime.agendia"
+    },
+    "splash": {
+      "image": "./assets/icon/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F4F3EE"
     },
     "android": {
+      "package": "com.maurolaime.agendia",
       "adaptiveIcon": {
+        "foregroundImage": "./assets/icon/icon.png",
         "backgroundColor": "#F7FAF7"
+      },
+      "splash": {
+        "image": "./assets/icon/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#F4F3EE"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c9616bb2-90e4-4bac-b8e0-19fea893e357"
       }
     }
   }

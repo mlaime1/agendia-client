@@ -1,6 +1,6 @@
 // src/services/trips.ts
 
-import { api } from './apiClient';
+import { api } from './backendApi';
 import type { Trip, CreateTripDto, UpdateTripDto } from './types';
 
 export const tripsService = {

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { AgendiaHeader } from '../../../components/AgendiaHeader';
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -22,12 +23,25 @@ import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 import { useAuth } from '../../../state/AuthContext';
 
-type CalendarScreenProps = {
-  onMenuPress?: () => void;
+type ClientOption = {
+  id: string;
+  name: string;
 };
 
-export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientName }: CalendarScreenProps & { selectedClientId?: string; selectedClientName?: string }) {
-  const { profileError, refreshProfile, userProfile, isAuthenticated, isLoading } = useAuth();
+type CalendarScreenProps = {
+  onMenuPress?: () => void;
+  clients: ClientOption[];
+  selectedClientId: string;
+  onSelectClient: (clientId: string) => void;
+};
+
+export function CalendarScreen({
+  onMenuPress,
+  clients,
+  selectedClientId,
+  onSelectClient,
+}: CalendarScreenProps) {
+  const { profileError, refreshProfile, userProfile, isLoading } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
@@ -50,13 +64,43 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
 
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
   const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date) : '';
-  const detailTrips = detailDateKey ? tripsByDate[detailDateKey] ?? [] : [];
+  const detailTrips = detailDateKey
+    ? Object.entries(tripsByDate).find(([dateKey]) => dateKey === detailDateKey)?.[1] ?? []
+    : [];
   const visibleMonthKey = `${monthDate.getFullYear()}-${(monthDate.getMonth() + 1)
     .toString()
     .padStart(2, '0')}`;
   const visibleMonthTrips = trips.filter((trip) => trip.date.startsWith(visibleMonthKey));
-  const tripSummary =
-    visibleMonthTrips.length === 1 ? '1 viaje este mes' : `${visibleMonthTrips.length} viajes este mes`;
+  const selectedClientName = clients.find((client) => client.id === selectedClientId)?.name ?? '';
+  const headerUserName = isLoading
+    ? 'Cargando...'
+    : selectedClientName || userProfile?.name || 'No autenticado';
+  const monthSelector = (
+    <View style={styles.monthSelector}>
+      <Pressable
+        accessibilityLabel="Mes anterior"
+        onPress={() => changeMonth(-1)}
+        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
+      >
+        <Ionicons name="chevron-back" size={18} color="#1B5E3B" />
+      </Pressable>
+
+      <View style={styles.monthSelectorTextGroup}>
+        <Text style={styles.monthSelectorLabel}>{monthLabel}</Text>
+        <Text style={styles.monthSelectorSummary}>
+          {visibleMonthTrips.length === 1 ? '1 viaje' : `${visibleMonthTrips.length} viajes`}
+        </Text>
+      </View>
+
+      <Pressable
+        accessibilityLabel="Mes siguiente"
+        onPress={() => changeMonth(1)}
+        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
+      >
+        <Ionicons name="chevron-forward" size={18} color="#1B5E3B" />
+      </Pressable>
+    </View>
+  );
 
   const changeMonth = (offset: number) => {
     setMonthDate((currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
@@ -93,38 +137,30 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
     setSpecialDateKey(null);
   };
 
+  const handleOpenMenu = () => {
+    onMenuPress?.();
+  };
+
+  const handleDeleteTrip = (tripId: string) => {
+    deleteTrip?.(tripId);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ErrorBanner message={error} onDismiss={clearError} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.appTitleRow}>
-            <View style={styles.appTitleRowLeft}>
-              {onMenuPress && (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onMenuPress}
-                  style={({ pressed }) => [styles.menuButton, pressed && styles.pressedButton]}
-                  accessibilityLabel="Abrir menú"
-                >
-                  <Ionicons name="menu" size={24} color="#1A1A1A" />
-                </Pressable>
-              )}
-              <View style={styles.appTitleGroup}>
-                <Text style={styles.appName}>Agendia</Text>
-                <Text style={styles.userLabel}>
-                  {isLoading ? 'Cargando...' : selectedClientName ? `Viendo la agenda de: ${selectedClientName}` : userProfile?.name ?? 'No autenticado'}
-                </Text>
-              </View>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={goToCurrentMonth}
-              style={({ pressed }) => [styles.headerTodayButton, pressed && styles.pressedButton]}
-            >
-              <Text style={styles.headerTodayButtonText}>Hoy</Text>
-            </Pressable>
+          <View style={styles.fullBleedHeader}>
+            <AgendiaHeader
+              onMenuPress={handleOpenMenu}
+              onTodayPress={goToCurrentMonth}
+              clients={clients}
+              onSelectClient={onSelectClient}
+              selectedClientId={selectedClientId}
+              tripCount={visibleMonthTrips.length}
+              userName={headerUserName}
+              rightSlot={monthSelector}
+            />
           </View>
 
           {profileError ? (
@@ -135,29 +171,6 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
               </Pressable>
             </View>
           ) : null}
-
-          <View style={styles.monthRow}>
-            <Pressable
-              accessibilityLabel="Mes anterior"
-              onPress={() => changeMonth(-1)}
-              style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
-            >
-              <Text style={styles.monthButtonText}>{'<'}</Text>
-            </Pressable>
-
-            <View style={styles.monthTitleGroup}>
-              <Text style={styles.month}>{monthLabel}</Text>
-              <Text style={styles.summary}>{tripSummary}</Text>
-            </View>
-
-            <Pressable
-              accessibilityLabel="Mes siguiente"
-              onPress={() => changeMonth(1)}
-              style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
-            >
-              <Text style={styles.monthButtonText}>{'>'}</Text>
-            </Pressable>
-          </View>
 
         </View>
 
@@ -192,7 +205,7 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
 
       <DayDetailsModal
         dateLabel={detailDateLabel}
-        onDeleteTrip={deleteTrip}
+        onDeleteTrip={handleDeleteTrip}
         onClose={() => setDetailDateKey(null)}
         trips={detailTrips}
         onUpdateTrip={updateTrip}
@@ -210,63 +223,14 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 10,
-    paddingTop: 12,
+    paddingTop: 0,
     paddingBottom: 28,
   },
   header: {
     gap: 10,
   },
-  appTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  appTitleRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  appTitleGroup: {
-    flex: 1,
-    gap: 2,
-  },
-  appName: {
-    color: '#233329',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  userLabel: {
-    color: '#718077',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0,
-  },
-  headerTodayButton: {
-    minHeight: 36,
-    minWidth: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D7E2D8',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-  },
-  headerTodayButtonText: {
-    color: '#247145',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0,
+  fullBleedHeader: {
+    marginHorizontal: -10,
   },
   profileWarning: {
     flexDirection: 'row',
@@ -293,45 +257,33 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0,
   },
-  month: {
-    color: '#3D4C42',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0,
-    textAlign: 'center',
-  },
-  summary: {
-    color: '#718077',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0,
-    textAlign: 'center',
-  },
-  monthRow: {
+  monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
-  monthTitleGroup: {
-    flex: 1,
-    gap: 2,
-  },
-  monthButton: {
-    width: 42,
-    height: 42,
+  monthSelectorButton: {
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D7E2D8',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
   },
-  monthButtonText: {
-    color: '#314139',
-    fontSize: 22,
-    fontWeight: '900',
+  monthSelectorTextGroup: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+  },
+  monthSelectorLabel: {
+    color: '#1B5E3B',
+    fontSize: 14,
+    fontWeight: '800',
     letterSpacing: 0,
-    lineHeight: 24,
+  },
+  monthSelectorSummary: {
+    color: '#3a7a52',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0,
   },
   pressedButton: {
     opacity: 0.72,
