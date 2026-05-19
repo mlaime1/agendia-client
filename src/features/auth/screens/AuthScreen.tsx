@@ -78,12 +78,12 @@ export function AuthScreen() {
           <View style={styles.header}>
             <Image source={require('../../../../assets/icon/isotipo.png')} style={styles.icon} />
             <Text style={styles.appName}>Agendia</Text>
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subtitle}>
-              {isRegisterMode
-                ? 'Completa tus datos para empezar a registrar viajes.'
-                : 'Ingresa con tu email para continuar con tu calendario.'}
-            </Text>
+            {isRegisterMode ? (
+              <>
+                <Text style={styles.title}>{title}</Text>
+                <Text style={styles.subtitle}>Completa tus datos para empezar a registrar viajes.</Text>
+              </>
+            ) : null}
           </View>
 
           <View style={styles.form}>

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AuthScreen } from './src/features/auth/screens/AuthScreen';
@@ -12,6 +13,10 @@ import { FeedbackProvider } from './src/state/FeedbackContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
 import { clientsService } from './src/services/clients';
 import type { Client } from './src/services/types';
+
+const SPLASH_MIN_DURATION_MS = 2200;
+
+void SplashScreen.preventAutoHideAsync();
 
 type AppRoute = 'Calendario' | 'Historial' | 'Recorridos' | 'Resumenes' | 'Clientes' | 'Perfil';
 
@@ -145,6 +150,37 @@ function AppContent() {
 }
 
 export default function App() {
+  const [isSplashDone, setIsSplashDone] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const prepareApp = async () => {
+      try {
+        await new Promise((resolve) => setTimeout(resolve, SPLASH_MIN_DURATION_MS));
+      } finally {
+        if (!isMounted) {
+          return;
+        }
+
+        setIsSplashDone(true);
+        await SplashScreen.hideAsync();
+      }
+    };
+
+    prepareApp().catch((err) => {
+      console.warn('Splash hide error:', err);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  if (!isSplashDone) {
+    return null;
+  }
+
   return (
     <SafeAreaProvider>
       <FeedbackProvider>
