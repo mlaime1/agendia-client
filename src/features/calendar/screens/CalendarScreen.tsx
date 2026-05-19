@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { AgendiaHeader } from '../../../components/AgendiaHeader';
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -27,7 +28,7 @@ type CalendarScreenProps = {
 };
 
 export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientName }: CalendarScreenProps & { selectedClientId?: string; selectedClientName?: string }) {
-  const { profileError, refreshProfile, userProfile, isAuthenticated, isLoading } = useAuth();
+  const { profileError, refreshProfile, userProfile, isLoading } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
@@ -57,6 +58,9 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
   const visibleMonthTrips = trips.filter((trip) => trip.date.startsWith(visibleMonthKey));
   const tripSummary =
     visibleMonthTrips.length === 1 ? '1 viaje este mes' : `${visibleMonthTrips.length} viajes este mes`;
+  const headerUserName = isLoading
+    ? 'Cargando...'
+    : selectedClientName || userProfile?.name || 'No autenticado';
 
   const changeMonth = (offset: number) => {
     setMonthDate((currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
@@ -93,38 +97,23 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
     setSpecialDateKey(null);
   };
 
+  const handleOpenMenu = () => {
+    onMenuPress?.();
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ErrorBanner message={error} onDismiss={clearError} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <View style={styles.appTitleRow}>
-            <View style={styles.appTitleRowLeft}>
-              {onMenuPress && (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onMenuPress}
-                  style={({ pressed }) => [styles.menuButton, pressed && styles.pressedButton]}
-                  accessibilityLabel="Abrir menú"
-                >
-                  <Ionicons name="menu" size={24} color="#1A1A1A" />
-                </Pressable>
-              )}
-              <View style={styles.appTitleGroup}>
-                <Text style={styles.appName}>Agendia</Text>
-                <Text style={styles.userLabel}>
-                  {isLoading ? 'Cargando...' : selectedClientName ? `Viendo la agenda de: ${selectedClientName}` : userProfile?.name ?? 'No autenticado'}
-                </Text>
-              </View>
-            </View>
-
-            <Pressable
-              accessibilityRole="button"
-              onPress={goToCurrentMonth}
-              style={({ pressed }) => [styles.headerTodayButton, pressed && styles.pressedButton]}
-            >
-              <Text style={styles.headerTodayButtonText}>Hoy</Text>
-            </Pressable>
+          <View style={styles.fullBleedHeader}>
+            <AgendiaHeader
+              onMenuPress={handleOpenMenu}
+              onTodayPress={goToCurrentMonth}
+              onUserPress={handleOpenMenu}
+              tripCount={visibleMonthTrips.length}
+              userName={headerUserName}
+            />
           </View>
 
           {profileError ? (
@@ -142,12 +131,11 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
               onPress={() => changeMonth(-1)}
               style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
             >
-              <Text style={styles.monthButtonText}>{'<'}</Text>
+              <Ionicons name="chevron-back" size={22} color="#1B5E3B" />
             </Pressable>
 
             <View style={styles.monthTitleGroup}>
               <Text style={styles.month}>{monthLabel}</Text>
-              <Text style={styles.summary}>{tripSummary}</Text>
             </View>
 
             <Pressable
@@ -155,7 +143,7 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
               onPress={() => changeMonth(1)}
               style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
             >
-              <Text style={styles.monthButtonText}>{'>'}</Text>
+              <Ionicons name="chevron-forward" size={22} color="#1B5E3B" />
             </Pressable>
           </View>
 
@@ -210,63 +198,14 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 10,
-    paddingTop: 12,
+    paddingTop: 0,
     paddingBottom: 28,
   },
   header: {
     gap: 10,
   },
-  appTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  appTitleRowLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  menuButton: {
-    width: 40,
-    height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  appTitleGroup: {
-    flex: 1,
-    gap: 2,
-  },
-  appName: {
-    color: '#233329',
-    fontSize: 28,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  userLabel: {
-    color: '#718077',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0,
-  },
-  headerTodayButton: {
-    minHeight: 36,
-    minWidth: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D7E2D8',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-  },
-  headerTodayButtonText: {
-    color: '#247145',
-    fontSize: 13,
-    fontWeight: '900',
-    letterSpacing: 0,
+  fullBleedHeader: {
+    marginHorizontal: -10,
   },
   profileWarning: {
     flexDirection: 'row',
@@ -321,17 +260,6 @@ const styles = StyleSheet.create({
     height: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D7E2D8',
-    borderRadius: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  monthButtonText: {
-    color: '#314139',
-    fontSize: 22,
-    fontWeight: '900',
-    letterSpacing: 0,
-    lineHeight: 24,
   },
   pressedButton: {
     opacity: 0.72,
