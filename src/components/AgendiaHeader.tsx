@@ -12,6 +12,7 @@ type AgendiaHeaderProps = {
   onTodayPress: () => void;
   onUserPress: () => void;
   onMenuPress: () => void;
+  rightSlot?: React.ReactNode;
 };
 
 export function AgendiaHeader({
@@ -20,6 +21,7 @@ export function AgendiaHeader({
   onTodayPress,
   onUserPress,
   onMenuPress,
+  rightSlot,
 }: AgendiaHeaderProps) {
   const avatarLetter = userName.trim().charAt(0).toUpperCase() || 'A';
   const tripsLabel = `${tripCount} ${tripCount === 1 ? 'viaje' : 'viajes'}`;
@@ -72,10 +74,12 @@ export function AgendiaHeader({
           <Text style={styles.caret}>⌄</Text>
         </TouchableOpacity>
 
-        <View style={styles.badge}>
-          <View style={styles.badgeDot} />
-          <Text style={styles.badgeText}>{tripsLabel}</Text>
-        </View>
+        {rightSlot ?? (
+          <View style={styles.badge}>
+            <View style={styles.badgeDot} />
+            <Text style={styles.badgeText}>{tripsLabel}</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -84,9 +88,9 @@ export function AgendiaHeader({
 const styles = StyleSheet.create({
   header: {
     backgroundColor: '#fff',
-    paddingTop: 16,
+    paddingTop: 12,
     paddingRight: 20,
-    paddingBottom: 18,
+    paddingBottom: 16,
     paddingLeft: 20,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,

@@ -56,11 +56,35 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
     .toString()
     .padStart(2, '0')}`;
   const visibleMonthTrips = trips.filter((trip) => trip.date.startsWith(visibleMonthKey));
-  const tripSummary =
-    visibleMonthTrips.length === 1 ? '1 viaje este mes' : `${visibleMonthTrips.length} viajes este mes`;
   const headerUserName = isLoading
     ? 'Cargando...'
     : selectedClientName || userProfile?.name || 'No autenticado';
+  const monthSelector = (
+    <View style={styles.monthSelector}>
+      <Pressable
+        accessibilityLabel="Mes anterior"
+        onPress={() => changeMonth(-1)}
+        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
+      >
+        <Ionicons name="chevron-back" size={18} color="#1B5E3B" />
+      </Pressable>
+
+      <View style={styles.monthSelectorTextGroup}>
+        <Text style={styles.monthSelectorLabel}>{monthLabel}</Text>
+        <Text style={styles.monthSelectorSummary}>
+          {visibleMonthTrips.length === 1 ? '1 viaje' : `${visibleMonthTrips.length} viajes`}
+        </Text>
+      </View>
+
+      <Pressable
+        accessibilityLabel="Mes siguiente"
+        onPress={() => changeMonth(1)}
+        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
+      >
+        <Ionicons name="chevron-forward" size={18} color="#1B5E3B" />
+      </Pressable>
+    </View>
+  );
 
   const changeMonth = (offset: number) => {
     setMonthDate((currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
@@ -113,6 +137,7 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
               onUserPress={handleOpenMenu}
               tripCount={visibleMonthTrips.length}
               userName={headerUserName}
+              rightSlot={monthSelector}
             />
           </View>
 
@@ -124,28 +149,6 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
               </Pressable>
             </View>
           ) : null}
-
-          <View style={styles.monthRow}>
-            <Pressable
-              accessibilityLabel="Mes anterior"
-              onPress={() => changeMonth(-1)}
-              style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
-            >
-              <Ionicons name="chevron-back" size={22} color="#1B5E3B" />
-            </Pressable>
-
-            <View style={styles.monthTitleGroup}>
-              <Text style={styles.month}>{monthLabel}</Text>
-            </View>
-
-            <Pressable
-              accessibilityLabel="Mes siguiente"
-              onPress={() => changeMonth(1)}
-              style={({ pressed }) => [styles.monthButton, pressed && styles.pressedButton]}
-            >
-              <Ionicons name="chevron-forward" size={22} color="#1B5E3B" />
-            </Pressable>
-          </View>
 
         </View>
 
@@ -232,34 +235,33 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 0,
   },
-  month: {
-    color: '#3D4C42',
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: 0,
-    textAlign: 'center',
-  },
-  summary: {
-    color: '#718077',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0,
-    textAlign: 'center',
-  },
-  monthRow: {
+  monthSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 6,
   },
-  monthTitleGroup: {
-    flex: 1,
-    gap: 2,
-  },
-  monthButton: {
-    width: 42,
-    height: 42,
+  monthSelectorButton: {
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  monthSelectorTextGroup: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 84,
+  },
+  monthSelectorLabel: {
+    color: '#1B5E3B',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+  monthSelectorSummary: {
+    color: '#3a7a52',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0,
   },
   pressedButton: {
     opacity: 0.72,

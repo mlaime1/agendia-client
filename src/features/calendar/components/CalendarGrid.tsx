@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
   },
   weekday: {
     flex: 1,
-    color: '#637067',
+    color: '#7A9E8A',
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0,
