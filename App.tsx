@@ -119,8 +119,9 @@ function AppContent() {
         return (
           <CalendarScreen
             onMenuPress={() => setDrawerVisible(true)}
+            clients={drawerClients}
             selectedClientId={selectedClientId}
-            selectedClientName={selectedClientName}
+            onSelectClient={setSelectedClientId}
           />
         );
     }

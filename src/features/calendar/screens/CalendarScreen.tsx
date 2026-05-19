@@ -23,11 +23,24 @@ import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 import { useAuth } from '../../../state/AuthContext';
 
-type CalendarScreenProps = {
-  onMenuPress?: () => void;
+type ClientOption = {
+  id: string;
+  name: string;
 };
 
-export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientName }: CalendarScreenProps & { selectedClientId?: string; selectedClientName?: string }) {
+type CalendarScreenProps = {
+  onMenuPress?: () => void;
+  clients: ClientOption[];
+  selectedClientId: string;
+  onSelectClient: (clientId: string) => void;
+};
+
+export function CalendarScreen({
+  onMenuPress,
+  clients,
+  selectedClientId,
+  onSelectClient,
+}: CalendarScreenProps) {
   const { profileError, refreshProfile, userProfile, isLoading } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
@@ -51,11 +64,14 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
 
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
   const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date) : '';
-  const detailTrips = detailDateKey ? tripsByDate[detailDateKey] ?? [] : [];
+  const detailTrips = detailDateKey
+    ? Object.entries(tripsByDate).find(([dateKey]) => dateKey === detailDateKey)?.[1] ?? []
+    : [];
   const visibleMonthKey = `${monthDate.getFullYear()}-${(monthDate.getMonth() + 1)
     .toString()
     .padStart(2, '0')}`;
   const visibleMonthTrips = trips.filter((trip) => trip.date.startsWith(visibleMonthKey));
+  const selectedClientName = clients.find((client) => client.id === selectedClientId)?.name ?? '';
   const headerUserName = isLoading
     ? 'Cargando...'
     : selectedClientName || userProfile?.name || 'No autenticado';
@@ -125,6 +141,10 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
     onMenuPress?.();
   };
 
+  const handleDeleteTrip = (tripId: string) => {
+    deleteTrip?.(tripId);
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ErrorBanner message={error} onDismiss={clearError} />
@@ -134,7 +154,9 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
             <AgendiaHeader
               onMenuPress={handleOpenMenu}
               onTodayPress={goToCurrentMonth}
-              onUserPress={handleOpenMenu}
+              clients={clients}
+              onSelectClient={onSelectClient}
+              selectedClientId={selectedClientId}
               tripCount={visibleMonthTrips.length}
               userName={headerUserName}
               rightSlot={monthSelector}
@@ -183,7 +205,7 @@ export function CalendarScreen({ onMenuPress, selectedClientId, selectedClientNa
 
       <DayDetailsModal
         dateLabel={detailDateLabel}
-        onDeleteTrip={deleteTrip}
+        onDeleteTrip={handleDeleteTrip}
         onClose={() => setDetailDateKey(null)}
         trips={detailTrips}
         onUpdateTrip={updateTrip}

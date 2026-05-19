@@ -1,17 +1,28 @@
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import {
+  FlatList,
+  Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 
+type ClientOption = {
+  id: string;
+  name: string;
+};
+
 type AgendiaHeaderProps = {
   userName: string;
   tripCount: number;
   onTodayPress: () => void;
-  onUserPress: () => void;
   onMenuPress: () => void;
+  clients: ClientOption[];
+  selectedClientId: string;
+  onSelectClient: (clientId: string) => void;
+  onUserPress?: () => void;
   rightSlot?: React.ReactNode;
 };
 
@@ -19,69 +30,140 @@ export function AgendiaHeader({
   userName,
   tripCount,
   onTodayPress,
-  onUserPress,
   onMenuPress,
+  clients,
+  selectedClientId,
+  onSelectClient,
+  onUserPress,
   rightSlot,
 }: AgendiaHeaderProps) {
-  const avatarLetter = userName.trim().charAt(0).toUpperCase() || 'A';
+  const [clientModalVisible, setClientModalVisible] = useState(false);
+  const selectedClient = useMemo(
+    () => clients.find((client) => client.id === selectedClientId) ?? null,
+    [clients, selectedClientId],
+  );
+  const avatarLetter = (selectedClient?.name || userName).trim().charAt(0).toUpperCase() || 'A';
   const tripsLabel = `${tripCount} ${tripCount === 1 ? 'viaje' : 'viajes'}`;
 
+  const handleOpenClientSelector = () => {
+    onUserPress?.();
+    setClientModalVisible(true);
+  };
+
+  const handleSelectClient = (clientId: string) => {
+    onSelectClient(clientId);
+    setClientModalVisible(false);
+  };
+
   return (
-    <View style={styles.header}>
-      <View style={styles.topRow}>
-        <TouchableOpacity
-          style={styles.menu}
-          onPress={onMenuPress}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Abrir menu"
-        >
-          <View style={[styles.menuLine, styles.menuLineFirst]} />
-          <View style={[styles.menuLine, styles.menuLineSecond]} />
-          <View style={[styles.menuLine, styles.menuLineThird]} />
-        </TouchableOpacity>
+    <>
+      <View style={styles.header}>
+        <View style={styles.topRow}>
+          <TouchableOpacity
+            style={styles.menu}
+            onPress={onMenuPress}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir menu"
+          >
+            <View style={[styles.menuLine, styles.menuLineFirst]} />
+            <View style={[styles.menuLine, styles.menuLineSecond]} />
+            <View style={[styles.menuLine, styles.menuLineThird]} />
+          </TouchableOpacity>
 
-        <Text style={styles.title}>Agendia</Text>
+          <Text style={styles.title}>Agendia</Text>
 
-        <TouchableOpacity
-          style={styles.todayButton}
-          onPress={onTodayPress}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Ir a hoy"
-        >
-          <Text style={styles.todayButtonText}>Hoy</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.todayButton}
+            onPress={onTodayPress}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Ir a hoy"
+          >
+            <Text style={styles.todayButtonText}>Hoy</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.userRow}>
+          <TouchableOpacity
+            style={styles.userPill}
+            onPress={handleOpenClientSelector}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Cambiar agenda"
+          >
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{avatarLetter}</Text>
+            </View>
+
+            <View style={styles.userInfo}>
+              <Text style={styles.userLabel}>Viendo agenda de</Text>
+              <Text style={styles.userName} numberOfLines={1}>
+                {selectedClient?.name || 'Seleccionar cliente'}
+              </Text>
+            </View>
+
+            <Text style={styles.caret}>⌄</Text>
+          </TouchableOpacity>
+
+          {rightSlot ?? (
+            <View style={styles.badge}>
+              <View style={styles.badgeDot} />
+              <Text style={styles.badgeText}>{tripsLabel}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
-      <View style={styles.userRow}>
-        <TouchableOpacity
-          style={styles.userPill}
-          onPress={onUserPress}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel="Cambiar usuario"
-        >
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{avatarLetter}</Text>
-          </View>
+      <Modal
+        animationType="slide"
+        transparent
+        visible={clientModalVisible}
+        onRequestClose={() => setClientModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setClientModalVisible(false)} />
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Seleccionar cliente</Text>
+              <Pressable
+                onPress={() => setClientModalVisible(false)}
+                style={styles.modalClose}
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar selector"
+              >
+                <Text style={styles.modalCloseText}>×</Text>
+              </Pressable>
+            </View>
 
-          <View>
-            <Text style={styles.userLabel}>Viendo agenda de</Text>
-            <Text style={styles.userName}>{userName}</Text>
-          </View>
+            <FlatList
+              data={clients}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => {
+                const isSelected = item.id === selectedClientId;
 
-          <Text style={styles.caret}>⌄</Text>
-        </TouchableOpacity>
-
-        {rightSlot ?? (
-          <View style={styles.badge}>
-            <View style={styles.badgeDot} />
-            <Text style={styles.badgeText}>{tripsLabel}</Text>
+                return (
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.clientRow,
+                      isSelected && styles.clientRowSelected,
+                      pressed && styles.clientRowPressed,
+                    ]}
+                    onPress={() => handleSelectClient(item.id)}
+                  >
+                    <Text style={[styles.clientRowText, isSelected && styles.clientRowTextSelected]}>
+                      {item.name}
+                    </Text>
+                    {isSelected ? <Text style={styles.clientRowCheck}>✓</Text> : null}
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.modalEmpty}>No hay clientes disponibles</Text>}
+            />
           </View>
-        )}
-      </View>
-    </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
@@ -171,6 +253,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#E8F5E9',
   },
+  userInfo: {
+    minWidth: 0,
+  },
   userLabel: {
     fontSize: 11,
     color: '#3a7a52',
@@ -205,5 +290,85 @@ const styles = StyleSheet.create({
     color: '#E8F5E9',
     fontSize: 12,
     fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.28)',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    paddingBottom: 18,
+    maxHeight: '62%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: '#1B5E3B',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  modalClose: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F6F1',
+  },
+  modalCloseText: {
+    color: '#1B5E3B',
+    fontSize: 22,
+    lineHeight: 22,
+    fontWeight: '700',
+  },
+  clientRow: {
+    minHeight: 48,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F7FAF7',
+  },
+  clientRowSelected: {
+    backgroundColor: '#E8F5E9',
+  },
+  clientRowPressed: {
+    opacity: 0.8,
+  },
+  clientRowText: {
+    color: '#58665B',
+    fontSize: 14,
+    fontWeight: '600',
+    flex: 1,
+  },
+  clientRowTextSelected: {
+    color: '#1B5E3B',
+    fontWeight: '700',
+  },
+  clientRowCheck: {
+    color: '#1B5E3B',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalEmpty: {
+    color: '#7A9E8A',
+    fontSize: 13,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 20,
   },
 });

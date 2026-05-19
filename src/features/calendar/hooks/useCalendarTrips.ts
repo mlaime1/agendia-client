@@ -6,7 +6,19 @@ import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { useAuth } from '../../../state/AuthContext';
 import { defaultsService } from '../../../services/defaults';
 
-export const useCalendarTrips = (selectedClientId?: string) => {
+type UseCalendarTripsResult = {
+  trips: Trip[];
+  tripsByDate: Record<string, Trip[]>;
+  addTrip: (dateKey: string, mode: TripMode) => void;
+  addSpecialTrip: (input: PendingSpecialTrip) => void;
+  updateTrip: (tripId: string, updates: TripUpdates) => void;
+  deleteTrip: (tripId: string) => void;
+  isLoadingTrips: boolean;
+  error: string | null;
+  clearError: () => void;
+};
+
+export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsResult => {
   const { userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
@@ -17,21 +29,20 @@ export const useCalendarTrips = (selectedClientId?: string) => {
 
   const clearError = () => setError(null);
 
+  const createUnauthenticatedHandler = (message: string) => () => {
+    setError(message);
+  };
+
   const userId = userProfile?.id;
 
   if (!userId) {
     return {
       trips: [],
       tripsByDate: {},
-      addTrip: () => {
-        setError('No estás autenticado. Inicia sesión para crear viajes.');
-      },
-      addSpecialTrip: () => {
-        setError('No estás autenticado. Inicia sesión para crear viajes.');
-      },
-      updateTrip: () => {
-        setError('No estás autenticado. Inicia sesión para actualizar viajes.');
-      },
+      addTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.'),
+      addSpecialTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.'),
+      updateTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para actualizar viajes.'),
+      deleteTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para eliminar viajes.'),
       isLoadingTrips: false,
       error,
       clearError,
