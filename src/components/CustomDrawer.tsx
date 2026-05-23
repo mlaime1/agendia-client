@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { theme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.82;
@@ -163,15 +164,9 @@ export function CustomDrawer({
           {/* Header - Blue section */}
           <View style={styles.header}>
             <View style={styles.userInfo}>
-              {user.avatar ? (
-                <View style={styles.avatarContainer}>
-                  <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
-                </View>
-              ) : (
-                <View style={styles.avatarContainer}>
-                  <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
-                </View>
-              )}
+              <View style={styles.avatarContainer}>
+                <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
+              </View>
               <Text style={styles.userName}>{user.name}</Text>
               <Text style={styles.userEmail}>{user.email}</Text>
               <Text style={styles.userRole}>{getRoleLabel(user.role)}</Text>
@@ -188,7 +183,7 @@ export function CustomDrawer({
               <Text style={styles.clientSelectorText} numberOfLines={1}>
                 {selectedClient?.name || 'Seleccionar cliente'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
+              <Ionicons name="chevron-down" size={16} color={theme.colors.primaryLight} />
             </Pressable>
           </View>
 
@@ -208,8 +203,8 @@ export function CustomDrawer({
                 >
                   <Ionicons
                     name={item.icon}
-                    size={22}
-                    color={isActive ? '#3B6D11' : '#888888'}
+                    size={20}
+                    color={isActive ? theme.colors.primary : theme.colors.mutedText}
                   />
                   <Text
                     style={[
@@ -219,6 +214,7 @@ export function CustomDrawer({
                   >
                     {item.label}
                   </Text>
+                  {isActive ? <View style={styles.activeDot} /> : null}
                 </Pressable>
               );
             })}
@@ -311,49 +307,52 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.overlay,
   },
   drawer: {
     width: DRAWER_WIDTH,
     flex: 1,
     backgroundColor: '#FFFFFF',
+    borderTopRightRadius: 24,
+    borderBottomRightRadius: 24,
+    overflow: 'hidden',
   },
   header: {
-    backgroundColor: '#4A90D9',
-    paddingHorizontal: 20,
+    backgroundColor: theme.colors.primary,
+    paddingHorizontal: theme.spacing.lg,
     paddingTop: 24,
-    paddingBottom: 20,
+    paddingBottom: theme.spacing.md,
   },
   userInfo: {
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   avatarContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: theme.colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: theme.spacing.sm,
   },
   avatarText: {
-    color: '#FFFFFF',
+    color: theme.colors.primary,
     fontSize: 20,
     fontWeight: '700',
   },
   userName: {
-    color: '#FFFFFF',
-    fontSize: 17,
+    color: theme.colors.primaryLight,
+    fontSize: 18,
     fontWeight: '700',
     marginBottom: 2,
   },
   userEmail: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(232,245,233,0.75)',
     fontSize: 13,
     marginBottom: 2,
   },
   userRole: {
-    color: 'rgba(255, 255, 255, 0.85)',
+    color: 'rgba(232,245,233,0.6)',
     fontSize: 13,
   },
   clientSelector: {
@@ -363,14 +362,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#FFFFFF',
-    borderRadius: 20,
+    borderColor: theme.colors.whiteTransparent18,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.whiteTransparent12,
   },
   clientSelectorPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    opacity: 0.9,
   },
   clientSelectorText: {
-    color: '#FFFFFF',
+    color: theme.colors.primaryLight,
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
@@ -378,38 +378,38 @@ const styles = StyleSheet.create({
   },
   menuContainer: {
     flex: 1,
-    paddingTop: 8,
-    paddingHorizontal: 12,
+    paddingTop: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    paddingVertical: 14,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    borderRadius: 10,
-    marginVertical: 2,
+    borderRadius: theme.radii.medium,
+    marginVertical: 6,
   },
   menuItemActive: {
-    backgroundColor: '#EAF3DE',
+    backgroundColor: theme.colors.primaryLight,
   },
   menuItemPressed: {
     opacity: 0.7,
   },
   menuItemText: {
-    color: '#888888',
+    color: theme.colors.mutedText,
     fontSize: 15,
     fontWeight: '500',
   },
   menuItemTextActive: {
-    color: '#3B6D11',
+    color: theme.colors.primary,
     fontWeight: '700',
   },
   footer: {
     borderTopWidth: 1,
     borderTopColor: '#E8EDE0',
-    paddingTop: 16,
-    paddingHorizontal: 20,
+    paddingTop: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
   },
   logoutButton: {
     paddingVertical: 8,
@@ -418,9 +418,16 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   logoutText: {
-    color: '#C0392B',
+    color: theme.colors.danger,
     fontSize: 14,
     fontWeight: '500',
+  },
+  activeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.primary,
+    marginLeft: 'auto',
   },
   // Client modal styles
   clientModalOverlay: {

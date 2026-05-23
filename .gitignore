@@ -7,3 +7,6 @@ yarn-error.log*
 .env
 android
 ios
+.env.dev
+.env.local
+.env.prod
