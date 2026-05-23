@@ -10,9 +10,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { AppIcon, AppIconName } from './AppIcon';
+import { Theme, ThemePreference, useTheme, useThemedStyles } from '../theme';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.82;
 
@@ -31,16 +32,24 @@ type Client = {
 type MenuItemConfig = {
   route: string;
   label: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: AppIconName;
 };
 
 const menuItems: MenuItemConfig[] = [
-  { route: 'Calendario', label: 'Calendario', icon: 'calendar-outline' },
-  { route: 'Historial', label: 'Historial', icon: 'time-outline' },
-  { route: 'Recorridos', label: 'Recorridos', icon: 'map-outline' },
-  { route: 'Resumenes', label: 'Resúmenes', icon: 'document-text-outline' },
-  { route: 'Clientes', label: 'Clientes', icon: 'people-outline' },
-  { route: 'Perfil', label: 'Perfil', icon: 'person-outline' },
+  { route: 'Calendario', label: 'Calendario', icon: 'calendar' },
+  { route: 'Historial', label: 'Historial', icon: 'clock' },
+  { route: 'Recorridos', label: 'Recorridos', icon: 'map' },
+  { route: 'Resumenes', label: 'Resúmenes', icon: 'fileText' },
+  { route: 'Clientes', label: 'Clientes', icon: 'users' },
+  { route: 'Perfil', label: 'Perfil', icon: 'user' },
+];
+
+const themeOptions: Array<{ value: ThemePreference; label: string }> = [
+  { value: 'system', label: 'Sistema' },
+  { value: 'light', label: 'Claro' },
+  { value: 'dark', label: 'Oscuro' },
+  { value: 'purple', label: 'Violeta' },
+  { value: 'green', label: 'Verde' },
 ];
 
 type CustomDrawerProps = {
@@ -67,6 +76,8 @@ export function CustomDrawer({
   onLogout,
 }: CustomDrawerProps) {
   const insets = useSafeAreaInsets();
+  const { setThemePreference, theme, themePreference } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
 
@@ -183,8 +194,37 @@ export function CustomDrawer({
               <Text style={styles.clientSelectorText} numberOfLines={1}>
                 {selectedClient?.name || 'Seleccionar cliente'}
               </Text>
-              <Ionicons name="chevron-down" size={16} color={theme.colors.primaryLight} />
+              <AppIcon name="chevronDown" size={16} color={theme.colors.primaryLight} />
             </Pressable>
+          </View>
+
+          <View style={styles.themeSection}>
+            <Text style={styles.themeSectionTitle}>Tema</Text>
+            <View style={styles.themeOptions}>
+              {themeOptions.map((option) => {
+                const isSelected = option.value === themePreference;
+
+                return (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    key={option.value}
+                    onPress={() => {
+                      void setThemePreference(option.value);
+                    }}
+                    style={({ pressed }) => [
+                      styles.themeOption,
+                      isSelected && styles.themeOptionSelected,
+                      pressed && styles.menuItemPressed,
+                    ]}
+                  >
+                    <Text style={[styles.themeOptionText, isSelected && styles.themeOptionTextSelected]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
 
           {/* Menu items */}
@@ -201,7 +241,7 @@ export function CustomDrawer({
                   ]}
                   onPress={() => handleMenuPress(item.route)}
                 >
-                  <Ionicons
+                  <AppIcon
                     name={item.icon}
                     size={20}
                     color={isActive ? theme.colors.primary : theme.colors.mutedText}
@@ -254,7 +294,7 @@ export function CustomDrawer({
                 onPress={() => setClientModalVisible(false)}
                 style={styles.clientModalClose}
               >
-                <Ionicons name="close" size={24} color="#1A1A1A" />
+                <AppIcon name="close" size={24} color={theme.colors.text} />
               </Pressable>
             </View>
             <FlatList
@@ -280,7 +320,7 @@ export function CustomDrawer({
                       {item.name}
                     </Text>
                     {isSelected && (
-                      <Ionicons name="checkmark" size={20} color="#3A6B2A" />
+                      <AppIcon name="check" size={20} color={theme.colors.primary} />
                     )}
                   </Pressable>
                 );
@@ -296,7 +336,7 @@ export function CustomDrawer({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   overlay: {
     flex: 1,
     flexDirection: 'row',
@@ -312,7 +352,7 @@ const styles = StyleSheet.create({
   drawer: {
     width: DRAWER_WIDTH,
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopRightRadius: 24,
     borderBottomRightRadius: 24,
     overflow: 'hidden',
@@ -347,12 +387,14 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   userEmail: {
-    color: 'rgba(232,245,233,0.75)',
+    color: theme.colors.primaryLight,
+    opacity: 0.75,
     fontSize: 13,
     marginBottom: 2,
   },
   userRole: {
-    color: 'rgba(232,245,233,0.6)',
+    color: theme.colors.primaryLight,
+    opacity: 0.6,
     fontSize: 13,
   },
   clientSelector: {
@@ -407,7 +449,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: '#E8EDE0',
+    borderTopColor: theme.colors.border,
     paddingTop: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
   },
@@ -429,6 +471,48 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.primary,
     marginLeft: 'auto',
   },
+  themeSection: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  themeSectionTitle: {
+    color: theme.colors.textSubtle,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  themeOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  themeOption: {
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: theme.radii.pill,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
+  },
+  themeOptionSelected: {
+    borderColor: theme.colors.primary,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  themeOptionText: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  themeOptionTextSelected: {
+    color: theme.colors.primary,
+  },
   // Client modal styles
   clientModalOverlay: {
     flex: 1,
@@ -440,10 +524,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: theme.colors.overlay,
   },
   clientModalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '70%',
@@ -455,10 +539,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EDE0',
+    borderBottomColor: theme.colors.border,
   },
   clientModalTitle: {
-    color: '#1A1A1A',
+    color: theme.colors.text,
     fontSize: 18,
     fontWeight: '700',
   },
@@ -472,25 +556,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F5F7F0',
+    borderBottomColor: theme.colors.surfaceMuted,
   },
   clientItemSelected: {
-    backgroundColor: '#EAF3DE',
+    backgroundColor: theme.colors.primaryLight,
   },
   clientItemPressed: {
-    backgroundColor: '#F5F7F0',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   clientItemText: {
-    color: '#1A1A1A',
+    color: theme.colors.text,
     fontSize: 15,
     fontWeight: '500',
   },
   clientItemTextSelected: {
-    color: '#3A6B2A',
+    color: theme.colors.primary,
     fontWeight: '700',
   },
   emptyText: {
-    color: '#888888',
+    color: theme.colors.textSubtle,
     fontSize: 14,
     textAlign: 'center',
     paddingVertical: 32,

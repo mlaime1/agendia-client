@@ -10,8 +10,8 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
+import { AppIcon } from '../../../components/AppIcon';
 import { AgendiaHeader } from '../../../components/AgendiaHeader';
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
@@ -22,6 +22,7 @@ import { useCalendarTrips } from '../hooks/useCalendarTrips';
 import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 import { useAuth } from '../../../state/AuthContext';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type ClientOption = {
   id: string;
@@ -42,6 +43,8 @@ export function CalendarScreen({
   onSelectClient,
 }: CalendarScreenProps) {
   const { profileError, refreshProfile, userProfile, isLoading } = useAuth();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [monthDate, setMonthDate] = useState(() => new Date());
   const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
@@ -82,7 +85,7 @@ export function CalendarScreen({
         onPress={() => changeMonth(-1)}
         style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
       >
-        <Ionicons name="chevron-back" size={18} color="#1B5E3B" />
+        <AppIcon name="chevronLeft" size={18} color={theme.colors.primary} />
       </Pressable>
 
       <View style={styles.monthSelectorTextGroup}>
@@ -97,7 +100,7 @@ export function CalendarScreen({
         onPress={() => changeMonth(1)}
         style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
       >
-        <Ionicons name="chevron-forward" size={18} color="#1B5E3B" />
+        <AppIcon name="chevronRight" size={18} color={theme.colors.primary} />
       </Pressable>
     </View>
   );
@@ -176,7 +179,7 @@ export function CalendarScreen({
 
         {isLoadingTrips ? (
           <View style={styles.loadingCard}>
-            <ActivityIndicator size="small" color="#247145" />
+            <ActivityIndicator size="small" color={theme.colors.primary} />
             <Text style={styles.loadingTitle}>Cargando viajes...</Text>
             <View style={styles.loadingLine} />
             <View style={styles.loadingLine} />
@@ -215,10 +218,10 @@ export function CalendarScreen({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F6FAF6',
+    backgroundColor: theme.colors.background,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   content: {
@@ -238,21 +241,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 8,
     borderWidth: 1,
-    borderColor: '#F0D2CF',
+    borderColor: theme.colors.semantic.error.border,
     borderRadius: 8,
-    backgroundColor: '#FFF7F6',
+    backgroundColor: theme.colors.semantic.error.bg,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
   profileWarningText: {
     flex: 1,
-    color: '#7A3732',
+    color: theme.colors.semantic.error.text,
     fontSize: 12,
     fontWeight: '700',
     letterSpacing: 0,
   },
   profileWarningAction: {
-    color: '#247145',
+    color: theme.colors.primary,
     fontSize: 12,
     fontWeight: '900',
     letterSpacing: 0,
@@ -274,13 +277,13 @@ const styles = StyleSheet.create({
     minWidth: 84,
   },
   monthSelectorLabel: {
-    color: '#1B5E3B',
+    color: theme.colors.primary,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0,
   },
   monthSelectorSummary: {
-    color: '#3a7a52',
+    color: theme.colors.textMuted,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0,
@@ -292,14 +295,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 10,
     borderWidth: 1,
-    borderColor: '#DFE8E2',
+    borderColor: theme.colors.border,
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 14,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   loadingTitle: {
-    color: '#3F4C44',
+    color: theme.colors.textMuted,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0,
@@ -307,7 +310,7 @@ const styles = StyleSheet.create({
   loadingLine: {
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#EDF3EE',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   loadingLineShort: {
     width: '72%',

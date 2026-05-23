@@ -10,10 +10,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
+import { AppIcon } from '../../../components/AppIcon';
 import { Trip, TripMode, TripUpdates } from '../types';
 import { TripStamp } from './TripStamp';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type DayDetailsModalProps = {
   visible: boolean;
@@ -43,6 +44,8 @@ export function DayDetailsModal({
   onUpdateTrip,
   onDeleteTrip,
 }: DayDetailsModalProps) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const translateY = useRef(new Animated.Value(0)).current;
   const [openNoteEditors, setOpenNoteEditors] = useState<Record<string, boolean>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -199,6 +202,7 @@ export function DayDetailsModal({
                         maxLength={5}
                         onChangeText={(time) => onUpdateTrip(trip.id, { time })}
                         placeholder="HH:mm"
+                        placeholderTextColor={theme.colors.textSubtle}
                         style={styles.timeInput}
                         value={trip.time}
                       />
@@ -232,6 +236,7 @@ export function DayDetailsModal({
                       <TextInput
                         onChangeText={(specialType) => onUpdateTrip(trip.id, { specialType })}
                         placeholder="Parada extra, desvío..."
+                        placeholderTextColor={theme.colors.textSubtle}
                         style={styles.input}
                         value={trip.specialType ?? ''}
                       />
@@ -249,6 +254,7 @@ export function DayDetailsModal({
                           }))
                         }
                         placeholder="Nota opcional"
+                        placeholderTextColor={theme.colors.textSubtle}
                         style={[styles.input, styles.noteInput]}
                         value={noteDrafts[trip.id] ?? trip.note ?? ''}
                       />
@@ -260,7 +266,7 @@ export function DayDetailsModal({
                           onPress={() => cancelNote(trip.id)}
                           style={({ pressed }) => [styles.noteActionButton, pressed && styles.iconActionButtonPressed]}
                         >
-                          <Ionicons name="close-circle-outline" size={18} color="#8D5B08" />
+                          <AppIcon name="closeCircle" size={18} color={theme.colors.semantic.warning.text} />
                           <Text style={styles.noteActionText}>Cancelar</Text>
                         </Pressable>
 
@@ -270,7 +276,7 @@ export function DayDetailsModal({
                           onPress={() => saveNote(trip.id)}
                           style={({ pressed }) => [styles.noteActionButton, styles.noteActionPrimary, pressed && styles.iconActionButtonPressed]}
                         >
-                          <Ionicons name="checkmark-circle-outline" size={18} color="#247145" />
+                          <AppIcon name="checkCircle" size={18} color={theme.colors.primary} />
                           <Text style={[styles.noteActionText, styles.noteActionPrimaryText]}>Guardar</Text>
                         </Pressable>
                       </View>
@@ -284,10 +290,10 @@ export function DayDetailsModal({
                       onPress={() => toggleNoteEditor(trip.id)}
                       style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
                     >
-                      <Ionicons
-                        name={openNoteEditors[trip.id] ? 'chatbox-ellipses' : 'create-outline'}
+                      <AppIcon
+                        name={openNoteEditors[trip.id] ? 'message' : 'edit'}
                         size={18}
-                        color="#247145"
+                        color={theme.colors.primary}
                       />
                     </Pressable>
 
@@ -297,7 +303,7 @@ export function DayDetailsModal({
                       onPress={() => confirmDeleteTrip(trip)}
                       style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
                     >
-                      <Ionicons name="trash-outline" size={18} color="#B63A34" />
+                      <AppIcon name="trash" size={18} color={theme.colors.danger} />
                     </Pressable>
                   </View>
                 </View>
@@ -310,11 +316,11 @@ export function DayDetailsModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(28, 39, 30, 0.28)',
+    backgroundColor: theme.colors.overlay,
   },
   panel: {
     maxHeight: '82%',
@@ -322,7 +328,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   header: {
     flexDirection: 'row',
@@ -335,7 +341,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   eyebrow: {
-    color: '#6D7C72',
+    color: theme.colors.textSubtle,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0,
@@ -343,7 +349,7 @@ const styles = StyleSheet.create({
   },
   title: {
     marginTop: 2,
-    color: '#253229',
+    color: theme.colors.text,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: 0,
@@ -353,15 +359,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 14,
     borderRadius: 8,
-    backgroundColor: '#EFF4F0',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   closeText: {
-    color: '#526057',
+    color: theme.colors.textMuted,
     fontWeight: '800',
     letterSpacing: 0,
   },
   emptyText: {
-    color: '#6D7C72',
+    color: theme.colors.textSubtle,
     fontSize: 15,
     letterSpacing: 0,
   },
@@ -373,9 +379,9 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#E1EAE3',
+    borderColor: theme.colors.border,
     borderRadius: 8,
-    backgroundColor: '#FBFDFB',
+    backgroundColor: theme.colors.surfaceSubtle,
   },
   tripHeader: {
     flexDirection: 'row',
@@ -388,7 +394,7 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   tripTitle: {
-    color: '#354039',
+    color: theme.colors.text,
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0,
@@ -397,7 +403,7 @@ const styles = StyleSheet.create({
     width: 76,
   },
   inputLabel: {
-    color: '#59675D',
+    color: theme.colors.textMuted,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0,
@@ -408,12 +414,12 @@ const styles = StyleSheet.create({
     marginTop: 5,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#DDE7DF',
+    borderColor: theme.colors.borderStrong,
     borderRadius: 7,
-    color: '#253229',
+    color: theme.colors.text,
     fontSize: 14,
     fontWeight: '800',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   modeRow: {
     flexDirection: 'row',
@@ -426,32 +432,32 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 6,
     borderWidth: 1,
-    borderColor: '#DDE7DF',
+    borderColor: theme.colors.borderStrong,
     borderRadius: 7,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   selectedModeButton: {
-    borderColor: '#65A878',
-    backgroundColor: '#EAF7EE',
+    borderColor: theme.colors.trip.outbound.border,
+    backgroundColor: theme.colors.trip.outbound.bg,
   },
   modeText: {
-    color: '#58665B',
+    color: theme.colors.textMuted,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0,
     textAlign: 'center',
   },
   selectedModeText: {
-    color: '#247145',
+    color: theme.colors.primary,
   },
   input: {
     minHeight: 40,
     paddingHorizontal: 10,
     borderWidth: 1,
-    borderColor: '#DDE7DF',
+    borderColor: theme.colors.borderStrong,
     borderRadius: 7,
-    color: '#253229',
-    backgroundColor: '#FFFFFF',
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surface,
   },
   noteInput: {
     minHeight: 64,
@@ -462,9 +468,9 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 12,
     borderRadius: 12,
-    backgroundColor: '#F8FBF8',
+    backgroundColor: theme.colors.surfaceSubtle,
     borderWidth: 1,
-    borderColor: '#E3EDE6',
+    borderColor: theme.colors.border,
   },
   noteActionsRow: {
     flexDirection: 'row',
@@ -478,22 +484,22 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderWidth: 1,
-    borderColor: '#DDE7DF',
+    borderColor: theme.colors.borderStrong,
   },
   noteActionPrimary: {
-    backgroundColor: '#EAF7EE',
-    borderColor: '#CDE7D5',
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.borderStrong,
   },
   noteActionText: {
-    color: '#4A5A50',
+    color: theme.colors.textMuted,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0,
   },
   noteActionPrimaryText: {
-    color: '#247145',
+    color: theme.colors.primary,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -506,7 +512,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 7,
-    backgroundColor: '#EFF4F0',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   iconActionButtonPressed: {
     opacity: 0.85,

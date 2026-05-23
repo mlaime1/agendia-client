@@ -2,15 +2,11 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { TripMode } from '../types';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type QuickAction = {
   label: string;
   mode: TripMode;
-  colors: {
-    backgroundColor: string;
-    borderColor: string;
-    textColor: string;
-  };
 };
 
 type QuickActionBarProps = {
@@ -22,33 +18,21 @@ const actions: QuickAction[] = [
   {
     label: 'Ida',
     mode: 'outbound',
-    colors: {
-      backgroundColor: '#EAF7EE',
-      borderColor: '#65A878',
-      textColor: '#247145',
-    },
   },
   {
     label: 'Ida y vuelta',
     mode: 'roundTrip',
-    colors: {
-      backgroundColor: '#EAF2FF',
-      borderColor: '#77A9E8',
-      textColor: '#255EA8',
-    },
   },
   {
     label: 'Especial',
     mode: 'special',
-    colors: {
-      backgroundColor: '#FFF0DA',
-      borderColor: '#E7A85D',
-      textColor: '#99510D',
-    },
   },
 ];
 
 export function QuickActionBar({ selectedMode, onSelectMode }: QuickActionBarProps) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+
   return (
     <View style={styles.container}>
       {actions.map((action) => {
@@ -63,8 +47,8 @@ export function QuickActionBar({ selectedMode, onSelectMode }: QuickActionBarPro
             style={({ pressed }) => [
               styles.button,
               isSelected && {
-                backgroundColor: action.colors.backgroundColor,
-                borderColor: action.colors.borderColor,
+                backgroundColor: theme.colors.trip[action.mode].bg,
+                borderColor: theme.colors.trip[action.mode].border,
               },
               pressed && styles.pressedButton,
             ]}
@@ -72,7 +56,7 @@ export function QuickActionBar({ selectedMode, onSelectMode }: QuickActionBarPro
             <Text
               style={[
                 styles.label,
-                isSelected && { color: action.colors.textColor },
+                isSelected && { color: theme.colors.trip[action.mode].text },
                 isSelected && styles.selectedLabel,
               ]}
             >
@@ -85,7 +69,7 @@ export function QuickActionBar({ selectedMode, onSelectMode }: QuickActionBarPro
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     gap: 8,
@@ -102,13 +86,13 @@ const styles = StyleSheet.create({
       borderWidth: 1,
       borderColor: 'transparent',
       borderRadius: 12,
-      backgroundColor: '#F7FAF7',
+      backgroundColor: theme.colors.surfaceMuted,
   },
   pressedButton: {
     opacity: 0.72,
   },
   label: {
-      color: '#7A9E8A',
+      color: theme.colors.textSubtle,
     fontSize: 13,
       fontWeight: '600',
     letterSpacing: 0,

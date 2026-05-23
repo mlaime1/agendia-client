@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
+
 type SpecialTripModalProps = {
   visible: boolean;
   onClose: () => void;
@@ -8,6 +10,8 @@ type SpecialTripModalProps = {
 };
 
 export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripModalProps) {
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [specialType, setSpecialType] = useState('Parada extra');
   const [note, setNote] = useState('');
 
@@ -28,6 +32,7 @@ export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripMod
           <TextInput
             onChangeText={setSpecialType}
             placeholder="Parada extra, desvío..."
+            placeholderTextColor={theme.colors.textSubtle}
             style={styles.input}
             value={specialType}
           />
@@ -37,6 +42,7 @@ export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripMod
             multiline
             onChangeText={setNote}
             placeholder="Opcional"
+            placeholderTextColor={theme.colors.textSubtle}
             style={[styles.input, styles.noteInput]}
             value={note}
           />
@@ -58,29 +64,29 @@ export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripMod
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(28, 39, 30, 0.28)',
+    backgroundColor: theme.colors.overlay,
   },
   panel: {
     padding: 20,
     paddingBottom: 28,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   title: {
     marginBottom: 18,
-    color: '#253229',
+    color: theme.colors.text,
     fontSize: 20,
     fontWeight: '800',
     letterSpacing: 0,
   },
   label: {
     marginBottom: 6,
-    color: '#59675D',
+    color: theme.colors.textMuted,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0,
@@ -90,10 +96,10 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     paddingHorizontal: 12,
     borderWidth: 1,
-    borderColor: '#DDE7DF',
+    borderColor: theme.colors.borderStrong,
     borderRadius: 8,
-    color: '#253229',
-    backgroundColor: '#F8FBF8',
+    color: theme.colors.text,
+    backgroundColor: theme.colors.surfaceSubtle,
   },
   noteInput: {
     minHeight: 76,
@@ -113,18 +119,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   secondaryButton: {
-    backgroundColor: '#EFF4F0',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   primaryButton: {
-    backgroundColor: '#2F8A55',
+    backgroundColor: theme.colors.primary,
   },
   secondaryText: {
-    color: '#526057',
+    color: theme.colors.textMuted,
     fontWeight: '800',
     letterSpacing: 0,
   },
   primaryText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontWeight: '800',
     letterSpacing: 0,
   },

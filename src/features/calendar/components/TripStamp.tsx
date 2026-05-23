@@ -2,42 +2,33 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { TripMode } from '../types';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type TripStampProps = {
   mode: TripMode;
 };
 
-const stampStyles: Record<TripMode, { backgroundColor: string; color: string; label: string }> = {
-  outbound: {
-    backgroundColor: '#D8F0E2',
-    color: '#176B43',
-    label: 'Ida',
-  },
-  roundTrip: {
-    backgroundColor: '#DDEBFF',
-    color: '#255EA8',
-    label: 'Vta',
-  },
-  special: {
-    backgroundColor: '#FFE3C2',
-    color: '#99510D',
-    label: 'Esp.',
-  },
+const stampLabels: Record<TripMode, string> = {
+  outbound: 'Ida',
+  roundTrip: 'Vta',
+  special: 'Esp.',
 };
 
 export function TripStamp({ mode }: TripStampProps) {
-  const colors = stampStyles[mode];
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const colors = theme.colors.trip[mode];
 
   return (
-    <View style={[styles.stamp, { backgroundColor: colors.backgroundColor }]}>
-      <Text numberOfLines={1} style={[styles.label, { color: colors.color }]}>
-        {colors.label}
+    <View style={[styles.stamp, { backgroundColor: colors.bg }]}>
+      <Text numberOfLines={1} style={[styles.label, { color: colors.text }]}>
+        {stampLabels[mode]}
       </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (_theme: Theme) => StyleSheet.create({
   stamp: {
     width: '100%',
     minHeight: 18,

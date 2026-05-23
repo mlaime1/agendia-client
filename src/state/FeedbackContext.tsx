@@ -1,7 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { AppIcon, AppIconName } from '../components/AppIcon';
+import { Theme, useTheme, useThemedStyles } from '../theme';
 
 type FeedbackType = 'success' | 'error' | 'info';
 
@@ -35,6 +37,8 @@ const DEFAULT_DURATION_MS = 2800;
 
 export function FeedbackProvider({ children }: FeedbackProviderProps) {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [feedback, setFeedback] = useState<FeedbackPayload | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-14)).current;
@@ -98,28 +102,28 @@ export function FeedbackProvider({ children }: FeedbackProviderProps) {
     if (feedback.type === 'success') {
       return {
         container: styles.successContainer,
-        icon: '#247145',
-        text: '#247145',
-        iconName: 'checkmark-circle' as const,
+        icon: theme.colors.semantic.success.text,
+        text: theme.colors.semantic.success.text,
+        iconName: 'checkCircle' as AppIconName,
       };
     }
 
     if (feedback.type === 'error') {
       return {
         container: styles.errorContainer,
-        icon: '#B42318',
-        text: '#B42318',
-        iconName: 'alert-circle' as const,
+        icon: theme.colors.semantic.error.text,
+        text: theme.colors.semantic.error.text,
+        iconName: 'alert' as AppIconName,
       };
     }
 
     return {
       container: styles.infoContainer,
-      icon: '#185FA5',
-      text: '#185FA5',
-      iconName: 'information-circle' as const,
+      icon: theme.colors.semantic.info.text,
+      text: theme.colors.semantic.info.text,
+      iconName: 'info' as AppIconName,
     };
-  }, [feedback]);
+  }, [feedback, styles.errorContainer, styles.infoContainer, styles.successContainer, theme]);
 
   return (
     <FeedbackContext.Provider value={{ showFeedback }}>
@@ -135,7 +139,7 @@ export function FeedbackProvider({ children }: FeedbackProviderProps) {
             ]}
           >
             <Pressable style={[styles.banner, bannerStyle.container]} onPress={hideFeedback}>
-              <Ionicons name={bannerStyle.iconName} size={18} color={bannerStyle.icon} />
+              <AppIcon name={bannerStyle.iconName} size={18} color={bannerStyle.icon} />
               <Text style={[styles.bannerText, { color: bannerStyle.text }]}>
                 {feedback.message}
               </Text>
@@ -147,7 +151,7 @@ export function FeedbackProvider({ children }: FeedbackProviderProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   root: {
     flex: 1,
   },
@@ -166,22 +170,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    shadowColor: '#000000',
+    shadowColor: theme.colors.shadow,
     shadowOpacity: 0.1,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
   },
   successContainer: {
-    backgroundColor: '#EAF3DE',
-    borderColor: '#BFD6A3',
+    backgroundColor: theme.colors.semantic.success.bg,
+    borderColor: theme.colors.semantic.success.border,
   },
   errorContainer: {
-    backgroundColor: '#FFF1F0',
-    borderColor: '#F5B7B1',
+    backgroundColor: theme.colors.semantic.error.bg,
+    borderColor: theme.colors.semantic.error.border,
   },
   infoContainer: {
-    backgroundColor: '#E6F1FB',
-    borderColor: '#B9D4F0',
+    backgroundColor: theme.colors.semantic.info.bg,
+    borderColor: theme.colors.semantic.info.border,
   },
   bannerText: {
     flex: 1,
