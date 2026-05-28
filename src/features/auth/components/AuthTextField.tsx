@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, TextInput, TextInputProps, View, Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+
+import { AppIcon } from '../../../components/AppIcon';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type AuthTextFieldProps = TextInputProps & {
   label: string;
@@ -8,6 +10,8 @@ type AuthTextFieldProps = TextInputProps & {
 
 export function AuthTextField({ label, ...textInputProps }: AuthTextFieldProps) {
   const { secureTextEntry, style, ...rest } = textInputProps as any;
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [secure, setSecure] = useState<boolean>(!!secureTextEntry);
 
   return (
@@ -17,7 +21,7 @@ export function AuthTextField({ label, ...textInputProps }: AuthTextFieldProps) 
       <View style={styles.inputRow}>
         <TextInput
           autoCapitalize="none"
-          placeholderTextColor="#8C9A91"
+          placeholderTextColor={theme.colors.textSubtle}
           style={[styles.input, secureTextEntry ? styles.inputWithIcon : null, style]}
           secureTextEntry={secure}
           {...rest}
@@ -25,7 +29,7 @@ export function AuthTextField({ label, ...textInputProps }: AuthTextFieldProps) 
 
         {secureTextEntry ? (
           <Pressable onPress={() => setSecure((s) => !s)} style={styles.iconButton} accessibilityLabel="Toggle password visibility">
-            <Ionicons name={secure ? 'eye-off' : 'eye'} size={20} color="#637269" />
+            <AppIcon name={secure ? 'eyeOff' : 'eye'} size={20} color={theme.colors.textMuted} />
           </Pressable>
         ) : null}
       </View>
@@ -33,12 +37,12 @@ export function AuthTextField({ label, ...textInputProps }: AuthTextFieldProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   field: {
     gap: 7,
   },
   label: {
-    color: '#314139',
+    color: theme.colors.textMuted,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0,
@@ -46,11 +50,11 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: '#D6E1D8',
+    borderColor: theme.colors.borderStrong,
     borderRadius: 8,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.inputBackground,
     paddingHorizontal: 14,
-    color: '#233329',
+    color: theme.colors.text,
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0,

@@ -13,6 +13,7 @@ import { FeedbackProvider } from './src/state/FeedbackContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
 import { clientsService } from './src/services/clients';
 import type { Client } from './src/services/types';
+import { ThemeProvider, useTheme, useThemedStyles } from './src/theme';
 
 const SPLASH_MIN_DURATION_MS = 2200;
 
@@ -26,6 +27,8 @@ type NavigationState =
 
 function AppContent() {
   const { isAuthenticated, isLoading, userProfile, logout } = useAuth();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [navigation, setNavigation] = useState<NavigationState>({ screen: 'Calendario' });
@@ -73,7 +76,7 @@ function AppContent() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color="#247145" size="large" />
+        <ActivityIndicator color={theme.colors.primary} size="large" />
         <Text style={styles.loadingText}>Cargando sesion...</Text>
       </View>
     );
@@ -184,25 +187,27 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <FeedbackProvider>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
-      </FeedbackProvider>
+      <ThemeProvider>
+        <FeedbackProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </FeedbackProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: import('./src/theme').Theme) => StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#F6FAF6',
+    backgroundColor: theme.colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: theme.spacing.sm,
   },
   loadingText: {
-    color: '#3D4C42',
+    color: theme.colors.textMuted,
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0,

@@ -7,8 +7,10 @@ import {
   Text,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { AppIcon } from './AppIcon';
+import { Theme, useTheme, useThemedStyles } from '../theme';
 
 type ScreenWrapperProps = {
   title: string;
@@ -26,6 +28,8 @@ export function ScreenWrapper({
   rightSlot,
 }: ScreenWrapperProps) {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.container}>
@@ -47,7 +51,7 @@ export function ScreenWrapper({
                 onPress={onBackPress}
                 accessibilityLabel="Volver"
               >
-                <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+                <AppIcon name="back" size={24} color={theme.colors.text} />
               </Pressable>
             ) : onMenuPress ? (
               <Pressable
@@ -58,7 +62,7 @@ export function ScreenWrapper({
                 onPress={onMenuPress}
                 accessibilityLabel="Abrir menú"
               >
-                <Ionicons name="menu" size={24} color="#1A1A1A" />
+                <AppIcon name="menu" size={24} color={theme.colors.text} />
               </Pressable>
             ) : (
               <View style={styles.iconPlaceholder} />
@@ -81,15 +85,15 @@ export function ScreenWrapper({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F7F0',
+    backgroundColor: theme.colors.background,
   },
   header: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8EDE0',
+    borderBottomColor: theme.colors.border,
   },
   headerContent: {
     flexDirection: 'row',
@@ -114,7 +118,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   iconButtonPressed: {
-    backgroundColor: '#F5F7F0',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   iconPlaceholder: {
     width: 40,
@@ -122,7 +126,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    color: '#1A1A1A',
+    color: theme.colors.text,
     fontSize: 18,
     fontWeight: '700',
     textAlign: 'center',

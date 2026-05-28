@@ -10,15 +10,21 @@ const normalizeServiceTripDate = (tripDate: string) => tripDate.slice(0, 10);
 const normalizeLocalTripDate = (tripDate: string) => tripDate.slice(0, 10);
 
 const normalizeServiceTripType = (tripType: ServiceTrip['trip_type']): TripRecord['trip_type'] => {
-  if (tripType === 'ida' || tripType === 'outbound') {
+  const normalizedTripType = String(tripType);
+
+  if (normalizedTripType === 'ida' || normalizedTripType === 'outbound') {
     return 'outbound';
   }
 
-  if (tripType === 'vuelta' || tripType === 'return') {
+  if (normalizedTripType === 'vuelta' || normalizedTripType === 'return') {
     return 'return';
   }
 
-  if (tripType === 'ida y vuelta' || tripType === 'ida_y_vuelta' || tripType === 'roundTrip') {
+  if (
+    normalizedTripType === 'ida y vuelta' ||
+    normalizedTripType === 'ida_y_vuelta' ||
+    normalizedTripType === 'roundTrip'
+  ) {
     return 'roundTrip';
   }
 

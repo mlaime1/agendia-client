@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CalendarDay, Trip } from '../types';
 import { TripStamp } from './TripStamp';
+import { Theme, useThemedStyles } from '../../../theme';
 
 type CalendarDayCellProps = {
   day: CalendarDay;
@@ -21,6 +22,7 @@ export function CalendarDayCell({
   onPress,
   onLongPress,
 }: CalendarDayCellProps) {
+  const styles = useThemedStyles(createStyles);
   const visibleTrips = trips.slice(0, visibleStampCount);
   const hiddenTripCount = Math.max(trips.length - visibleStampCount, 0);
 
@@ -59,7 +61,7 @@ export function CalendarDayCell({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   cell: {
     flex: 1,
     height: 92,
@@ -68,36 +70,36 @@ const styles = StyleSheet.create({
     paddingTop: 6,
     paddingBottom: 5,
     borderWidth: 1,
-    borderColor: '#E2E9E3',
+    borderColor: theme.colors.border,
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
   },
   todayCell: {
-    borderColor: '#2F8B57',
+    borderColor: theme.colors.primary,
     borderWidth: 1.5,
   },
   hasTripsCell: {
-    backgroundColor: '#FCFEFC',
+    backgroundColor: theme.colors.surfaceSubtle,
   },
   outsideMonthCell: {
-    borderColor: '#EDF2EE',
-    backgroundColor: '#F7FAF7',
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surfaceMuted,
   },
   pressedCell: {
     transform: [{ scale: 0.97 }],
   },
   dayNumber: {
-    color: '#526057',
+    color: theme.colors.textMuted,
     fontSize: 13,
     fontWeight: '800',
     letterSpacing: 0,
     lineHeight: 16,
   },
   todayText: {
-    color: '#247145',
+    color: theme.colors.primary,
   },
   outsideMonthText: {
-    color: '#AAB5AD',
+    color: theme.colors.textSubtle,
   },
   stamps: {
     flex: 1,
@@ -110,7 +112,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 6,
     right: 5,
-    color: '#8B6A27',
+    color: theme.colors.semantic.warning.text,
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: 0,

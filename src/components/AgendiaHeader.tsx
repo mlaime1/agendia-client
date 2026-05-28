@@ -9,6 +9,8 @@ import {
   View,
 } from 'react-native';
 
+import { Theme, useThemedStyles } from '../theme';
+
 type ClientOption = {
   id: string;
   name: string;
@@ -37,6 +39,7 @@ export function AgendiaHeader({
   onUserPress,
   rightSlot,
 }: AgendiaHeaderProps) {
+  const styles = useThemedStyles(createStyles);
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) ?? null,
@@ -167,9 +170,9 @@ export function AgendiaHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.surface,
     paddingTop: 12,
     paddingRight: 20,
     paddingBottom: 16,
@@ -177,7 +180,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     borderBottomWidth: 0.5,
-    borderBottomColor: 'rgba(27,94,59,0.12)',
+    borderBottomColor: theme.colors.border,
   },
   topRow: {
     flexDirection: 'row',
@@ -193,7 +196,7 @@ const styles = StyleSheet.create({
   menuLine: {
     height: 2.5,
     borderRadius: 4,
-    backgroundColor: '#1B5E3B',
+    backgroundColor: theme.colors.primary,
   },
   menuLineFirst: {
     width: 22,
@@ -208,17 +211,17 @@ const styles = StyleSheet.create({
     margin: 0,
     fontSize: 26,
     fontWeight: '700',
-    color: '#1B5E3B',
+    color: theme.colors.primary,
     letterSpacing: -0.5,
   },
   todayButton: {
-    backgroundColor: '#1B5E3B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 12,
     paddingVertical: 8,
     paddingHorizontal: 18,
   },
   todayButtonText: {
-    color: '#fff',
+    color: theme.colors.textInverse,
     fontSize: 14,
     fontWeight: '600',
   },
@@ -231,48 +234,48 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: theme.colors.primaryLight,
     borderRadius: 999,
     paddingTop: 7,
     paddingRight: 14,
     paddingBottom: 7,
     paddingLeft: 8,
     borderWidth: 1,
-    borderColor: 'rgba(27,94,59,0.13)',
+    borderColor: theme.colors.border,
   },
   avatar: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#1B5E3B',
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#E8F5E9',
+    color: theme.colors.textInverse,
   },
   userInfo: {
     minWidth: 0,
   },
   userLabel: {
     fontSize: 11,
-    color: '#3a7a52',
+    color: theme.colors.textMuted,
     fontWeight: '500',
   },
   userName: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1B5E3B',
+    color: theme.colors.primary,
   },
   caret: {
-    color: '#1B5E3B',
+    color: theme.colors.primary,
     fontSize: 14,
     marginLeft: 2,
   },
   badge: {
-    backgroundColor: '#1B5E3B',
+    backgroundColor: theme.colors.primary,
     borderRadius: 999,
     paddingVertical: 7,
     paddingHorizontal: 14,
@@ -284,23 +287,23 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#7ec99a',
+    backgroundColor: theme.colors.primaryLight,
   },
   badgeText: {
-    color: '#E8F5E9',
+    color: theme.colors.textInverse,
     fontSize: 12,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.28)',
+    backgroundColor: theme.colors.overlay,
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
   },
   modalContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: theme.colors.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingTop: 14,
@@ -315,7 +318,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   modalTitle: {
-    color: '#1B5E3B',
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: '800',
   },
@@ -325,10 +328,10 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F1F6F1',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   modalCloseText: {
-    color: '#1B5E3B',
+    color: theme.colors.primary,
     fontSize: 22,
     lineHeight: 22,
     fontWeight: '700',
@@ -341,31 +344,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F7FAF7',
+    backgroundColor: theme.colors.surfaceMuted,
   },
   clientRowSelected: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: theme.colors.primaryLight,
   },
   clientRowPressed: {
     opacity: 0.8,
   },
   clientRowText: {
-    color: '#58665B',
+    color: theme.colors.textMuted,
     fontSize: 14,
     fontWeight: '600',
     flex: 1,
   },
   clientRowTextSelected: {
-    color: '#1B5E3B',
+    color: theme.colors.primary,
     fontWeight: '700',
   },
   clientRowCheck: {
-    color: '#1B5E3B',
+    color: theme.colors.primary,
     fontSize: 16,
     fontWeight: '700',
   },
   modalEmpty: {
-    color: '#7A9E8A',
+    color: theme.colors.textSubtle,
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',

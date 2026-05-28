@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Theme, useThemedStyles } from '../../../theme';
+
 type ErrorBannerProps = {
   message: string | null;
   onDismiss: () => void;
@@ -8,6 +10,7 @@ type ErrorBannerProps = {
 };
 
 export function ErrorBanner({ message, onDismiss, autoDismissMs = 5000 }: ErrorBannerProps) {
+  const styles = useThemedStyles(createStyles);
   const animatedOpacity = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export function ErrorBanner({ message, onDismiss, autoDismissMs = 5000 }: ErrorB
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -56,13 +59,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderRadius: 8,
-    backgroundColor: '#FEE2E2',
+    backgroundColor: theme.colors.semantic.error.bg,
     borderLeftWidth: 4,
-    borderLeftColor: '#EF4444',
+    borderLeftColor: theme.colors.semantic.error.text,
   },
   text: {
     flex: 1,
-    color: '#991B1B',
+    color: theme.colors.semantic.error.text,
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0,
@@ -74,7 +77,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   closeText: {
-    color: '#DC2626',
+    color: theme.colors.semantic.error.text,
     fontSize: 16,
     fontWeight: '700',
   },

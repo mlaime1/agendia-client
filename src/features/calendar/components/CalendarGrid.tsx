@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CalendarDay, Trip } from '../types';
 import { isSameDay, toDateKey } from '../utils/date';
 import { CalendarDayCell } from './CalendarDayCell';
+import { Theme, useThemedStyles } from '../../../theme';
 
 type CalendarGridProps = {
   days: CalendarDay[];
@@ -36,6 +37,7 @@ export function CalendarGrid({
   onDayPress,
   onDayLongPress,
 }: CalendarGridProps) {
+  const styles = useThemedStyles(createStyles);
   const monthStart = days[0]?.date ?? today;
   const year = monthStart.getFullYear();
   const month = monthStart.getMonth();
@@ -102,7 +104,7 @@ export function CalendarGrid({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   container: {
     gap: 7,
   },
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
   },
   weekday: {
     flex: 1,
-    color: '#7A9E8A',
+    color: theme.colors.textSubtle,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0,

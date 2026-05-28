@@ -15,6 +15,7 @@ import {
 
 import { useAuth } from '../../../state/AuthContext';
 import { AuthTextField } from '../components/AuthTextField';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type AuthMode = 'login' | 'register';
 
@@ -22,6 +23,8 @@ const getErrorMessage = (error: unknown) => (error instanceof Error ? error.mess
 
 export function AuthScreen() {
   const { login, register } = useAuth();
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [mode, setMode] = useState<AuthMode>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -134,7 +137,7 @@ export function AuthScreen() {
               ]}
             >
               {isSubmitting ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={theme.colors.textInverse} />
               ) : (
                 <Text style={styles.submitButtonText}>{submitLabel}</Text>
               )}
@@ -154,10 +157,10 @@ export function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: Theme) => StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F6FAF6',
+    backgroundColor: theme.colors.background,
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   keyboardView: {
@@ -180,19 +183,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   appName: {
-    color: '#233329',
+    color: theme.colors.text,
     fontSize: 32,
     fontWeight: '900',
     letterSpacing: 0,
   },
   title: {
-    color: '#314139',
+    color: theme.colors.textMuted,
     fontSize: 22,
     fontWeight: '900',
     letterSpacing: 0,
   },
   subtitle: {
-    color: '#637269',
+    color: theme.colors.textMuted,
     fontSize: 15,
     fontWeight: '600',
     letterSpacing: 0,
@@ -206,11 +209,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 8,
-    backgroundColor: '#247145',
+    backgroundColor: theme.colors.primary,
     paddingHorizontal: 16,
   },
   submitButtonText: {
-    color: '#FFFFFF',
+    color: theme.colors.textInverse,
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: 0,
@@ -221,23 +224,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#CFE0D3',
-    backgroundColor: '#FFFFFF',
+    borderColor: theme.colors.borderStrong,
+    backgroundColor: theme.colors.surface,
   },
   switchButtonText: {
-    color: '#247145',
+    color: theme.colors.primary,
     fontSize: 14,
     fontWeight: '900',
     letterSpacing: 0,
   },
   disabledButton: {
-    backgroundColor: '#9DBAA7',
+    backgroundColor: theme.colors.disabled,
   },
   pressedButton: {
     opacity: 0.72,
   },
   error: {
-    color: '#A33A34',
+    color: theme.colors.danger,
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0,
