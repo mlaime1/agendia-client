@@ -1,0 +1,406 @@
+# tokens.ts
+
+```ts
+export const spacing = {
+  xs: 6,
+  sm: 10,
+  md: 14,
+  lg: 20,
+  xl: 28,
+} as const;
+
+export const radii = {
+  small: 8,
+  medium: 14,
+  large: 20,
+  pill: 999,
+} as const;
+
+export const typography = {
+  size: {
+    xs: 11,
+    sm: 12,
+    md: 14,
+    lg: 16,
+    xl: 20,
+    title: 26,
+    hero: 32,
+  },
+  weight: {
+    regular: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700',
+    heavy: '800',
+    black: '900',
+  },
+} as const;
+```
+
+---
+
+# ThemeContext.tsx
+
+```tsx
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, {
+  createContext,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from 'react';
+import { useColorScheme } from 'react-native';
+
+import {
+  defaultTheme,
+  defaultThemeName,
+  Theme,
+  ThemeName,
+  ThemePreference,
+  themes,
+} from './themes';
+
+const STORAGE_KEY = 'agendia.themePreference';
+
+type ThemeContextValue = {
+  theme: Theme;
+  themeName: ThemeName;
+  themePreference: ThemePreference;
+  setThemePreference: (nextPreference: ThemePreference) => Promise<void>;
+  availableThemes: ThemeName[];
+};
+
+const ThemeContext = createContext<ThemeContextValue | null>(null);
+
+const isThemePreference = (value: string | null): value is ThemePreference => {
+  return (
+    value === 'system' ||
+    value === 'default' ||
+    value === 'light' ||
+    value === 'blueNight' ||
+    value === 'pinkBloom' ||
+    value === 'pinkNight' ||
+    value === 'green'
+  );
+};
+
+const resolveThemeName = (
+  preference: ThemePreference,
+  systemScheme: ReturnType<typeof useColorScheme>,
+): ThemeName => {
+  if (preference !== 'system') {
+    return preference;
+  }
+
+  return systemScheme === 'dark' ? 'blueNight' : defaultThemeName;
+};
+
+export function ThemeProvider({ children }: PropsWithChildren) {
+  const systemScheme = useColorScheme();
+  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    AsyncStorage.getItem(STORAGE_KEY)
+      .then((storedPreference) => {
+        if (isMounted && isThemePreference(storedPreference)) {
+          setThemePreferenceState(storedPreference);
+        }
+      })
+      .catch((error) => {
+        console.warn('[ThemeProvider] Failed to restore theme preference:', error);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const setThemePreference = useCallback(async (nextPreference: ThemePreference) => {
+    setThemePreferenceState(nextPreference);
+    await AsyncStorage.setItem(STORAGE_KEY, nextPreference);
+  }, []);
+
+  const themeName = resolveThemeName(themePreference, systemScheme);
+  const theme = themes[themeName] ?? defaultTheme;
+
+  const value = useMemo(
+    () => ({
+      theme,
+      themeName,
+      themePreference,
+      setThemePreference,
+      availableThemes: Object.keys(themes) as ThemeName[],
+    }),
+    [setThemePreference, theme, themeName, themePreference],
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+  const context = useContext(ThemeContext);
+
+  if (!context) {
+    throw new Error('useTheme must be used within ThemeProvider');
+  }
+
+  return context;
+}
+```
+
+---
+
+# themes.ts
+
+```ts
+import { radii, spacing, typography } from './tokens';
+
+const semantic = {
+  success: {
+    bg: '#EAF3DE',
+    border: '#BFD6A3',
+    text: '#247145',
+  },
+  error: {
+    bg: '#FFF1F0',
+    border: '#F5B7B1',
+    text: '#B42318',
+  },
+  info: {
+    bg: '#E6F1FB',
+    border: '#B9D4F0',
+    text: '#185FA5',
+  },
+  warning: {
+    bg: '#FAEEDA',
+    border: '#E7A85D',
+    text: '#854F0B',
+  },
+} as const;
+
+const trip = {
+  outbound: {
+    bg: '#D8F0E2',
+    border: '#65A878',
+    text: '#176B43',
+  },
+  roundTrip: {
+    bg: '#DDEBFF',
+    border: '#77A9E8',
+    text: '#255EA8',
+  },
+  special: {
+    bg: '#FFE3C2',
+    border: '#E7A85D',
+    text: '#99510D',
+  },
+} as const;
+
+const summaryStatus = {
+  draft: { bg: '#FAEEDA', text: '#854F0B' },
+  sent: { bg: '#E6F1FB', text: '#185FA5' },
+  paid: { bg: '#EAF3DE', text: '#3B6D11' },
+  archived: { bg: '#F1EFE8', text: '#5F5E5A' },
+} as const;
+
+const createTheme = (colors: {
+  primary: string;
+  primaryLight: string;
+  primaryDark: string;
+  accent: string;
+  background: string;
+  surface: string;
+  surfaceMuted: string;
+  surfaceSubtle: string;
+  border: string;
+  borderStrong: string;
+  text: string;
+  textMuted: string;
+  textSubtle: string;
+  textInverse: string;
+  danger: string;
+  disabled: string;
+  overlay: string;
+}) => ({
+  colors: {
+    ...colors,
+    neutralText: colors.text,
+    mutedText: colors.textMuted,
+    lightGray: colors.background,
+    primaryText: colors.primary,
+    primaryContrast: colors.textInverse,
+    inputBackground: colors.surface,
+    whiteTransparent12: 'rgba(255,255,255,0.12)',
+    whiteTransparent18: 'rgba(255,255,255,0.18)',
+    semantic,
+    trip,
+    summaryStatus,
+  },
+  spacing,
+  radii,
+  typography,
+});
+
+export const themes = {
+  default: createTheme({
+    primary: '#1B5E3B',
+    primaryLight: '#E8F5E9',
+    primaryDark: '#15492B',
+    accent: '#255EA8',
+    background: '#F0F7F2',
+    surface: '#FFFFFF',
+    surfaceMuted: '#F5F7F0',
+    surfaceSubtle: '#FAFAF7',
+    border: '#E1E8E3',
+    borderStrong: '#D1DDD5',
+    text: '#17211B',
+    textMuted: '#506B5B',
+    textSubtle: '#7A8A80',
+    textInverse: '#FFFFFF',
+    danger: '#B42318',
+    disabled: '#A5B8AC',
+    overlay: 'rgba(11,36,22,0.5)',
+  }),
+
+  light: createTheme({
+    primary: '#1B5E3B',
+    primaryLight: '#E8F5E9',
+    primaryDark: '#15492B',
+    accent: '#4A90D9',
+    background: '#FAFCFA',
+    surface: '#FFFFFF',
+    surfaceMuted: '#F4F7F4',
+    surfaceSubtle: '#F8FAF8',
+    border: '#E5ECE6',
+    borderStrong: '#D7E1D9',
+    text: '#1A1A1A',
+    textMuted: '#5B6B63',
+    textSubtle: '#88938D',
+    textInverse: '#FFFFFF',
+    danger: '#C0392B',
+    disabled: '#B7C4BC',
+    overlay: 'rgba(0,0,0,0.45)',
+  }),
+
+  blueNight: createTheme({
+    primary: '#3B82F6',
+    primaryLight: '#16243F',
+    primaryDark: '#60A5FA',
+    accent: '#93C5FD',
+    background: '#0B1220',
+    surface: '#0F172A',
+    surfaceMuted: '#111C31',
+    surfaceSubtle: '#16243F',
+    border: '#243041',
+    borderStrong: '#334155',
+    text: '#F8FAFC',
+    textMuted: '#94A3B8',
+    textSubtle: '#64748B',
+    textInverse: '#FFFFFF',
+    danger: '#FCA5A5',
+    disabled: '#475569',
+    overlay: 'rgba(2,6,23,0.72)',
+  }),
+
+  pinkBloom: createTheme({
+    primary: '#FF5CA8',
+    primaryLight: '#FFE8F3',
+    primaryDark: '#D84D91',
+    accent: '#FF8FC7',
+    background: '#FFF7FB',
+    surface: '#FFFFFF',
+    surfaceMuted: '#FFF0F7',
+    surfaceSubtle: '#FFF8FC',
+    border: '#FFE1EF',
+    borderStrong: '#FFC8E0',
+    text: '#432B44',
+    textMuted: '#8F6B86',
+    textSubtle: '#BA9AB0',
+    textInverse: '#FFFFFF',
+    danger: '#D63B6C',
+    disabled: '#D8B5C5',
+    overlay: 'rgba(67,43,68,0.32)',
+  }),
+
+  pinkNight: createTheme({
+    primary: '#FF5CA8',
+    primaryLight: '#2A1D3F',
+    primaryDark: '#FF8FC7',
+    accent: '#FFB7D8',
+    background: '#120F1C',
+    surface: '#1B1628',
+    surfaceMuted: '#221B33',
+    surfaceSubtle: '#2A2140',
+    border: '#352A4A',
+    borderStrong: '#49385F',
+    text: '#FFF7FB',
+    textMuted: '#B6AACD',
+    textSubtle: '#8F84AC',
+    textInverse: '#FFFFFF',
+    danger: '#FF9DBB',
+    disabled: '#665B7D',
+    overlay: 'rgba(10,6,18,0.72)',
+  }),
+
+  green: createTheme({
+    primary: '#247145',
+    primaryLight: '#EAF7EE',
+    primaryDark: '#185033',
+    accent: '#255EA8',
+    background: '#F3FAF5',
+    surface: '#FFFFFF',
+    surfaceMuted: '#EDF6F0',
+    surfaceSubtle: '#F8FCF9',
+    border: '#DDEBE1',
+    borderStrong: '#BDD6C5',
+    text: '#172D20',
+    textMuted: '#506B5B',
+    textSubtle: '#789184',
+    textInverse: '#FFFFFF',
+    danger: '#B42318',
+    disabled: '#A5B8AC',
+    overlay: 'rgba(11,36,22,0.5)',
+  }),
+} as const;
+
+export type ThemeName = keyof typeof themes;
+export type Theme = (typeof themes)[ThemeName];
+export type ThemePreference = ThemeName | 'system';
+
+export const defaultThemeName: ThemeName = 'default';
+export const defaultTheme = themes[defaultThemeName];
+```
+
+---
+
+# Resultado final del sistema de themes
+
+## Themes disponibles
+
+* default
+* light
+* blueNight
+* pinkBloom
+* pinkNight
+* green
+
+## Eliminados
+
+* dark
+* purple
+
+## Sistema visual alineado
+
+* Sin gradients
+* Sin sombras
+* Fondos flat
+* Paleta consistente
+* Dark mode principal: blueNight
+* Theme femenino: pinkBloom / pinkNight
+* Manteniendo identidad original verde de Agendia
+* Compatible con Tabler Icons outline
