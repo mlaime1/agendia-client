@@ -17,7 +17,16 @@ type ThemeContextValue = {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 const isThemePreference = (value: string | null): value is ThemePreference => {
-  return value === 'system' || value === 'light' || value === 'dark' || value === 'purple' || value === 'green';
+  return (
+    value === 'system' ||
+    value === 'default' ||
+    value === 'light' ||
+    value === 'blueNight' ||
+    value === 'dark' ||
+    value === 'pinkBloom' ||
+    value === 'pinkNight' ||
+    value === 'green'
+  );
 };
 
 const resolveThemeName = (preference: ThemePreference, systemScheme: ReturnType<typeof useColorScheme>): ThemeName => {

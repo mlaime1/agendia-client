@@ -46,9 +46,12 @@ const menuItems: MenuItemConfig[] = [
 
 const themeOptions: Array<{ value: ThemePreference; label: string }> = [
   { value: 'system', label: 'Sistema' },
+  { value: 'default', label: 'Agendia' },
   { value: 'light', label: 'Claro' },
   { value: 'dark', label: 'Oscuro' },
-  { value: 'purple', label: 'Violeta' },
+  { value: 'blueNight', label: 'Azul noche' },
+  { value: 'pinkBloom', label: 'Rosa' },
+  { value: 'pinkNight', label: 'Rosa noche' },
   { value: 'green', label: 'Verde' },
 ];
 

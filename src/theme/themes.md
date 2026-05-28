@@ -81,6 +81,7 @@ const isThemePreference = (value: string | null): value is ThemePreference => {
     value === 'default' ||
     value === 'light' ||
     value === 'blueNight' ||
+    value === 'dark' ||
     value === 'pinkBloom' ||
     value === 'pinkNight' ||
     value === 'green'
@@ -95,7 +96,7 @@ const resolveThemeName = (
     return preference;
   }
 
-  return systemScheme === 'dark' ? 'blueNight' : defaultThemeName;
+  return systemScheme === 'dark' ? 'dark' : defaultThemeName;
 };
 
 export function ThemeProvider({ children }: PropsWithChildren) {
@@ -226,6 +227,7 @@ const createTheme = (colors: {
   danger: string;
   disabled: string;
   overlay: string;
+  shadow: string;
 }) => ({
   colors: {
     ...colors,
@@ -265,6 +267,7 @@ export const themes = {
     danger: '#B42318',
     disabled: '#A5B8AC',
     overlay: 'rgba(11,36,22,0.5)',
+    shadow: '#000000',
   }),
 
   light: createTheme({
@@ -285,6 +288,7 @@ export const themes = {
     danger: '#C0392B',
     disabled: '#B7C4BC',
     overlay: 'rgba(0,0,0,0.45)',
+    shadow: '#000000',
   }),
 
   blueNight: createTheme({
@@ -305,6 +309,28 @@ export const themes = {
     danger: '#FCA5A5',
     disabled: '#475569',
     overlay: 'rgba(2,6,23,0.72)',
+    shadow: '#000000',
+  }),
+
+  dark: createTheme({
+    primary: '#3B82F6',
+    primaryLight: '#16243F',
+    primaryDark: '#60A5FA',
+    accent: '#93C5FD',
+    background: '#0B1220',
+    surface: '#0F172A',
+    surfaceMuted: '#111C31',
+    surfaceSubtle: '#16243F',
+    border: '#243041',
+    borderStrong: '#334155',
+    text: '#F8FAFC',
+    textMuted: '#94A3B8',
+    textSubtle: '#64748B',
+    textInverse: '#FFFFFF',
+    danger: '#FCA5A5',
+    disabled: '#475569',
+    overlay: 'rgba(2,6,23,0.72)',
+    shadow: '#000000',
   }),
 
   pinkBloom: createTheme({
@@ -325,6 +351,7 @@ export const themes = {
     danger: '#D63B6C',
     disabled: '#D8B5C5',
     overlay: 'rgba(67,43,68,0.32)',
+    shadow: '#000000',
   }),
 
   pinkNight: createTheme({
@@ -345,6 +372,7 @@ export const themes = {
     danger: '#FF9DBB',
     disabled: '#665B7D',
     overlay: 'rgba(10,6,18,0.72)',
+    shadow: '#000000',
   }),
 
   green: createTheme({
@@ -365,6 +393,7 @@ export const themes = {
     danger: '#B42318',
     disabled: '#A5B8AC',
     overlay: 'rgba(11,36,22,0.5)',
+    shadow: '#000000',
   }),
 } as const;
 
@@ -385,13 +414,13 @@ export const defaultTheme = themes[defaultThemeName];
 * default
 * light
 * blueNight
+* dark
 * pinkBloom
 * pinkNight
 * green
 
 ## Eliminados
 
-* dark
 * purple
 
 ## Sistema visual alineado
@@ -400,7 +429,8 @@ export const defaultTheme = themes[defaultThemeName];
 * Sin sombras
 * Fondos flat
 * Paleta consistente
-* Dark mode principal: blueNight
+* Dark mode principal: dark
+* blueNight se mantiene como variante nocturna azul con la misma paleta base
 * Theme femenino: pinkBloom / pinkNight
 * Manteniendo identidad original verde de Agendia
 * Compatible con Tabler Icons outline
