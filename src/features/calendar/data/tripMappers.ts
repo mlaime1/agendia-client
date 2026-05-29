@@ -8,9 +8,13 @@ export const toCreateTripPayloads = ({
   mode,
   specialType,
   note,
-  clientId = '3',
-  routeId = '3',
-}: CreateCalendarTripInput & { clientId?: string; routeId?: string; rateId?: string }): CreateTripPayload[] => {
+  clientId,
+  routeId,
+}: CreateCalendarTripInput & { clientId: string; routeId: string }): CreateTripPayload[] => {
+  if (!clientId || !routeId) {
+    throw new Error('Faltan cliente o ruta para crear el viaje.');
+  }
+
   const basePayload = {
     client_id: clientId,
     route_id: routeId,

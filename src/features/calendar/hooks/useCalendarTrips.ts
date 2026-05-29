@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { clientsService } from '../../../services/clients';
+import { defaultsService } from '../../../services/defaults';
+import { useAuth } from '../../../state/AuthContext';
+import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
-import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
-import { useAuth } from '../../../state/AuthContext';
-import { defaultsService } from '../../../services/defaults';
 
 type UseCalendarTripsResult = {
   trips: Trip[];
@@ -19,13 +20,15 @@ type UseCalendarTripsResult = {
 };
 
 export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsResult => {
-  const { userProfile } = useAuth();
+  const { session, userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [clientId, setClientId] = useState<string>('3');
-  const [routeId, setRouteId] = useState<string>('3');
-  const [rateId, setRateId] = useState<string>('1');
+  const [clientId, setClientId] = useState<string>('');
+  const [routeId, setRouteId] = useState<string>('');
+  const [rateId, setRateId] = useState<string>('');
+
+  const userId = userProfile?.id;
 
   const clearError = () => setError(null);
 
@@ -33,21 +36,15 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     setError(message);
   };
 
-  const userId = userProfile?.id;
+  const resolveTripContext = () => {
+    const resolvedClientId = selectedClientId || clientId;
 
-  if (!userId) {
-    return {
-      trips: [],
-      tripsByDate: {},
-      addTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.'),
-      addSpecialTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.'),
-      updateTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para actualizar viajes.'),
-      deleteTrip: createUnauthenticatedHandler('No estás autenticado. Inicia sesión para eliminar viajes.'),
-      isLoadingTrips: false,
-      error,
-      clearError,
-    };
-  }
+    if (!resolvedClientId || !routeId) {
+      throw new Error('Seleccioná un cliente con una ruta cargada antes de crear viajes.');
+    }
+
+    return { clientId: resolvedClientId, routeId, rateId: rateId || undefined };
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -57,8 +54,17 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
         setIsLoadingTrips(true);
       }
 
+      if (!userId) {
+        if (mounted) {
+          setTrips([]);
+          setIsLoadingTrips(false);
+        }
+        return;
+      }
+
       try {
-        const defaults = await defaultsService.getDefaults();
+        const defaults = await defaultsService.getDefaults(session?.access_token);
+
         if (mounted && defaults.clientId && defaults.routeId) {
           setClientId(defaults.clientId);
           setRouteId(defaults.routeId);
@@ -67,11 +73,22 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
           }
         }
 
-        const list = await tripRepository.listCalendarTrips(selectedClientId || defaults.clientId || undefined);
-        if (mounted) setTrips(list);
+        if (selectedClientId) {
+          const selectedClient = await clientsService.getById(selectedClientId, session?.access_token);
+
+          if (mounted) {
+            setClientId(selectedClient.id);
+            setRouteId(selectedClient.routes?.[0]?.id ?? '');
+          }
+        }
+
+        const list = await tripRepository.listCalendarTrips(selectedClientId || defaults.clientId || undefined, session?.access_token);
+        if (mounted) {
+          setTrips(list);
+        }
       } catch (err: any) {
         if (mounted) {
-          setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
+          setTrips([]);
           setError(err?.message ?? 'Error cargando viajes');
         }
       } finally {
@@ -84,7 +101,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     return () => {
       mounted = false;
     };
-  }, [selectedClientId]);
+  }, [selectedClientId, session?.access_token, userId]);
 
   const tripsByDate = useMemo(
     () =>
@@ -106,86 +123,135 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     });
   };
 
-  const addTrip = (dateKey: string, mode: TripMode) => {
-    (async () => {
-      try {
-        const createdTrip = await tripRepository.createTrips(
-          toCreateTripPayloads({ dateKey, mode, clientId: selectedClientId || clientId, routeId, rateId }),
-          userId,
-        );
-        mergeTripIntoState(createdTrip);
-      } catch (err: any) {
-        // fallback local create
-        const fallback = tripRepository.createLocalTrips(
-          toCreateTripPayloads({ dateKey, mode, clientId: selectedClientId || clientId, routeId, rateId }),
-          userId,
-        );
-        mergeTripIntoState(fallback);
-        setError(err?.message ?? 'Error creando viaje');
-        return fallback;
+  const addTrip = userId
+    ? (dateKey: string, mode: TripMode) => {
+        let tripContext;
+
+        try {
+          tripContext = resolveTripContext();
+        } catch (contextError) {
+          setError(contextError instanceof Error ? contextError.message : 'Seleccioná un cliente con una ruta cargada antes de crear viajes.');
+          return;
+        }
+
+        (async () => {
+          try {
+            const createdTrip = await tripRepository.createTrips(
+              toCreateTripPayloads({ dateKey, mode, ...tripContext }),
+              userId,
+              session?.access_token,
+            );
+            mergeTripIntoState(createdTrip);
+          } catch (err: any) {
+            try {
+              const fallback = tripRepository.createLocalTrips(
+                toCreateTripPayloads({ dateKey, mode, ...tripContext }),
+                userId,
+                session?.access_token,
+              );
+              mergeTripIntoState(fallback);
+            } catch {
+              // no-op: keep user-facing error below
+            }
+            setError(err?.message ?? 'Error creando viaje');
+          }
+        })();
       }
-    })();
-  };
+    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
 
-  const addSpecialTrip = ({ dateKey, specialType, note }: PendingSpecialTrip) => {
-    (async () => {
-      try {
-        const createdTrip = await tripRepository.createTrips(
-          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId: selectedClientId || clientId, routeId, rateId }),
-          userId,
-        );
-        mergeTripIntoState(createdTrip);
-      } catch (err: any) {
-        const fallback = tripRepository.createLocalTrips(
-          toCreateTripPayloads({ dateKey, mode: 'special', specialType, note, clientId: selectedClientId || clientId, routeId, rateId }),
-          userId,
-        );
-        mergeTripIntoState(fallback);
-        setError(err?.message ?? 'Error creando viaje especial');
-        return fallback;
+  const addSpecialTrip = userId
+    ? (input: PendingSpecialTrip) => {
+        const { dateKey, specialType, note } = input;
+
+        let tripContext;
+
+        try {
+          tripContext = resolveTripContext();
+        } catch (contextError) {
+          setError(contextError instanceof Error ? contextError.message : 'Seleccioná un cliente con una ruta cargada antes de crear viajes.');
+          return;
+        }
+
+        (async () => {
+          try {
+            const createdTrip = await tripRepository.createTrips(
+              toCreateTripPayloads({
+                dateKey,
+                mode: 'special',
+                specialType,
+                note,
+                ...tripContext,
+              }),
+              userId,
+              session?.access_token,
+            );
+            mergeTripIntoState(createdTrip);
+          } catch (err: any) {
+            try {
+              const fallback = tripRepository.createLocalTrips(
+                toCreateTripPayloads({
+                  dateKey,
+                  mode: 'special',
+                  specialType,
+                  note,
+                  ...tripContext,
+                }),
+                userId,
+                session?.access_token,
+              );
+              mergeTripIntoState(fallback);
+            } catch {
+              // no-op: keep user-facing error below
+            }
+            setError(err?.message ?? 'Error creando viaje especial');
+          }
+        })();
       }
-    })();
-  };
+    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
 
-  const updateTrip = (tripId: string, updates: TripUpdates) => {
-    const trip = trips.find((currentTrip) => currentTrip.id === tripId);
+  const updateTrip = userId
+    ? (tripId: string, updates: TripUpdates) => {
+        const trip = trips.find((currentTrip) => currentTrip.id === tripId);
 
-    if (!trip) {
-      return;
-    }
+        if (!trip) {
+          return;
+        }
 
-    (async () => {
-      try {
-        await tripRepository.updateCalendarTrip(trip, updates);
-        const list = await tripRepository.listCalendarTrips(selectedClientId);
-        setTrips(list);
-      } catch (err: any) {
-        tripRepository.updateLocalCalendarTrip(trip, updates);
-        setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
-        setError(err?.message ?? 'Error actualizando viaje');
+        (async () => {
+          try {
+            await tripRepository.updateCalendarTrip(trip, updates, session?.access_token);
+            const list = await tripRepository.listCalendarTrips(selectedClientId, session?.access_token);
+            setTrips(list);
+          } catch (err: any) {
+            tripRepository.updateLocalCalendarTrip(trip, updates);
+            setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
+            setError(err?.message ?? 'Error actualizando viaje');
+          }
+        })();
       }
-    })();
-  };
+    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para actualizar viajes.');
 
-  const deleteTrip = (tripId: string) => {
-    const trip = trips.find((currentTrip) => currentTrip.id === tripId);
+  const deleteTrip = userId
+    ? (tripId: string) => {
+        const trip = trips.find((currentTrip) => currentTrip.id === tripId);
 
-    if (!trip) {
-      return;
-    }
+        if (!trip) {
+          return;
+        }
 
-    const previousTrips = trips;
-    setTrips((currentTrips) => currentTrips.filter((currentTrip) => currentTrip.id !== tripId));
+        const previousTrips = trips;
+        setTrips((currentTrips) => currentTrips.filter((currentTrip) => currentTrip.id !== tripId));
 
-    (async () => {
-      try {
-        await tripRepository.deleteCalendarTrip(trip);
-      } catch (err: any) {
-        setTrips(previousTrips);
-        setError(err?.message ?? 'Error eliminando viaje');
+        (async () => {
+          try {
+            await tripRepository.deleteCalendarTrip(trip, session?.access_token);
+          } catch (err: any) {
+            setTrips(previousTrips);
+            setError(err?.message ?? 'Error eliminando viaje');
+          }
+        })();
       }
-    })();
-  };
+    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para eliminar viajes.');
 
   return {
     trips,

@@ -577,7 +577,7 @@ function NuevoResumenModal({
 
   const loadClients = async () => {
     try {
-      const data = await clientsService.getAll();
+      const data = await clientsService.getAll(session?.access_token);
       setClients(data);
     } catch (err) {
       console.error('Error loading clients:', err);

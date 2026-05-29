@@ -20,6 +20,19 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Ocurrio un error inesperado');
+const normalizeRole = (role: unknown): 'driver' | 'admin' | 'client' => {
+  const normalizedRole = String(role ?? '').trim().toLowerCase();
+
+  if (normalizedRole === 'admin') {
+    return 'admin';
+  }
+
+  if (normalizedRole === 'client') {
+    return 'client';
+  }
+
+  return 'driver';
+};
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
@@ -36,15 +49,40 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     try {
       setProfileError(null);
-      // Use Supabase user data directly instead of calling /users/me
       const supabaseUser = currentSession.user;
-      const profile: UserProfile = {
-        id: supabaseUser.id,
-        name: supabaseUser.user_metadata?.name || supabaseUser.email || 'Usuario',
-        email: supabaseUser.email || '',
-        alias: supabaseUser.user_metadata?.alias || null,
-        role: supabaseUser.user_metadata?.role || 'driver',
-      };
+      let profile: UserProfile;
+
+      try {
+        const backendProfile = await getCurrentUserProfile(currentSession.access_token);
+        profile = {
+          ...backendProfile,
+          role: normalizeRole(backendProfile.role),
+        };
+
+        console.log('[AuthContext] profile loaded from backend:', {
+          id: profile.id,
+          email: profile.email,
+          roleRaw: backendProfile.role,
+          roleNormalized: profile.role,
+        });
+      } catch (backendError) {
+        profile = {
+          id: supabaseUser.id,
+          name: supabaseUser.user_metadata?.name || supabaseUser.email || 'Usuario',
+          email: supabaseUser.email || '',
+          alias: supabaseUser.user_metadata?.alias || null,
+          role: normalizeRole(supabaseUser.user_metadata?.role),
+        };
+
+        console.log('[AuthContext] profile loaded from supabase fallback:', {
+          id: profile.id,
+          email: profile.email,
+          backendError: backendError instanceof Error ? backendError.message : String(backendError),
+          roleRaw: supabaseUser.user_metadata?.role,
+          roleNormalized: profile.role,
+        });
+      }
+
       setUserProfile(profile);
     } catch (error) {
       console.error('[AuthContext] Failed to load profile:', error);
@@ -94,6 +132,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
       if (error) {
         throw error;
       }
+
+      console.log('[AuthContext] login response:', {
+        userId: data.session?.user?.id,
+        email: data.session?.user?.email,
+        roleRaw: data.session?.user?.user_metadata?.role,
+        roleNormalized: normalizeRole(data.session?.user?.user_metadata?.role),
+      });
 
       setSession(data.session);
       await loadProfile(data.session);
