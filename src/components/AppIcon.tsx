@@ -16,6 +16,7 @@ import {
   IconEyeOff,
   IconFileText,
   IconInfoCircle,
+  IconMail,
   IconMap,
   IconMenu2,
   IconMessageCircle,
@@ -44,6 +45,7 @@ export type AppIconName =
   | 'eyeOff'
   | 'fileText'
   | 'info'
+  | 'mail'
   | 'map'
   | 'menu'
   | 'message'
@@ -73,6 +75,7 @@ const iconMap = {
   eyeOff: IconEyeOff,
   fileText: IconFileText,
   info: IconInfoCircle,
+  mail: IconMail,
   map: IconMap,
   menu: IconMenu2,
   message: IconMessageCircle,
@@ -82,7 +85,7 @@ const iconMap = {
 } as const;
 
 export function AppIcon({ name, size = 20, strokeWidth = 2, ...props }: AppIconProps) {
-  const Icon = iconMap[name];
+  const Icon = iconMap[name] ?? IconAlertCircle;
 
   return <Icon size={size} strokeWidth={strokeWidth} {...props} />;
 }

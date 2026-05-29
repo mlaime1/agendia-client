@@ -13,7 +13,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon, AppIconName } from './AppIcon';
-import { Theme, ThemePreference, useTheme, useThemedStyles } from '../theme';
+import { Theme, useTheme, useThemedStyles } from '../theme';
 
 const DRAWER_WIDTH = Dimensions.get('window').width * 0.82;
 
@@ -44,17 +44,6 @@ const menuItems: MenuItemConfig[] = [
   { route: 'Perfil', label: 'Perfil', icon: 'user' },
 ];
 
-const themeOptions: Array<{ value: ThemePreference; label: string }> = [
-  { value: 'system', label: 'Sistema' },
-  { value: 'default', label: 'Agendia' },
-  { value: 'light', label: 'Claro' },
-  { value: 'dark', label: 'Oscuro' },
-  { value: 'blueNight', label: 'Azul noche' },
-  { value: 'pinkBloom', label: 'Rosa' },
-  { value: 'pinkNight', label: 'Rosa noche' },
-  { value: 'green', label: 'Verde' },
-];
-
 type CustomDrawerProps = {
   visible: boolean;
   user: User;
@@ -79,7 +68,7 @@ export function CustomDrawer({
   onLogout,
 }: CustomDrawerProps) {
   const insets = useSafeAreaInsets();
-  const { setThemePreference, theme, themePreference } = useTheme();
+  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
@@ -199,35 +188,6 @@ export function CustomDrawer({
               </Text>
               <AppIcon name="chevronDown" size={16} color={theme.colors.primaryLight} />
             </Pressable>
-          </View>
-
-          <View style={styles.themeSection}>
-            <Text style={styles.themeSectionTitle}>Tema</Text>
-            <View style={styles.themeOptions}>
-              {themeOptions.map((option) => {
-                const isSelected = option.value === themePreference;
-
-                return (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                    key={option.value}
-                    onPress={() => {
-                      void setThemePreference(option.value);
-                    }}
-                    style={({ pressed }) => [
-                      styles.themeOption,
-                      isSelected && styles.themeOptionSelected,
-                      pressed && styles.menuItemPressed,
-                    ]}
-                  >
-                    <Text style={[styles.themeOptionText, isSelected && styles.themeOptionTextSelected]}>
-                      {option.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
           </View>
 
           {/* Menu items */}
@@ -473,48 +433,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderRadius: 3,
     backgroundColor: theme.colors.primary,
     marginLeft: 'auto',
-  },
-  themeSection: {
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-  },
-  themeSectionTitle: {
-    color: theme.colors.textSubtle,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-  },
-  themeOptions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  themeOption: {
-    minHeight: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 10,
-    borderRadius: theme.radii.pill,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceMuted,
-  },
-  themeOptionSelected: {
-    borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primaryLight,
-  },
-  themeOptionText: {
-    color: theme.colors.textMuted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  themeOptionTextSelected: {
-    color: theme.colors.primary,
   },
   // Client modal styles
   clientModalOverlay: {
