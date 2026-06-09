@@ -1,12 +1,12 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { Theme } from '../../../theme';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
-import { MOCK_CLIENTS } from '../mockData';
-import type { ClientFull, Responsible, ServiceSchedule } from '../types';
+import { useClientDetail, useClientSchedules } from '../hooks';
+import type { ServiceSchedule } from '../../../services/types';
 
 type ClientDetailScreenProps = {
   clientId: string;
@@ -42,13 +42,33 @@ export function ClientDetailScreen({
   onAddResponsible,
 }: ClientDetailScreenProps) {
   const styles = useThemedStyles(createStyles);
-  const client = MOCK_CLIENTS.find((c) => c.id === clientId);
+  const { client, loading, error, refetch } = useClientDetail(clientId);
+  const { schedules, loading: loadingSchedules } = useClientSchedules(clientId);
 
-  if (!client) {
+  if (loading) {
     return (
       <ScreenWrapper title="Cliente" onBackPress={onBack}>
         <View style={styles.centered}>
-          <Text style={styles.errorText}>Cliente no encontrado</Text>
+          <ActivityIndicator size="large" color={styles.loadingColor.color} />
+          <Text style={styles.loadingText}>Cargando cliente...</Text>
+        </View>
+      </ScreenWrapper>
+    );
+  }
+
+  if (error || !client) {
+    return (
+      <ScreenWrapper title="Cliente" onBackPress={onBack}>
+        <View style={styles.centered}>
+          <AppIcon name="alert" size={40} color={styles.errorIconColor.color} />
+          <Text style={styles.errorText}>{error || 'Cliente no encontrado'}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}
+            onPress={refetch}
+          >
+            <AppIcon name="refresh" size={16} color={styles.retryButtonText.color} />
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </Pressable>
         </View>
       </ScreenWrapper>
     );
@@ -56,7 +76,7 @@ export function ClientDetailScreen({
 
   const initial = getInitial(client.nombre);
   const billingLabel = BILLING_LABELS[client.billing_cycle] || 'Mensual';
-  const billingStart = formatDate(client.billing_start_date);
+  const billingStart = formatDate(client.billing_start_date || null);
 
   return (
     <ScreenWrapper title="Cliente" onBackPress={onBack}>
@@ -73,9 +93,7 @@ export function ClientDetailScreen({
           <View style={styles.heroBadges}>
             <View style={styles.pillActive}>
               <AppIcon name="checkCircle" size={12} color={styles.pillActiveText.color} />
-              <Text style={styles.pillActiveText}>
-                {client.is_active ? 'Cliente activa' : 'Cliente inactiva'}
-              </Text>
+              <Text style={styles.pillActiveText}>Cliente activo</Text>
             </View>
             <View style={styles.pillBilling}>
               <Text style={styles.pillBillingText}>Facturación {billingLabel.toLowerCase()}</Text>
@@ -104,30 +122,6 @@ export function ClientDetailScreen({
               <Text style={styles.rowValue}>{client.phone}</Text>
             </View>
           </View>
-
-          <View style={styles.row}>
-            <View style={styles.rowIcon}>
-              <AppIcon name="map" size={17} color={styles.rowIconColor.color} />
-            </View>
-            <View style={styles.rowContent}>
-              <Text style={styles.rowLabel}>Dirección</Text>
-              <Text style={styles.rowValue}>{client.address}</Text>
-            </View>
-          </View>
-
-          <View style={[styles.row, styles.rowTop]}>
-            <View style={[styles.rowIcon, styles.rowIconTop]}>
-              <AppIcon name="notes" size={17} color={styles.rowIconColor.color} />
-            </View>
-            <View style={styles.rowContent}>
-              <Text style={styles.rowLabel}>Observaciones</Text>
-              {client.observations ? (
-                <Text style={styles.observationsText}>{client.observations}</Text>
-              ) : (
-                <Text style={styles.observationsEmpty}>Sin observaciones</Text>
-              )}
-            </View>
-          </View>
         </View>
 
         <View style={styles.section}>
@@ -154,14 +148,19 @@ export function ClientDetailScreen({
             </View>
           </View>
 
-          {client.schedules.length > 0 && (
+          {loadingSchedules ? (
+            <View style={styles.scheduleLoading}>
+              <ActivityIndicator size="small" color={styles.loadingColor.color} />
+              <Text style={styles.scheduleLoadingText}>Cargando horarios...</Text>
+            </View>
+          ) : schedules.length > 0 ? (
             <View style={styles.scheduleBlock}>
               <Text style={styles.scheduleBlockLabel}>Horarios habituales</Text>
-              {client.schedules.map((schedule) => (
+              {schedules.map((schedule) => (
                 <ScheduleRow key={schedule.id} schedule={schedule} />
               ))}
             </View>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.section}>
@@ -169,21 +168,9 @@ export function ClientDetailScreen({
             <Text style={styles.sectionTitle}>Responsables</Text>
           </View>
 
-          {client.responsibles.length > 0 ? (
-            <View style={styles.responsibleList}>
-              {client.responsibles.map((resp, index) => (
-                <ResponsibleItem
-                  key={resp.id}
-                  responsible={resp}
-                  isLast={index === client.responsibles.length - 1}
-                />
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyResponsibles}>
-              <Text style={styles.emptyResponsiblesText}>Sin responsables vinculados</Text>
-            </View>
-          )}
+          <View style={styles.emptyResponsibles}>
+            <Text style={styles.emptyResponsiblesText}>Sin responsables vinculados</Text>
+          </View>
 
           <Pressable
             style={({ pressed }) => [styles.addRow, pressed && styles.addRowPressed]}
@@ -200,9 +187,7 @@ export function ClientDetailScreen({
 
         <Pressable style={({ pressed }) => [styles.dangerButton, pressed && styles.dangerButtonPressed]}>
           <AppIcon name="userOff" size={18} color={styles.dangerButtonText.color} />
-          <Text style={styles.dangerButtonText}>
-            {client.is_active ? 'Desactivar cliente' : 'Activar cliente'}
-          </Text>
+          <Text style={styles.dangerButtonText}>Desactivar cliente</Text>
         </Pressable>
       </ScrollView>
     </ScreenWrapper>
@@ -234,28 +219,6 @@ function ScheduleRow({ schedule }: { schedule: ServiceSchedule }) {
   );
 }
 
-function ResponsibleItem({ responsible, isLast }: { responsible: Responsible; isLast: boolean }) {
-  const styles = useThemedStyles(createResponsibleStyles);
-  const initial = getInitial(responsible.name);
-
-  return (
-    <View style={[styles.item, !isLast && styles.itemBorder]}>
-      <View style={[styles.itemAvatar, responsible.status === 'pending' && styles.itemAvatarPending]}>
-        <Text style={styles.itemAvatarText}>{initial}</Text>
-      </View>
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName}>{responsible.name}</Text>
-        <Text style={styles.itemRole}>{responsible.relationship}</Text>
-      </View>
-      <View style={[styles.itemBadge, responsible.status === 'linked' ? styles.badgeLinked : styles.badgePending]}>
-        <Text style={[styles.itemBadgeText, responsible.status === 'linked' ? styles.badgeLinkedText : styles.badgePendingText]}>
-          {responsible.status === 'linked' ? 'Vinculada' : 'Pendiente'}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
     scrollView: {
@@ -270,10 +233,43 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 12,
+      paddingVertical: 48,
     },
     errorText: {
       color: theme.colors.danger,
       fontSize: 14,
+      textAlign: 'center',
+      paddingHorizontal: 32,
+    },
+    loadingColor: {
+      color: theme.colors.primary,
+    },
+    loadingText: {
+      fontSize: 14,
+      color: theme.colors.textSubtle,
+      fontWeight: '500',
+    },
+    errorIconColor: {
+      color: theme.colors.danger,
+    },
+    retryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      marginTop: 8,
+    },
+    retryButtonPressed: {
+      opacity: 0.85,
+    },
+    retryButtonText: {
+      color: theme.colors.primaryLight,
+      fontSize: 14,
+      fontWeight: '600',
     },
     hero: {
       alignItems: 'center',
@@ -423,6 +419,19 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textSubtle,
       fontStyle: 'italic',
     },
+    scheduleLoading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 18,
+      paddingVertical: 12,
+      borderTopWidth: 0.5,
+      borderTopColor: theme.colors.border,
+    },
+    scheduleLoadingText: {
+      fontSize: 12,
+      color: theme.colors.textSubtle,
+    },
     scheduleBlock: {
       paddingTop: 10,
       paddingHorizontal: 18,
@@ -540,73 +549,5 @@ const createScheduleRowStyles = (theme: Theme) =>
       fontSize: 11,
       color: theme.colors.textSubtle,
       fontWeight: '500',
-    },
-  });
-
-const createResponsibleStyles = (theme: Theme) =>
-  StyleSheet.create({
-    item: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingVertical: 10,
-      paddingHorizontal: 18,
-    },
-    itemBorder: {
-      borderBottomWidth: 0.5,
-      borderBottomColor: theme.colors.border,
-    },
-    itemAvatar: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      backgroundColor: theme.colors.primary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    itemAvatarPending: {
-      backgroundColor: theme.colors.disabled,
-    },
-    itemAvatarText: {
-      fontSize: 13,
-      fontWeight: '700',
-      color: theme.colors.primaryLight,
-    },
-    itemInfo: {
-      flex: 1,
-    },
-    itemName: {
-      fontSize: 13,
-      fontWeight: '600',
-      color: theme.colors.text,
-    },
-    itemRole: {
-      fontSize: 11,
-      color: theme.colors.textSubtle,
-      fontWeight: '500',
-    },
-    itemBadge: {
-      borderRadius: 999,
-      paddingVertical: 3,
-      paddingHorizontal: 9,
-      borderWidth: 0.5,
-    },
-    badgeLinked: {
-      backgroundColor: theme.colors.primaryLight,
-      borderColor: theme.colors.border,
-    },
-    badgePending: {
-      backgroundColor: theme.colors.background,
-      borderColor: theme.colors.border,
-    },
-    itemBadgeText: {
-      fontSize: 10,
-      fontWeight: '700',
-    },
-    badgeLinkedText: {
-      color: theme.colors.primary,
-    },
-    badgePendingText: {
-      color: theme.colors.disabled,
     },
   });
