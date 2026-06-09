@@ -147,3 +147,31 @@ export interface CreateSummaryAutoDto {
   driver_id: string;
   notes?: string;
 }
+
+// --- Service Schedules ---
+
+export interface ServiceSchedule {
+  id: string;
+  client_id: string;
+  day_of_week: number;
+  pickup_time: string;
+  return_time: string | null;
+  label: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateScheduleDto {
+  day_of_week: number;
+  pickup_time: string;
+  return_time?: string | null;
+  label?: string | null;
+  is_active?: boolean;
+}
+
+export type UpdateScheduleDto = Partial<CreateScheduleDto>;
+
+export interface BulkSchedulesDto {
+  schedules: CreateScheduleDto[];
+}

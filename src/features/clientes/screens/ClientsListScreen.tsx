@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Pressable,
   StyleSheet,
@@ -12,8 +13,8 @@ import { AppIcon } from '../../../components/AppIcon';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { Theme } from '../../../theme';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
-import { MOCK_CLIENTS } from '../mockData';
-import type { ClientFull } from '../types';
+import { useClients } from '../hooks';
+import type { Client } from '../../../services/types';
 
 type ClientsListScreenProps = {
   onMenuPress: () => void;
@@ -29,16 +30,6 @@ const BILLING_LABELS: Record<string, string> = {
   monthly: 'Mensual',
 };
 
-function getActiveDays(schedules: ClientFull['schedules']): Set<number> {
-  const days = new Set<number>();
-  schedules.forEach((s) => {
-    if (s.is_active && s.day_of_week >= 1 && s.day_of_week <= 5) {
-      days.add(s.day_of_week);
-    }
-  });
-  return days;
-}
-
 function getInitial(name: string) {
   return name.trim().charAt(0).toUpperCase() || 'A';
 }
@@ -46,22 +37,22 @@ function getInitial(name: string) {
 export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient }: ClientsListScreenProps) {
   const styles = useThemedStyles(createStyles);
   const [search, setSearch] = useState('');
+  const { clients, loading, error, refetch } = useClients();
 
   const { activeClients, inactiveClients } = useMemo(() => {
     const query = search.toLowerCase().trim();
-    const filtered = MOCK_CLIENTS.filter((c) =>
+    const filtered = clients.filter((c) =>
       c.nombre.toLowerCase().includes(query),
     );
     return {
-      activeClients: filtered.filter((c) => c.is_active),
-      inactiveClients: filtered.filter((c) => !c.is_active),
+      activeClients: filtered,
+      inactiveClients: [] as Client[],
     };
-  }, [search]);
+  }, [clients, search]);
 
-  const activeCount = MOCK_CLIENTS.filter((c) => c.is_active).length;
+  const activeCount = clients.length;
 
-  const renderClientCard = ({ item }: { item: ClientFull }) => {
-    const activeDays = getActiveDays(item.schedules);
+  const renderClientCard = ({ item }: { item: Client }) => {
     const initial = getInitial(item.nombre);
     const billingLabel = BILLING_LABELS[item.billing_cycle] || 'Mensual';
 
@@ -70,66 +61,33 @@ export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient }: 
         style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
         onPress={() => onSelectClient(item.id)}
       >
-        <View style={[styles.avatar, !item.is_active && styles.avatarInactive]}>
-          <Text style={[styles.avatarText, !item.is_active && styles.avatarTextInactive]}>
-            {initial}
-          </Text>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{initial}</Text>
         </View>
 
         <View style={styles.cardInfo}>
-          <Text
-            style={[styles.clientName, !item.is_active && styles.clientNameInactive]}
-            numberOfLines={1}
-          >
+          <Text style={styles.clientName} numberOfLines={1}>
             {item.nombre}
           </Text>
           <View style={styles.cardMeta}>
-            <Text style={styles.address} numberOfLines={1}>
-              {item.address}
+            <Text style={styles.phone} numberOfLines={1}>
+              {item.phone}
             </Text>
-            {item.schedules.length > 0 && (
-              <>
-                <View style={styles.dotSep} />
-                <View style={styles.daysRow}>
-                  {DAY_LABELS.map((label, index) => {
-                    const dayNum = index + 1;
-                    const isOn = activeDays.has(dayNum);
-                    return (
-                      <View key={label} style={[styles.dayCircle, isOn ? styles.dayOn : styles.dayOff]}>
-                        <Text style={[styles.dayText, isOn ? styles.dayTextOn : styles.dayTextOff]}>
-                          {label}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
-            )}
           </View>
         </View>
 
         <View style={styles.cardRight}>
-          <View style={[styles.billingTag, !item.is_active && styles.billingTagInactive]}>
-            <Text style={[styles.billingTagText, !item.is_active && styles.billingTagTextInactive]}>
-              {billingLabel}
-            </Text>
+          <View style={styles.billingTag}>
+            <Text style={styles.billingTagText}>{billingLabel}</Text>
           </View>
           <View style={styles.statusRow}>
-            <View style={[styles.statusDot, item.is_active ? styles.statusDotActive : styles.statusDotInactive]} />
+            <View style={styles.statusDotActive} />
             <AppIcon name="chevronRight" size={16} color={styles.chevronColor.color} />
           </View>
         </View>
       </Pressable>
     );
   };
-
-  const renderSectionHeader = (label: string) => (
-    <View style={styles.sectionDivider}>
-      <View style={styles.dividerLine} />
-      <Text style={styles.dividerLabel}>{label}</Text>
-      <View style={styles.dividerLine} />
-    </View>
-  );
 
   const sections = [];
   if (activeClients.length > 0) {
@@ -141,7 +99,15 @@ export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient }: 
     sections.push(...inactiveClients.map((c) => ({ type: 'client' as const, data: c })));
   }
 
-  const isEmpty = activeClients.length === 0 && inactiveClients.length === 0;
+  const isEmpty = !loading && activeClients.length === 0 && inactiveClients.length === 0;
+
+  const renderSectionHeader = (label: string) => (
+    <View style={styles.sectionDivider}>
+      <View style={styles.dividerLine} />
+      <Text style={styles.dividerLabel}>{label}</Text>
+      <View style={styles.dividerLine} />
+    </View>
+  );
 
   return (
     <ScreenWrapper
@@ -178,7 +144,24 @@ export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient }: 
         </Pressable>
       </View>
 
-      {isEmpty ? (
+      {loading ? (
+        <View style={styles.loadingState}>
+          <ActivityIndicator size="large" color={styles.loadingColor.color} />
+          <Text style={styles.loadingText}>Cargando clientes...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorState}>
+          <AppIcon name="alert" size={40} color={styles.errorIconColor.color} />
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}
+            onPress={refetch}
+          >
+            <AppIcon name="refresh" size={16} color={styles.retryButtonText.color} />
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </Pressable>
+        </View>
+      ) : isEmpty ? (
         <View style={styles.emptyState}>
           <AppIcon name="users" size={40} color={styles.emptyIconColor.color} />
           <Text style={styles.emptyText}>No se encontraron clientes</Text>
@@ -292,16 +275,10 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    avatarInactive: {
-      backgroundColor: theme.colors.disabled,
-    },
     avatarText: {
       fontSize: 17,
       fontWeight: '700',
       color: theme.colors.primaryLight,
-    },
-    avatarTextInactive: {
-      color: theme.colors.surface,
     },
     cardInfo: {
       flex: 1,
@@ -313,52 +290,16 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.text,
       marginBottom: 3,
     },
-    clientNameInactive: {
-      color: theme.colors.textSubtle,
-    },
     cardMeta: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
       flexWrap: 'wrap',
     },
-    address: {
+    phone: {
       fontSize: 12,
       color: theme.colors.textSubtle,
       maxWidth: 160,
-    },
-    dotSep: {
-      width: 3,
-      height: 3,
-      borderRadius: 2,
-      backgroundColor: theme.colors.border,
-    },
-    daysRow: {
-      flexDirection: 'row',
-      gap: 3,
-    },
-    dayCircle: {
-      width: 18,
-      height: 18,
-      borderRadius: 9,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    dayOn: {
-      backgroundColor: theme.colors.primary,
-    },
-    dayOff: {
-      backgroundColor: theme.colors.background,
-    },
-    dayText: {
-      fontSize: 9,
-      fontWeight: '700',
-    },
-    dayTextOn: {
-      color: theme.colors.primaryLight,
-    },
-    dayTextOff: {
-      color: theme.colors.disabled,
     },
     cardRight: {
       alignItems: 'flex-end',
@@ -372,33 +313,21 @@ const createStyles = (theme: Theme) =>
       borderWidth: 0.5,
       borderColor: theme.colors.border,
     },
-    billingTagInactive: {
-      backgroundColor: theme.colors.background,
-      borderColor: theme.colors.border,
-    },
     billingTagText: {
       fontSize: 10,
       fontWeight: '700',
       color: theme.colors.primary,
-    },
-    billingTagTextInactive: {
-      color: theme.colors.disabled,
     },
     statusRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 5,
     },
-    statusDot: {
+    statusDotActive: {
       width: 7,
       height: 7,
       borderRadius: 4,
-    },
-    statusDotActive: {
       backgroundColor: theme.colors.primary,
-    },
-    statusDotInactive: {
-      backgroundColor: theme.colors.disabled,
     },
     chevronColor: {
       color: theme.colors.disabled,
@@ -441,6 +370,54 @@ const createStyles = (theme: Theme) =>
       fontSize: 11,
       fontWeight: '700',
       color: theme.colors.primaryLight,
+    },
+    loadingState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 48,
+      gap: 12,
+    },
+    loadingColor: {
+      color: theme.colors.primary,
+    },
+    loadingText: {
+      fontSize: 14,
+      color: theme.colors.textSubtle,
+      fontWeight: '500',
+    },
+    errorState: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 48,
+      gap: 12,
+    },
+    errorIconColor: {
+      color: theme.colors.danger,
+    },
+    errorText: {
+      fontSize: 14,
+      color: theme.colors.danger,
+      fontWeight: '500',
+      textAlign: 'center',
+      paddingHorizontal: 32,
+    },
+    retryButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 10,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+      marginTop: 8,
+    },
+    retryButtonPressed: {
+      opacity: 0.85,
+    },
+    retryButtonText: {
+      color: theme.colors.primaryLight,
+      fontSize: 14,
+      fontWeight: '600',
     },
     emptyState: {
       alignItems: 'center',
