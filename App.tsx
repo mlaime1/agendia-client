@@ -8,6 +8,7 @@ import { CalendarScreen } from './src/features/calendar/screens/CalendarScreen';
 import { ClientesScreen } from './src/features/clientes/screens/ClientesScreen';
 import { ResumenesScreen } from './src/features/resumenes/screens/ResumenesScreen';
 import { ResumenDetailScreen } from './src/features/resumenes/screens/ResumenDetailScreen';
+import { ProfileScreen } from './src/features/profile/screens/ProfileScreen';
 import { CustomDrawer } from './src/components/CustomDrawer';
 import { FeedbackProvider } from './src/state/FeedbackContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
@@ -26,7 +27,7 @@ type NavigationState =
   | { screen: 'ResumenDetail'; summaryId: string };
 
 function AppContent() {
-  const { isAuthenticated, isLoading, userProfile, logout } = useAuth();
+  const { isAuthenticated, isLoading, session, userProfile, logout } = useAuth();
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   
@@ -37,7 +38,7 @@ function AppContent() {
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await clientsService.getAll();
+      const data = await clientsService.getAll(session?.access_token);
       setClients(data);
       if (data.length > 0 && !selectedClientId) {
         setSelectedClientId(data[0].id);
@@ -45,7 +46,7 @@ function AppContent() {
     } catch (err) {
       console.error('Error loading clients:', err);
     }
-  }, [selectedClientId]);
+  }, [selectedClientId, session?.access_token]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -114,6 +115,13 @@ function AppContent() {
         return (
           <ClientesScreen
             selectedClientId={selectedClientId}
+            onMenuPress={() => setDrawerVisible(true)}
+          />
+        );
+      case 'Perfil':
+        return (
+          <ProfileScreen
+            userProfile={userProfile || { id: '', name: '', email: '', alias: null, role: 'driver' }}
             onMenuPress={() => setDrawerVisible(true)}
           />
         );

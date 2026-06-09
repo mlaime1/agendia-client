@@ -16,21 +16,28 @@ import {
 import { useAuth } from '../../../state/AuthContext';
 import { AuthTextField } from '../components/AuthTextField';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
+import { AppIcon } from '../../../components/AppIcon';
+import { api } from '../../../services/backendApi';
 
 type AuthMode = 'login' | 'register';
+type InvitationStatus = 'idle' | 'loading' | 'valid' | 'invalid';
 
 const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Ocurrio un error inesperado');
 
 export function AuthScreen() {
-  const { login, register } = useAuth();
+  const { login, register, registerWithCode } = useAuth();
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [mode, setMode] = useState<AuthMode>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [invitationCode, setInvitationCode] = useState('');
+  const [phone, setPhone] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [invitationStatus, setInvitationStatus] = useState<InvitationStatus>('idle');
+  const [needsPhone, setNeedsPhone] = useState(false);
 
   const isRegisterMode = mode === 'register';
   const title = isRegisterMode ? 'Crear cuenta' : 'Iniciar sesion';
@@ -46,12 +53,47 @@ export function AuthScreen() {
       return true;
     }
 
-    return isRegisterMode && !name.trim();
-  }, [email, isRegisterMode, isSubmitting, name, password]);
+    if (isRegisterMode) {
+      if (!name.trim()) return true;
+      if (invitationStatus !== 'valid') return true;
+      if (needsPhone && !phone.trim()) return true;
+    }
+
+    return false;
+  }, [email, isRegisterMode, isSubmitting, name, password, invitationStatus, needsPhone, phone]);
 
   const resetFormState = (nextMode: AuthMode) => {
     setMode(nextMode);
     setError(null);
+    setInvitationCode('');
+    setPhone('');
+    setInvitationStatus('idle');
+    setNeedsPhone(false);
+  };
+
+  const validateInvitationCode = async (code: string) => {
+    if (!code.trim()) {
+      setInvitationStatus('idle');
+      setNeedsPhone(false);
+      return;
+    }
+
+    setInvitationStatus('loading');
+
+    try {
+      const response = await api.get<{ valid: boolean; client_id: string | null }>(`/invitations/${code.trim()}`);
+
+      if (response.valid) {
+        setInvitationStatus('valid');
+        setNeedsPhone(response.client_id === null);
+      } else {
+        setInvitationStatus('invalid');
+        setNeedsPhone(false);
+      }
+    } catch {
+      setInvitationStatus('invalid');
+      setNeedsPhone(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -60,7 +102,13 @@ export function AuthScreen() {
 
     try {
       if (isRegisterMode) {
-        await register({ email, password, name });
+        await registerWithCode({
+          email,
+          password,
+          name,
+          invitation_code: invitationCode.trim(),
+          phone: needsPhone ? phone : undefined,
+        });
       } else {
         await login(email, password);
       }
@@ -123,6 +171,55 @@ export function AuthScreen() {
               textContentType={isRegisterMode ? 'newPassword' : 'password'}
               value={password}
             />
+
+            {isRegisterMode ? (
+              <View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Codigo de invitacion</Text>
+                  <View style={styles.inputRow}>
+                    <AuthTextField
+                      autoComplete="off"
+                      label=""
+                      onChangeText={(text) => {
+                        setInvitationCode(text);
+                        if (invitationStatus !== 'idle') {
+                          setInvitationStatus('idle');
+                          setNeedsPhone(false);
+                        }
+                      }}
+                      onBlur={() => validateInvitationCode(invitationCode)}
+                      placeholder="Ingresa tu codigo de invitacion"
+                      returnKeyType="next"
+                      value={invitationCode}
+                      style={styles.invitationInput}
+                    />
+                    <View style={styles.validationIcon}>
+                      {invitationStatus === 'loading' && (
+                        <ActivityIndicator size="small" color={theme.colors.textMuted} />
+                      )}
+                      {invitationStatus === 'valid' && (
+                        <AppIcon name="checkCircle" size={20} color={theme.colors.semantic.success.text} />
+                      )}
+                      {invitationStatus === 'invalid' && (
+                        <AppIcon name="closeCircle" size={20} color={theme.colors.danger} />
+                      )}
+                    </View>
+                  </View>
+                </View>
+                {needsPhone ? (
+                  <AuthTextField
+                    autoComplete="tel"
+                    inputMode="tel"
+                    keyboardType="phone-pad"
+                    label="Telefono"
+                    onChangeText={setPhone}
+                    placeholder="Tu numero de telefono"
+                    returnKeyType="done"
+                    value={phone}
+                  />
+                ) : null}
+              </View>
+            ) : null}
 
             {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -245,5 +342,31 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0,
     lineHeight: 18,
+  },
+  field: {
+    gap: 7,
+  },
+  label: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  invitationInput: {
+    flex: 1,
+    paddingRight: 40,
+  },
+  validationIcon: {
+    position: 'absolute',
+    right: 10,
+    height: 32,
+    width: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

@@ -16,6 +16,7 @@ import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { clientsService } from '../../../services/clients';
 import type { BillingCycle, Client } from '../../../services/types';
 import { useFeedback } from '../../../state/FeedbackContext';
+import { useAuth } from '../../../state/AuthContext';
 
 type ClientesScreenProps = {
   selectedClientId: string;
@@ -68,6 +69,7 @@ function formatBillingDay(value: number | null | undefined) {
 export function ClientesScreen({ selectedClientId, onMenuPress }: ClientesScreenProps) {
   const insets = useSafeAreaInsets();
   const { showFeedback } = useFeedback();
+  const { session } = useAuth();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -88,7 +90,7 @@ export function ClientesScreen({ selectedClientId, onMenuPress }: ClientesScreen
       setError(null);
 
       try {
-        const data = await clientsService.getById(selectedClientId);
+        const data = await clientsService.getById(selectedClientId, session?.access_token);
         setClient(data);
 
         const rawCycle = (data as Client & { billing_cycle: BillingCycleInput }).billing_cycle;
@@ -104,7 +106,7 @@ export function ClientesScreen({ selectedClientId, onMenuPress }: ClientesScreen
     };
 
     loadClient();
-  }, [selectedClientId]);
+  }, [selectedClientId, session?.access_token]);
 
   const clientName = client?.nombre || 'Cliente';
 

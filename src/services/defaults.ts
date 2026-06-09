@@ -16,18 +16,25 @@ export interface Defaults {
 let cachedDefaults: Defaults | null = null;
 
 export const defaultsService = {
-  async getDefaults(): Promise<Defaults> {
+  async getDefaults(accessToken?: string): Promise<Defaults> {
     // Return cached if available
     if (cachedDefaults) {
       return cachedDefaults;
     }
 
-    const fallbackClientId = '3';
-    const fallbackRouteId = '3';
-    const fallbackRateId = '1';
-
     try {
-      const clients = await clientsService.getAll();
+      if (!accessToken) {
+        return {
+          client: null,
+          route: null,
+          rate: null,
+          clientId: null,
+          routeId: null,
+          rateId: null,
+        };
+      }
+
+      const clients = await clientsService.getAll(accessToken);
 
       if (!clients || clients.length === 0) {
         return {
@@ -40,12 +47,11 @@ export const defaultsService = {
         };
       }
 
-      // Prefer the client linked to the known rate row.
-      const preferredClient = clients.find((client) => client.id === fallbackClientId) ?? clients[0];
+      const preferredClient = clients[0];
 
       // Get client details (includes routes)
-      const clientDetail = await clientsService.getById(preferredClient.id);
-      const route = (clientDetail.routes?.find((item) => item.id === fallbackRouteId) ?? clientDetail.routes?.[0]) || null;
+      const clientDetail = await clientsService.getById(preferredClient.id, accessToken);
+      const route = clientDetail.routes?.[0] ?? null;
 
       if (!route) {
         return {
@@ -58,9 +64,8 @@ export const defaultsService = {
         };
       }
 
-      // Rates endpoint is not available yet, so use a known valid rate id.
       const rate: Rate | null = null;
-      const rateId = '1';
+      const rateId = null;
 
       cachedDefaults = {
         client: clientDetail,
@@ -68,7 +73,7 @@ export const defaultsService = {
         rate,
         clientId: preferredClient.id,
         routeId: route.id,
-        rateId: fallbackRateId,
+        rateId: rateId,
       };
 
       return cachedDefaults;

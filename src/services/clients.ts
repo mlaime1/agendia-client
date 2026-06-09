@@ -3,15 +3,18 @@
 import { api } from './backendApi';
 import type { Client, CreateClientDto, UpdateClientDto, UpdateBillingDto } from './types';
 
+const withAuth = (accessToken?: string) =>
+  accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined;
+
 export const clientsService = {
   /** GET /clients */
-  getAll(): Promise<Client[]> {
-    return api.get<Client[]>('/clients');
+  getAll(accessToken?: string): Promise<Client[]> {
+    return api.get<Client[]>('/clients', withAuth(accessToken));
   },
 
   /** GET /clients/:id — incluye routes y últimas 5 summaries */
-  getById(id: string): Promise<Client> {
-    return api.get<Client>(`/clients/${id}`);
+  getById(id: string, accessToken?: string): Promise<Client> {
+    return api.get<Client>(`/clients/${id}`, withAuth(accessToken));
   },
 
   /** POST /clients */

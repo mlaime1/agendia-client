@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { getCurrentUserProfile } from '../lib/api';
+import { api } from '../services/backendApi';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../features/auth/types/user';
 
@@ -13,6 +14,7 @@ type AuthContextValue = {
   profileError: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
+  registerWithCode: (input: { email: string; password: string; name: string; invitation_code: string; phone?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -20,6 +22,19 @@ type AuthContextValue = {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Ocurrio un error inesperado');
+const normalizeRole = (role: unknown): 'driver' | 'admin' | 'client' => {
+  const normalizedRole = String(role ?? '').trim().toLowerCase();
+
+  if (normalizedRole === 'admin') {
+    return 'admin';
+  }
+
+  if (normalizedRole === 'client') {
+    return 'client';
+  }
+
+  return 'driver';
+};
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
@@ -36,15 +51,40 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
     try {
       setProfileError(null);
-      // Use Supabase user data directly instead of calling /users/me
       const supabaseUser = currentSession.user;
-      const profile: UserProfile = {
-        id: supabaseUser.id,
-        name: supabaseUser.user_metadata?.name || supabaseUser.email || 'Usuario',
-        email: supabaseUser.email || '',
-        alias: supabaseUser.user_metadata?.alias || null,
-        role: supabaseUser.user_metadata?.role || 'driver',
-      };
+      let profile: UserProfile;
+
+      try {
+        const backendProfile = await getCurrentUserProfile(currentSession.access_token);
+        profile = {
+          ...backendProfile,
+          role: normalizeRole(backendProfile.role),
+        };
+
+        console.log('[AuthContext] profile loaded from backend:', {
+          id: profile.id,
+          email: profile.email,
+          roleRaw: backendProfile.role,
+          roleNormalized: profile.role,
+        });
+      } catch (backendError) {
+        profile = {
+          id: supabaseUser.id,
+          name: supabaseUser.user_metadata?.name || supabaseUser.email || 'Usuario',
+          email: supabaseUser.email || '',
+          alias: supabaseUser.user_metadata?.alias || null,
+          role: normalizeRole(supabaseUser.user_metadata?.role),
+        };
+
+        console.log('[AuthContext] profile loaded from supabase fallback:', {
+          id: profile.id,
+          email: profile.email,
+          backendError: backendError instanceof Error ? backendError.message : String(backendError),
+          roleRaw: supabaseUser.user_metadata?.role,
+          roleNormalized: profile.role,
+        });
+      }
+
       setUserProfile(profile);
     } catch (error) {
       console.error('[AuthContext] Failed to load profile:', error);
@@ -95,6 +135,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         throw error;
       }
 
+      console.log('[AuthContext] login response:', {
+        userId: data.session?.user?.id,
+        email: data.session?.user?.email,
+        roleRaw: data.session?.user?.user_metadata?.role,
+        roleNormalized: normalizeRole(data.session?.user?.user_metadata?.role),
+      });
+
       setSession(data.session);
       await loadProfile(data.session);
     },
@@ -127,6 +174,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [loadProfile],
   );
 
+  const registerWithCode = useCallback(
+    async ({ email, name, password, invitation_code, phone }: { email: string; password: string; name: string; invitation_code: string; phone?: string }) => {
+      const body: Record<string, string> = {
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        invitation_code,
+      };
+
+      if (phone) {
+        body.phone = phone.trim();
+      }
+
+      const response = await api.post<{ session: Session; user: Record<string, unknown> }>('/auth/register', body);
+
+      if (!response.session) {
+        throw new Error('No se pudo iniciar sesion despues del registro.');
+      }
+
+      setSession(response.session);
+      await loadProfile(response.session);
+    },
+    [loadProfile],
+  );
+
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
 
@@ -152,10 +224,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       profileError,
       login,
       register,
+      registerWithCode,
       logout,
       refreshProfile,
     }),
-    [isLoading, login, logout, profileError, refreshProfile, register, session, userProfile],
+    [isLoading, login, logout, profileError, refreshProfile, register, registerWithCode, session, userProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
