@@ -6,6 +6,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthScreen } from './src/features/auth/screens/AuthScreen';
 import { CalendarScreen } from './src/features/calendar/screens/CalendarScreen';
 import { ClientesScreen } from './src/features/clientes/screens/ClientesScreen';
+import { ClientsListScreen } from './src/features/clientes/screens/ClientsListScreen';
+import { ClientDetailScreen } from './src/features/clientes/screens/ClientDetailScreen';
+import { EditClientScreen } from './src/features/clientes/screens/EditClientScreen';
+import { EditContractScreen } from './src/features/clientes/screens/EditContractScreen';
+import { AddResponsibleScreen } from './src/features/clientes/screens/AddResponsibleScreen';
 import { ResumenesScreen } from './src/features/resumenes/screens/ResumenesScreen';
 import { ResumenDetailScreen } from './src/features/resumenes/screens/ResumenDetailScreen';
 import { ProfileScreen } from './src/features/profile/screens/ProfileScreen';
@@ -22,6 +27,13 @@ void SplashScreen.preventAutoHideAsync();
 
 type AppRoute = 'Calendario' | 'Historial' | 'Recorridos' | 'Resumenes' | 'Clientes' | 'Perfil';
 
+type ClientsNavigation =
+  | { screen: 'list' }
+  | { screen: 'detail'; clientId: string }
+  | { screen: 'edit'; clientId: string }
+  | { screen: 'editContract'; clientId: string }
+  | { screen: 'addResponsible'; clientId: string };
+
 type NavigationState = 
   | { screen: AppRoute }
   | { screen: 'ResumenDetail'; summaryId: string };
@@ -33,6 +45,7 @@ function AppContent() {
   
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [navigation, setNavigation] = useState<NavigationState>({ screen: 'Calendario' });
+  const [clientsNav, setClientsNav] = useState<ClientsNavigation>({ screen: 'list' });
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
 
@@ -56,6 +69,9 @@ function AppContent() {
 
   const handleNavigate = (routeName: string) => {
     setNavigation({ screen: routeName as AppRoute });
+    if (routeName === 'Clientes') {
+      setClientsNav({ screen: 'list' });
+    }
   };
 
   const handleOpenDetail = (summaryId: string) => {
@@ -112,12 +128,50 @@ function AppContent() {
           />
         );
       case 'Clientes':
-        return (
-          <ClientesScreen
-            selectedClientId={selectedClientId}
-            onMenuPress={() => setDrawerVisible(true)}
-          />
-        );
+        switch (clientsNav.screen) {
+          case 'detail':
+            return (
+              <ClientDetailScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'list' })}
+                onEditClient={() => setClientsNav({ screen: 'edit', clientId: clientsNav.clientId })}
+                onEditContract={() => setClientsNav({ screen: 'editContract', clientId: clientsNav.clientId })}
+                onAddResponsible={() => setClientsNav({ screen: 'addResponsible', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'edit':
+            return (
+              <EditClientScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+                onSave={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'editContract':
+            return (
+              <EditContractScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+                onSave={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'addResponsible':
+            return (
+              <AddResponsibleScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'list':
+          default:
+            return (
+              <ClientsListScreen
+                onMenuPress={() => setDrawerVisible(true)}
+                onSelectClient={(clientId) => setClientsNav({ screen: 'detail', clientId })}
+                onNewClient={() => {}}
+              />
+            );
+        }
       case 'Perfil':
         return (
           <ProfileScreen

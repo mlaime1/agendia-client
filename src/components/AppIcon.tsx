@@ -2,6 +2,7 @@ import React from 'react';
 import {
   IconAlertCircle,
   IconArrowLeft,
+  IconArrowRight,
   IconCalendar,
   IconCheck,
   IconChevronDown,
@@ -10,6 +11,8 @@ import {
   IconCircleCheck,
   IconCircleX,
   IconClock,
+  IconCopy,
+  IconDots,
   IconDownload,
   IconEdit,
   IconEye,
@@ -20,15 +23,24 @@ import {
   IconMap,
   IconMenu2,
   IconMessageCircle,
+  IconNotes,
+  IconPhone,
+  IconPlus,
+  IconReceipt,
+  IconRefresh,
+  IconSearch,
+  IconSend,
   IconTrash,
   IconUsers,
   IconUser,
+  IconUserOff,
   IconX,
   type IconProps,
 } from '@tabler/icons-react-native';
 
 export type AppIconName =
   | 'alert'
+  | 'arrowRight'
   | 'back'
   | 'calendar'
   | 'check'
@@ -39,6 +51,8 @@ export type AppIconName =
   | 'clock'
   | 'close'
   | 'closeCircle'
+  | 'copy'
+  | 'dots'
   | 'download'
   | 'edit'
   | 'eye'
@@ -49,8 +63,16 @@ export type AppIconName =
   | 'map'
   | 'menu'
   | 'message'
+  | 'notes'
+  | 'phone'
+  | 'plus'
+  | 'receipt'
+  | 'refresh'
+  | 'search'
+  | 'send'
   | 'trash'
   | 'user'
+  | 'userOff'
   | 'users';
 
 type AppIconProps = Omit<IconProps, 'name'> & {
@@ -59,6 +81,7 @@ type AppIconProps = Omit<IconProps, 'name'> & {
 
 const iconMap = {
   alert: IconAlertCircle,
+  arrowRight: IconArrowRight,
   back: IconArrowLeft,
   calendar: IconCalendar,
   check: IconCheck,
@@ -69,6 +92,8 @@ const iconMap = {
   clock: IconClock,
   close: IconX,
   closeCircle: IconCircleX,
+  copy: IconCopy,
+  dots: IconDots,
   download: IconDownload,
   edit: IconEdit,
   eye: IconEye,
@@ -79,8 +104,16 @@ const iconMap = {
   map: IconMap,
   menu: IconMenu2,
   message: IconMessageCircle,
+  notes: IconNotes,
+  phone: IconPhone,
+  plus: IconPlus,
+  receipt: IconReceipt,
+  refresh: IconRefresh,
+  search: IconSearch,
+  send: IconSend,
   trash: IconTrash,
   user: IconUser,
+  userOff: IconUserOff,
   users: IconUsers,
 } as const;
 
