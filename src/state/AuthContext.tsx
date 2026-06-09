@@ -2,6 +2,7 @@ import { Session } from '@supabase/supabase-js';
 import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import { getCurrentUserProfile } from '../lib/api';
+import { api } from '../services/backendApi';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../features/auth/types/user';
 
@@ -13,6 +14,7 @@ type AuthContextValue = {
   profileError: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
+  registerWithCode: (input: { email: string; password: string; name: string; invitation_code: string; phone?: string }) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -172,6 +174,31 @@ export function AuthProvider({ children }: PropsWithChildren) {
     [loadProfile],
   );
 
+  const registerWithCode = useCallback(
+    async ({ email, name, password, invitation_code, phone }: { email: string; password: string; name: string; invitation_code: string; phone?: string }) => {
+      const body: Record<string, string> = {
+        email: email.trim(),
+        password,
+        name: name.trim(),
+        invitation_code,
+      };
+
+      if (phone) {
+        body.phone = phone.trim();
+      }
+
+      const response = await api.post<{ session: Session; user: Record<string, unknown> }>('/auth/register', body);
+
+      if (!response.session) {
+        throw new Error('No se pudo iniciar sesion despues del registro.');
+      }
+
+      setSession(response.session);
+      await loadProfile(response.session);
+    },
+    [loadProfile],
+  );
+
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
 
@@ -197,10 +224,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
       profileError,
       login,
       register,
+      registerWithCode,
       logout,
       refreshProfile,
     }),
-    [isLoading, login, logout, profileError, refreshProfile, register, session, userProfile],
+    [isLoading, login, logout, profileError, refreshProfile, register, registerWithCode, session, userProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
