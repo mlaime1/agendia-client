@@ -39,7 +39,7 @@ type NavigationState =
   | { screen: 'ResumenDetail'; summaryId: string };
 
 function AppContent() {
-  const { isAuthenticated, isLoading, session, userProfile, logout } = useAuth();
+  const { isAuthenticated, isLoading, userProfile, logout } = useAuth();
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   
@@ -51,7 +51,7 @@ function AppContent() {
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await clientsService.getAll(session?.access_token);
+      const data = await clientsService.getAll();
       setClients(data);
       if (data.length > 0 && !selectedClientId) {
         setSelectedClientId(data[0].id);
@@ -59,7 +59,7 @@ function AppContent() {
     } catch (err) {
       console.error('Error loading clients:', err);
     }
-  }, [selectedClientId, session?.access_token]);
+  }, [selectedClientId]);
 
   useEffect(() => {
     if (isAuthenticated) {

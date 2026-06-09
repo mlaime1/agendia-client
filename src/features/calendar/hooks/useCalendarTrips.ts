@@ -20,7 +20,7 @@ type UseCalendarTripsResult = {
 };
 
 export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsResult => {
-  const { session, userProfile } = useAuth();
+  const { userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
       }
 
       try {
-        const defaults = await defaultsService.getDefaults(session?.access_token);
+        const defaults = await defaultsService.getDefaults();
 
         if (mounted && defaults.clientId && defaults.routeId) {
           setClientId(defaults.clientId);
@@ -74,7 +74,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
         }
 
         if (selectedClientId) {
-          const selectedClient = await clientsService.getById(selectedClientId, session?.access_token);
+          const selectedClient = await clientsService.getById(selectedClientId);
 
           if (mounted) {
             setClientId(selectedClient.id);
@@ -82,7 +82,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
           }
         }
 
-        const list = await tripRepository.listCalendarTrips(selectedClientId || defaults.clientId || undefined, session?.access_token);
+        const list = await tripRepository.listCalendarTrips(selectedClientId || defaults.clientId || undefined);
         if (mounted) {
           setTrips(list);
         }
@@ -101,7 +101,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     return () => {
       mounted = false;
     };
-  }, [selectedClientId, session?.access_token, userId]);
+  }, [selectedClientId, userId]);
 
   const tripsByDate = useMemo(
     () =>
@@ -139,7 +139,6 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
             const createdTrip = await tripRepository.createTrips(
               toCreateTripPayloads({ dateKey, mode, ...tripContext }),
               userId,
-              session?.access_token,
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
@@ -147,11 +146,10 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
               const fallback = tripRepository.createLocalTrips(
                 toCreateTripPayloads({ dateKey, mode, ...tripContext }),
                 userId,
-                session?.access_token,
               );
               mergeTripIntoState(fallback);
             } catch {
-              // no-op: keep user-facing error below
+              // no-op
             }
             setError(err?.message ?? 'Error creando viaje');
           }
@@ -183,7 +181,6 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
                 ...tripContext,
               }),
               userId,
-              session?.access_token,
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
@@ -197,11 +194,10 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
                   ...tripContext,
                 }),
                 userId,
-                session?.access_token,
               );
               mergeTripIntoState(fallback);
             } catch {
-              // no-op: keep user-facing error below
+              // no-op
             }
             setError(err?.message ?? 'Error creando viaje especial');
           }
@@ -219,8 +215,8 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
 
         (async () => {
           try {
-            await tripRepository.updateCalendarTrip(trip, updates, session?.access_token);
-            const list = await tripRepository.listCalendarTrips(selectedClientId, session?.access_token);
+            await tripRepository.updateCalendarTrip(trip, updates);
+            const list = await tripRepository.listCalendarTrips(selectedClientId);
             setTrips(list);
           } catch (err: any) {
             tripRepository.updateLocalCalendarTrip(trip, updates);
@@ -244,7 +240,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
 
         (async () => {
           try {
-            await tripRepository.deleteCalendarTrip(trip, session?.access_token);
+            await tripRepository.deleteCalendarTrip(trip);
           } catch (err: any) {
             setTrips(previousTrips);
             setError(err?.message ?? 'Error eliminando viaje');

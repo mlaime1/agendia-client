@@ -22,50 +22,53 @@ export const getBackendApiBaseUrl = () => apiUrl.replace(/\/$/, '');
 
 const buildUrl = (path: string) => `${getBackendApiBaseUrl()}${path}`;
 
+async function getAccessToken(): Promise<string | null> {
+  const { data } = await supabase.auth.getSession();
+  return data.session?.access_token ?? null;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const makeRequest = (headers: HeadersInit | undefined) =>
-    fetch(buildUrl(path), {
+  const token = await getAccessToken();
+
+  const makeRequest = async (authToken: string | null) => {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    if (options.headers) {
+      const extra = options.headers instanceof Headers
+        ? Object.fromEntries(options.headers.entries())
+        : Array.isArray(options.headers)
+          ? Object.fromEntries(options.headers)
+          : options.headers as Record<string, string>;
+      Object.assign(headers, extra);
+    }
+
+    return fetch(buildUrl(path), {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(headers ?? {}),
-      },
+      headers,
     });
-
-  const getAuthHeader = (headers: HeadersInit | undefined) => {
-    if (!headers) return null;
-    if (Array.isArray(headers)) {
-      const match = headers.find(([key]) => key.toLowerCase() === 'authorization');
-      return match?.[1] ?? null;
-    }
-
-    if (headers instanceof Headers) {
-      return headers.get('Authorization');
-    }
-
-    const record = headers as Record<string, string>;
-    return record.Authorization ?? record.authorization ?? null;
   };
 
-  const res = await makeRequest(options.headers);
-  const authHeader = getAuthHeader(options.headers);
+  const res = await makeRequest(token);
 
-  if (res.status === 401 && authHeader?.startsWith('Bearer ')) {
+  if (res.status === 401 && token) {
     const { data: refreshedSession } = await supabase.auth.refreshSession();
     const refreshedToken = refreshedSession.session?.access_token;
 
-    if (refreshedToken) {
-      const retryHeaders = new Headers(options.headers ?? undefined);
-      retryHeaders.set('Authorization', `Bearer ${refreshedToken}`);
-
-      const retryRes = await makeRequest(retryHeaders);
+    if (refreshedToken && refreshedToken !== token) {
+      const retryRes = await makeRequest(refreshedToken);
 
       if (retryRes.ok) {
-        const retryResponseText = await retryRes.text();
-        const retryJson = retryResponseText ? (JSON.parse(retryResponseText) as ApiResponse<T>) : null;
+        const retryText = await retryRes.text();
+        const retryJson = retryText ? (JSON.parse(retryText) as ApiResponse<T>) : null;
 
         if (!retryJson) {
           return undefined as T;
@@ -104,6 +107,9 @@ export const api = {
 
   post: <T>(path: string, body: unknown, options?: RequestInit) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body), ...(options ?? {}) }),
+
+  put: <T>(path: string, body: unknown, options?: RequestInit) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body), ...(options ?? {}) }),
 
   patch: <T>(path: string, body: unknown, options?: RequestInit) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body), ...(options ?? {}) }),

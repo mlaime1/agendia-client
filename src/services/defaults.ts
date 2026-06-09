@@ -1,6 +1,4 @@
-// src/services/defaults.ts
-// Obtiene IDs por defecto válidos del backend
-
+import { api } from './backendApi';
 import { clientsService } from './clients';
 import type { Client, Route, Rate } from './types';
 
@@ -16,25 +14,13 @@ export interface Defaults {
 let cachedDefaults: Defaults | null = null;
 
 export const defaultsService = {
-  async getDefaults(accessToken?: string): Promise<Defaults> {
-    // Return cached if available
+  async getDefaults(): Promise<Defaults> {
     if (cachedDefaults) {
       return cachedDefaults;
     }
 
     try {
-      if (!accessToken) {
-        return {
-          client: null,
-          route: null,
-          rate: null,
-          clientId: null,
-          routeId: null,
-          rateId: null,
-        };
-      }
-
-      const clients = await clientsService.getAll(accessToken);
+      const clients = await clientsService.getAll();
 
       if (!clients || clients.length === 0) {
         return {
@@ -48,9 +34,7 @@ export const defaultsService = {
       }
 
       const preferredClient = clients[0];
-
-      // Get client details (includes routes)
-      const clientDetail = await clientsService.getById(preferredClient.id, accessToken);
+      const clientDetail = await clientsService.getById(preferredClient.id);
       const route = clientDetail.routes?.[0] ?? null;
 
       if (!route) {

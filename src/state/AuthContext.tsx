@@ -1,7 +1,6 @@
 import { Session } from '@supabase/supabase-js';
 import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
-import { getCurrentUserProfile } from '../lib/api';
 import { api } from '../services/backendApi';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../features/auth/types/user';
@@ -55,7 +54,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       let profile: UserProfile;
 
       try {
-        const backendProfile = await getCurrentUserProfile(currentSession.access_token);
+        const backendProfile = await api.get<UserProfile>('/users/me');
         profile = {
           ...backendProfile,
           role: normalizeRole(backendProfile.role),

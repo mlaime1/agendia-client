@@ -1,0 +1,271 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .ag-wrap { background: #f0f7f2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; width: 390px; min-height: 100vh; margin: 0 auto; padding-bottom: 36px; }
+
+  .ag-header { background: #fff; padding: 16px 20px 20px; border-bottom-left-radius: 24px; border-bottom-right-radius: 24px; border-bottom: 0.5px solid rgba(27,94,59,0.12); }
+  .ag-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .ag-header-left { display: flex; align-items: center; gap: 10px; }
+  .ag-menu-btn { width: 36px; height: 36px; border-radius: 10px; background: #E8F5E9; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; border: none; }
+  .ag-menu-btn i { font-size: 18px; color: #1B5E3B; }
+  .ag-header-title { font-size: 22px; font-weight: 700; color: #1B5E3B; letter-spacing: -0.5px; }
+  .ag-header-badge { background: #1B5E3B; color: #E8F5E9; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 3px 10px; display: flex; align-items: center; gap: 5px; }
+  .ag-header-badge-dot { width: 5px; height: 5px; border-radius: 50%; background: #7ec99a; }
+
+  .ag-search-wrap { position: relative; }
+  .ag-search-icon { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 17px; color: #7a9e8a; pointer-events: none; }
+  .ag-search { width: 100%; background: #f0f7f2; border: 0.5px solid rgba(27,94,59,0.15); border-radius: 12px; padding: 10px 14px 10px 38px; font-size: 14px; color: #2d4e39; outline: none; font-family: inherit; }
+  .ag-search::placeholder { color: #7a9e8a; }
+
+  .ag-list-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 8px; }
+  .ag-list-label { font-size: 11px; font-weight: 700; color: #7a9e8a; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .ag-new-btn { display: flex; align-items: center; gap: 6px; background: #1B5E3B; color: #E8F5E9; border: none; border-radius: 10px; padding: 7px 13px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+  .ag-new-btn i { font-size: 15px; }
+
+  .ag-list { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+
+  .ag-client-card { background: #fff; border-radius: 18px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; border: 0.5px solid rgba(27,94,59,0.08); cursor: pointer; transition: background 0.12s; }
+  .ag-client-card:active { background: #f8fbf9; }
+
+  .ag-avatar { width: 44px; height: 44px; border-radius: 50%; background: #1B5E3B; display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700; color: #E8F5E9; flex-shrink: 0; }
+  .ag-avatar.alt { background: #2e7d54; }
+  .ag-avatar.alt2 { background: #1a6e48; }
+
+  .ag-client-info { flex: 1; min-width: 0; }
+  .ag-client-name { font-size: 15px; font-weight: 700; color: #2d4e39; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ag-client-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .ag-client-addr { font-size: 12px; color: #7a9e8a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+  .ag-dot-sep { width: 3px; height: 3px; border-radius: 50%; background: #c0d4c8; flex-shrink: 0; }
+
+  .ag-client-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; }
+  .ag-billing-tag { font-size: 10px; font-weight: 700; color: #3a7a52; background: #E8F5E9; border-radius: 999px; padding: 3px 9px; border: 0.5px solid rgba(27,94,59,0.13); white-space: nowrap; }
+  .ag-schedule-badge { display: flex; align-items: center; gap: 4px; }
+  .ag-schedule-days { display: flex; gap: 3px; }
+  .ag-sday { width: 18px; height: 18px; border-radius: 50%; font-size: 9px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .ag-sday.on { background: #1B5E3B; color: #E8F5E9; }
+  .ag-sday.off { background: #f0f7f2; color: #c0d4c8; }
+
+  .ag-status-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .ag-status-dot.active { background: #3a7a52; }
+  .ag-status-dot.inactive { background: #c0d4c8; }
+
+  .ag-chevron { font-size: 15px; color: #c0d4c8; flex-shrink: 0; }
+
+  .ag-section-divider { display: flex; align-items: center; gap: 10px; padding: 14px 20px 6px; }
+  .ag-divider-line { flex: 1; height: 0.5px; background: rgba(27,94,59,0.1); }
+  .ag-divider-label { font-size: 10px; font-weight: 700; color: #c0d4c8; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .ag-empty { display: flex; flex-direction: column; align-items: center; padding: 40px 20px; gap: 10px; }
+  .ag-empty i { font-size: 36px; color: #c0d4c8; }
+  .ag-empty-text { font-size: 14px; color: #7a9e8a; font-weight: 500; }
+</style>
+
+<div class="ag-wrap">
+  <h2 class="sr-only">Clientes — Agendia</h2>
+
+  <div class="ag-header">
+    <div class="ag-header-top">
+      <div class="ag-header-left">
+        <button class="ag-menu-btn" aria-label="Menú">
+          <i class="ti ti-menu-2" aria-hidden="true"></i>
+        </button>
+        <span class="ag-header-title">Clientes</span>
+      </div>
+      <div class="ag-header-badge">
+        <span class="ag-header-badge-dot"></span>
+        5 activos
+      </div>
+    </div>
+    <div class="ag-search-wrap">
+      <i class="ti ti-search ag-search-icon" aria-hidden="true"></i>
+      <input class="ag-search" type="search" placeholder="Buscar cliente..." aria-label="Buscar cliente" id="searchInput" />
+    </div>
+  </div>
+
+  <div class="ag-list-header">
+    <span class="ag-list-label">Todos los clientes</span>
+    <button class="ag-new-btn" aria-label="Nuevo cliente">
+      <i class="ti ti-plus" aria-hidden="true"></i>
+      Nuevo cliente
+    </button>
+  </div>
+
+  <div class="ag-list" id="clientList">
+
+    <div class="ag-client-card" data-name="Andrea Gómez">
+      <div class="ag-avatar">A</div>
+      <div class="ag-client-info">
+        <div class="ag-client-name">Andrea Gómez</div>
+        <div class="ag-client-meta">
+          <span class="ag-client-addr">Av. Rivadavia 4521</span>
+          <span class="ag-dot-sep"></span>
+          <div class="ag-schedule-days">
+            <span class="ag-sday on">L</span>
+            <span class="ag-sday on">M</span>
+            <span class="ag-sday off">X</span>
+            <span class="ag-sday off">J</span>
+            <span class="ag-sday off">V</span>
+          </div>
+        </div>
+      </div>
+      <div class="ag-client-right">
+        <span class="ag-billing-tag">Mensual</span>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span class="ag-status-dot active"></span>
+          <i class="ti ti-chevron-right ag-chevron" aria-hidden="true"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="ag-client-card" data-name="Bruno Ferreyra">
+      <div class="ag-avatar alt">B</div>
+      <div class="ag-client-info">
+        <div class="ag-client-name">Bruno Ferreyra</div>
+        <div class="ag-client-meta">
+          <span class="ag-client-addr">Corrientes 2340, CABA</span>
+          <span class="ag-dot-sep"></span>
+          <div class="ag-schedule-days">
+            <span class="ag-sday on">L</span>
+            <span class="ag-sday off">M</span>
+            <span class="ag-sday on">X</span>
+            <span class="ag-sday off">J</span>
+            <span class="ag-sday on">V</span>
+          </div>
+        </div>
+      </div>
+      <div class="ag-client-right">
+        <span class="ag-billing-tag">Quincenal</span>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span class="ag-status-dot active"></span>
+          <i class="ti ti-chevron-right ag-chevron" aria-hidden="true"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="ag-client-card" data-name="Camila Torres">
+      <div class="ag-avatar alt2">C</div>
+      <div class="ag-client-info">
+        <div class="ag-client-name">Camila Torres</div>
+        <div class="ag-client-meta">
+          <span class="ag-client-addr">Palermo, Buenos Aires</span>
+          <span class="ag-dot-sep"></span>
+          <div class="ag-schedule-days">
+            <span class="ag-sday on">L</span>
+            <span class="ag-sday on">M</span>
+            <span class="ag-sday on">X</span>
+            <span class="ag-sday on">J</span>
+            <span class="ag-sday on">V</span>
+          </div>
+        </div>
+      </div>
+      <div class="ag-client-right">
+        <span class="ag-billing-tag">Semanal</span>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span class="ag-status-dot active"></span>
+          <i class="ti ti-chevron-right ag-chevron" aria-hidden="true"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="ag-client-card" data-name="Diego Salinas">
+      <div class="ag-avatar" style="background:#256b45;">D</div>
+      <div class="ag-client-info">
+        <div class="ag-client-name">Diego Salinas</div>
+        <div class="ag-client-meta">
+          <span class="ag-client-addr">Belgrano, Buenos Aires</span>
+          <span class="ag-dot-sep"></span>
+          <div class="ag-schedule-days">
+            <span class="ag-sday off">L</span>
+            <span class="ag-sday on">M</span>
+            <span class="ag-sday off">X</span>
+            <span class="ag-sday on">J</span>
+            <span class="ag-sday off">V</span>
+          </div>
+        </div>
+      </div>
+      <div class="ag-client-right">
+        <span class="ag-billing-tag">Mensual</span>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span class="ag-status-dot active"></span>
+          <i class="ti ti-chevron-right ag-chevron" aria-hidden="true"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="ag-client-card" data-name="Elena Ríos">
+      <div class="ag-avatar" style="background:#1e6640;">E</div>
+      <div class="ag-client-info">
+        <div class="ag-client-name">Elena Ríos</div>
+        <div class="ag-client-meta">
+          <span class="ag-client-addr">Villa Urquiza 1892</span>
+          <span class="ag-dot-sep"></span>
+          <div class="ag-schedule-days">
+            <span class="ag-sday on">L</span>
+            <span class="ag-sday off">M</span>
+            <span class="ag-sday off">X</span>
+            <span class="ag-sday off">J</span>
+            <span class="ag-sday on">V</span>
+          </div>
+        </div>
+      </div>
+      <div class="ag-client-right">
+        <span class="ag-billing-tag">Mensual</span>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span class="ag-status-dot active"></span>
+          <i class="ti ti-chevron-right ag-chevron" aria-hidden="true"></i>
+        </div>
+      </div>
+    </div>
+
+    <div class="ag-section-divider">
+      <div class="ag-divider-line"></div>
+      <span class="ag-divider-label">Inactivos</span>
+      <div class="ag-divider-line"></div>
+    </div>
+
+    <div class="ag-client-card" data-name="Facundo Méndez" style="opacity:0.6;">
+      <div class="ag-avatar" style="background:#7a9e8a;">F</div>
+      <div class="ag-client-info">
+        <div class="ag-client-name" style="color:#7a9e8a;">Facundo Méndez</div>
+        <div class="ag-client-meta">
+          <span class="ag-client-addr">Caballito, Buenos Aires</span>
+        </div>
+      </div>
+      <div class="ag-client-right">
+        <span class="ag-billing-tag" style="color:#c0d4c8;background:#f0f7f2;border-color:rgba(0,0,0,0.08);">Mensual</span>
+        <div style="display:flex;align-items:center;gap:5px;">
+          <span class="ag-status-dot inactive"></span>
+          <i class="ti ti-chevron-right ag-chevron" aria-hidden="true"></i>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="ag-empty" id="emptyState" style="display:none;">
+    <i class="ti ti-users" aria-hidden="true"></i>
+    <span class="ag-empty-text">No se encontraron clientes</span>
+  </div>
+
+</div>
+
+<script>
+  const input = document.getElementById('searchInput');
+  const cards = document.querySelectorAll('.ag-client-card');
+  const emptyState = document.getElementById('emptyState');
+  const divider = document.querySelector('.ag-section-divider');
+
+  input.addEventListener('input', () => {
+    const q = input.value.toLowerCase().trim();
+    let visibleCount = 0;
+    cards.forEach(card => {
+      const name = card.dataset.name.toLowerCase();
+      const match = name.includes(q);
+      card.style.display = match ? 'flex' : 'none';
+      if (match) visibleCount++;
+    });
+    if (divider) divider.style.display = q ? 'none' : 'flex';
+    emptyState.style.display = visibleCount === 0 ? 'flex' : 'none';
+  });
+</script>

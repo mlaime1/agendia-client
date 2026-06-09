@@ -1,44 +1,33 @@
-// src/services/trips.ts
-
 import { api } from './backendApi';
 import type { Trip, CreateTripDto, UpdateTripDto } from './types';
 
-const withAuth = (accessToken?: string) => (accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined);
-
 export const tripsService = {
-  /** GET /trips */
-  getAll(accessToken?: string): Promise<Trip[]> {
-    return api.get<Trip[]>('/trips', withAuth(accessToken));
+  getAll(): Promise<Trip[]> {
+    return api.get<Trip[]>('/trips');
   },
 
-  /** GET /trips/:id */
-  getById(id: string, accessToken?: string): Promise<Trip> {
-    return api.get<Trip>(`/trips/${id}`, withAuth(accessToken));
+  getById(id: string): Promise<Trip> {
+    return api.get<Trip>(`/trips/${id}`);
   },
 
-  /** GET /trips/client/:clientId */
-  getByClient(clientId: string, accessToken?: string): Promise<Trip[]> {
-    return api.get<Trip[]>(`/trips/client/${clientId}`, withAuth(accessToken));
+  getByClient(clientId: string): Promise<Trip[]> {
+    return api.get<Trip[]>(`/trips/client/${clientId}`);
   },
 
-  /** GET /trips/client/:clientId/range?from=&to= */
-  getByDateRange(clientId: string, from: string, to: string, accessToken?: string): Promise<Trip[]> {
+  getByDateRange(clientId: string, from: string, to: string): Promise<Trip[]> {
     const params = new URLSearchParams({ from, to });
-    return api.get<Trip[]>(`/trips/client/${clientId}/range?${params}`, withAuth(accessToken));
+    return api.get<Trip[]>(`/trips/client/${clientId}/range?${params}`);
   },
 
-  /** POST /trips */
-  create(body: CreateTripDto, accessToken?: string): Promise<Trip> {
-    return api.post<Trip>('/trips', body, withAuth(accessToken));
+  create(body: CreateTripDto): Promise<Trip> {
+    return api.post<Trip>('/trips', body);
   },
 
-  /** PATCH /trips/:id */
-  update(id: string, body: UpdateTripDto, accessToken?: string): Promise<Trip> {
-    return api.patch<Trip>(`/trips/${id}`, body, withAuth(accessToken));
+  update(id: string, body: UpdateTripDto): Promise<Trip> {
+    return api.patch<Trip>(`/trips/${id}`, body);
   },
 
-  /** DELETE /trips/:id */
-  remove(id: string, accessToken?: string): Promise<void> {
-    return api.delete<void>(`/trips/${id}`, withAuth(accessToken));
+  remove(id: string): Promise<void> {
+    return api.delete<void>(`/trips/${id}`);
   },
 };

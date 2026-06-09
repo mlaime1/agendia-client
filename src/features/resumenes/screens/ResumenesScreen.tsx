@@ -20,7 +20,6 @@ import { getLeadingEmptyCells, getMonthDays } from '../../calendar/utils/date';
 import { summariesService } from '../../../services/summaries';
 import { clientsService } from '../../../services/clients';
 import { api } from '../../../services/backendApi';
-import { useAuth } from '../../../state/AuthContext';
 import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
 
 type PeriodOption = '7dias' | '15dias' | 'mensual';
@@ -513,7 +512,6 @@ function NuevoResumenModal({
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
   const [clients, setClients] = useState<Client[]>([]);
   const [numericDriverId, setNumericDriverId] = useState<string | null>(null);
-  const { session } = useAuth();
   const [selectedClient, setSelectedClient] = useState(selectedClientId);
   const [preview, setPreview] = useState<BillingPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -551,10 +549,7 @@ function NuevoResumenModal({
 
     (async () => {
       try {
-        const token = session?.access_token ?? null;
-        const profile = await api.get<{ id: string }>('/users/me', {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
+        const profile = await api.get<{ id: string }>('/users/me');
         if (!mounted) return;
         if (profile?.id) {
           setNumericDriverId(String(profile.id));
@@ -577,7 +572,7 @@ function NuevoResumenModal({
 
   const loadClients = async () => {
     try {
-      const data = await clientsService.getAll(session?.access_token);
+      const data = await clientsService.getAll();
       setClients(data);
     } catch (err) {
       console.error('Error loading clients:', err);
