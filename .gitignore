@@ -10,3 +10,8 @@ ios
 .env.dev
 .env.local
 .env.prod
+assets\examples
+assets\examples/*
+assets\examples/**/*
+assets/examples/**/**/*
+assets/examples
