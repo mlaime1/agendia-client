@@ -162,6 +162,7 @@ function AppContent() {
       case 'RecorridoCreate':
         return (
           <CreateRecorridoScreen
+            clientId={selectedClientId}
             onBack={handleBackFromCreateRecorrido}
             onMenuPress={() => setDrawerVisible(true)}
           />

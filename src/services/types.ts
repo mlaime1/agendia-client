@@ -175,3 +175,81 @@ export type UpdateScheduleDto = Partial<CreateScheduleDto>;
 export interface BulkSchedulesDto {
   schedules: CreateScheduleDto[];
 }
+
+// --- Itineraries (Recorridos) ---
+
+export interface Itinerary {
+  id: string;
+  created_at: string;
+  name: string;
+  client_id: string;
+  clients?: Client;
+  stops?: ItineraryStop[];
+  rates?: ItineraryRate[];
+}
+
+export interface ItineraryStop {
+  id: string;
+  created_at: string;
+  itinerary_id: string;
+  address: string;
+  stop_order: number;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+export type ItineraryRateType = 'ida' | 'ida y vuelta' | 'especial';
+
+export interface ItineraryRate {
+  id: string;
+  created_at: string;
+  itinerary_id: string;
+  trip_type: ItineraryRateType;
+  base_price: string;
+  surcharge_price?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+export interface CreateItineraryDto {
+  name: string;
+  client_id: string;
+}
+
+export type UpdateItineraryDto = Partial<CreateItineraryDto>;
+
+export interface CreateItineraryStopDto {
+  address: string;
+  stop_order?: number;
+  lat?: number;
+  lng?: number;
+}
+
+export type UpdateItineraryStopDto = Partial<CreateItineraryStopDto>;
+
+export interface CreateItineraryRateDto {
+  trip_type: ItineraryRateType;
+  base_price: number;
+  surcharge_price?: number;
+  start_date?: string;
+  end_date?: string;
+}
+
+export type UpdateItineraryRateDto = Partial<CreateItineraryRateDto>;
+
+export interface ItineraryMatchPoint {
+  lat: number;
+  lng: number;
+}
+
+export interface ItineraryMatchDto {
+  client_id: string;
+  points: ItineraryMatchPoint[];
+}
+
+export interface ItineraryMatchResult {
+  itinerary_id: string;
+  name: string;
+  distance_km: number;
+  rate: ItineraryRate | null;
+}

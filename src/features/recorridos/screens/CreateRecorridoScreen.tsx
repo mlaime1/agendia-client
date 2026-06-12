@@ -13,30 +13,34 @@ import { Theme, useThemedStyles } from '../../../theme';
 import { CollapsibleSection } from '../components/CollapsibleSection';
 import { StopsForm, type FormStop } from '../components/StopsForm';
 import { RatesForm, type FormRate } from '../components/RatesForm';
+import { useCreateItinerary } from '../hooks/useCreateItinerary';
 
 type CreateRecorridoScreenProps = {
   onBack: () => void;
   onMenuPress?: () => void;
+  clientId: string;
 };
 
 export function CreateRecorridoScreen({
   onBack,
   onMenuPress,
+  clientId,
 }: CreateRecorridoScreenProps) {
   const styles = useThemedStyles(createStyles);
+  const { creating, error, create } = useCreateItinerary();
 
   const [routeName, setRouteName] = useState('');
   const [stops, setStops] = useState<FormStop[]>([
     {
       id: 'origin-1',
-      name: 'Casa de Andrea',
-      address: 'Av. Rivadavia 4521, CABA',
+      name: '',
+      address: '',
       type: 'origin',
     },
     {
       id: 'destination-1',
-      name: 'Escuela N°4',
-      address: 'Beauchef 1270, CABA',
+      name: '',
+      address: '',
       type: 'destination',
     },
   ]);
@@ -53,6 +57,9 @@ export function CreateRecorridoScreen({
   });
 
   const isNameFilled = routeName.trim().length > 0;
+  const hasValidStops = stops.every((s) => s.address.trim().length > 0);
+  const hasValidRates = rates.some((r) => r.price.trim().length > 0);
+  const canCreate = isNameFilled && hasValidStops && hasValidRates;
 
   const handleAddStop = () => {
     const newId = `stop-${Date.now()}`;
@@ -63,7 +70,6 @@ export function CreateRecorridoScreen({
       type: 'stop',
     };
     const updatedStops = [...stops];
-    // Insert before destination
     const destIndex = updatedStops.findIndex((s) => s.type === 'destination');
     updatedStops.splice(destIndex, 0, newStop);
     setStops(updatedStops);
@@ -89,15 +95,35 @@ export function CreateRecorridoScreen({
     );
   };
 
-  const handleCreate = () => {
-    // For now, just log. Backend integration will happen later.
-    console.log('Creating route:', { routeName, stops, rates });
-    onBack();
+  const handleCreate = async () => {
+    if (!canCreate) return;
+
+    const stopsPayload = stops.map((s, idx) => ({
+      address: s.address.trim(),
+      stop_order: idx + 1,
+    }));
+
+    const ratesPayload = rates
+      .filter((r) => r.price.trim().length > 0)
+      .map((r) => ({
+        trip_type: r.type,
+        base_price: parseInt(r.price.replace(/[^\d]/g, ''), 10),
+      }));
+
+    try {
+      await create(
+        { name: routeName.trim(), client_id: clientId },
+        stopsPayload,
+        ratesPayload,
+      );
+      onBack();
+    } catch {
+      // error ya está en el hook
+    }
   };
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable
           onPress={onBack}
@@ -112,7 +138,13 @@ export function CreateRecorridoScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Name section */}
+        {error && (
+          <View style={styles.errorBanner}>
+            <AppIcon name="alert" size={16} color={styles.errorIcon.color} />
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        )}
+
         <CollapsibleSection
           isDone={isNameFilled}
           title="Nombre"
@@ -134,7 +166,6 @@ export function CreateRecorridoScreen({
           </View>
         </CollapsibleSection>
 
-        {/* Stops section */}
         <CollapsibleSection
           number={2}
           title="Paradas"
@@ -152,7 +183,6 @@ export function CreateRecorridoScreen({
           />
         </CollapsibleSection>
 
-        {/* Rates section */}
         <CollapsibleSection
           number={3}
           title="Tarifas"
@@ -166,30 +196,37 @@ export function CreateRecorridoScreen({
         </CollapsibleSection>
       </ScrollView>
 
-      {/* Create button */}
       <View style={styles.ctaContainer}>
         <Pressable
           style={({ pressed }) => [
             styles.createButton,
-            !isNameFilled && styles.createButtonDisabled,
+            (!canCreate || creating) && styles.createButtonDisabled,
             pressed && styles.createButtonPressed,
           ]}
           onPress={handleCreate}
-          disabled={!isNameFilled}
+          disabled={!canCreate || creating}
         >
-          <AppIcon
-            name="check"
-            size={20}
-            color={isNameFilled ? styles.createButtonIcon.color : styles.createButtonIconDisabled.color}
-          />
-          <Text
-            style={[
-              styles.createButtonText,
-              !isNameFilled && styles.createButtonTextDisabled,
-            ]}
-          >
-            Crear recorrido
-          </Text>
+          {creating ? (
+            <Text style={[styles.createButtonText, styles.createButtonTextDisabled]}>
+              Creando...
+            </Text>
+          ) : (
+            <>
+              <AppIcon
+                name="check"
+                size={20}
+                color={canCreate ? styles.createButtonIcon.color : styles.createButtonIconDisabled.color}
+              />
+              <Text
+                style={[
+                  styles.createButtonText,
+                  !canCreate && styles.createButtonTextDisabled,
+                ]}
+              >
+                Crear recorrido
+              </Text>
+            </>
+          )}
         </Pressable>
       </View>
     </View>
@@ -236,6 +273,25 @@ const createStyles = (theme: Theme) =>
       paddingVertical: theme.spacing.md,
       gap: theme.spacing.md,
       paddingBottom: 120,
+    },
+    errorBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: theme.spacing.sm,
+      backgroundColor: theme.colors.semantic.error.bg,
+      borderWidth: 1,
+      borderColor: theme.colors.semantic.error.border,
+      borderRadius: theme.radii.medium,
+      padding: theme.spacing.md,
+    },
+    errorIcon: {
+      color: theme.colors.semantic.error.text,
+    },
+    errorText: {
+      flex: 1,
+      fontSize: theme.typography.size.sm,
+      color: theme.colors.semantic.error.text,
+      fontWeight: theme.typography.weight.medium,
     },
     field: {
       display: 'flex',

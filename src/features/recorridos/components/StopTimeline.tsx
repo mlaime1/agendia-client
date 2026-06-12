@@ -3,20 +3,22 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { Theme, useThemedStyles } from '../../../theme';
-import type { RouteStop } from '../types';
+import type { ItineraryStop } from '../../../services/types';
 
 type StopTimelineProps = {
-  stops: RouteStop[];
+  stops: ItineraryStop[];
 };
 
 export function StopTimeline({ stops }: StopTimelineProps) {
   const styles = useThemedStyles(createStyles);
 
+  const sortedStops = [...stops].sort((a, b) => a.stop_order - b.stop_order);
+
   return (
     <View style={styles.timeline}>
-      {stops.map((stop, idx) => {
+      {sortedStops.map((stop, idx) => {
         const isFirst = idx === 0;
-        const isLast = idx === stops.length - 1;
+        const isLast = idx === sortedStops.length - 1;
         const isMid = !isFirst && !isLast;
 
         return (
@@ -43,7 +45,7 @@ export function StopTimeline({ stops }: StopTimelineProps) {
                 </View>
               )}
               {isMid && (
-                <Text style={styles.stopOrder}>Parada {idx}</Text>
+                <Text style={styles.stopOrder}>Parada {stop.stop_order}</Text>
               )}
             </View>
           </View>

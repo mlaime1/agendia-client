@@ -1,19 +1,16 @@
 import React from 'react';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Platform } from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { Theme, useThemedStyles } from '../../../theme';
-import { getMockRecorridoById } from '../data/mockRecorridos';
+import { useItineraryDetail } from '../hooks/useItineraryDetail';
 import { StopTimeline } from '../components/StopTimeline';
 import { RatesGrid } from '../components/RatesGrid';
 import type { RecorridoDetailScreenProps } from '../types';
@@ -28,20 +25,38 @@ export function RecorridoDetailScreen({
   onMenuPress,
 }: RecorridoDetailScreenInternalProps) {
   const styles = useThemedStyles(createStyles);
-  const recorrido = getMockRecorridoById(recorridoId);
+  const { itinerary, stops, rates, loading, error, refetch, deleteItinerary } =
+    useItineraryDetail(recorridoId);
 
-  if (!recorrido) {
+  if (loading) {
     return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Recorrido no encontrado</Text>
-        <Pressable style={styles.backButton} onPress={onBack}>
-          <Text style={styles.backButtonText}>Volver</Text>
-        </Pressable>
-      </View>
+      <ScreenWrapper onMenuPress={onMenuPress} onBackPress={onBack} title="Recorrido">
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Cargando recorrido...</Text>
+        </View>
+      </ScreenWrapper>
     );
   }
 
-  const dayLabelsDisplay = recorrido.days.join(', ');
+  if (error || !itinerary) {
+    return (
+      <ScreenWrapper onMenuPress={onMenuPress} onBackPress={onBack} title="Recorrido">
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error || 'Recorrido no encontrado'}</Text>
+          <Pressable style={styles.backButton} onPress={onBack}>
+            <Text style={styles.backButtonText}>Volver</Text>
+          </Pressable>
+          {error && (
+            <Pressable style={styles.retryButton} onPress={refetch}>
+              <Text style={styles.retryButtonText}>Reintentar</Text>
+            </Pressable>
+          )}
+        </View>
+      </ScreenWrapper>
+    );
+  }
+
+  const clientName = itinerary.clients?.nombre || 'Sin cliente';
 
   return (
     <ScreenWrapper
@@ -50,20 +65,16 @@ export function RecorridoDetailScreen({
       title="Recorrido"
     >
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Hero section */}
         <View style={styles.hero}>
           <View style={styles.heroIcon}>
             <AppIcon name="map" size={24} color={styles.heroIconColor.color} />
           </View>
           <View style={styles.heroInfo}>
-            <Text style={styles.heroName}>{recorrido.name}</Text>
-            <Text style={styles.heroMeta}>
-              {recorrido.clientName} · {dayLabelsDisplay}
-            </Text>
+            <Text style={styles.heroName}>{itinerary.name}</Text>
+            <Text style={styles.heroMeta}>{clientName}</Text>
           </View>
         </View>
 
-        {/* Stops section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Paradas</Text>
@@ -72,7 +83,7 @@ export function RecorridoDetailScreen({
               <Text style={styles.sectionButtonText}>Reordenar</Text>
             </Pressable>
           </View>
-          <StopTimeline stops={recorrido.stops} />
+          <StopTimeline stops={stops} />
           <Pressable style={styles.addStop}>
             <View style={styles.addStopIcon}>
               <AppIcon name="plus" size={14} color={styles.addStopIconColor.color} />
@@ -81,18 +92,17 @@ export function RecorridoDetailScreen({
           </Pressable>
         </View>
 
-        {/* Rates section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Tarifas</Text>
           </View>
-          <RatesGrid rates={recorrido.rates} />
+          <RatesGrid rates={rates} />
         </View>
 
-        {/* Actions */}
         <View style={styles.actions}>
           <Pressable
             style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
+            onPress={deleteItinerary}
           >
             <AppIcon name="trash" size={17} color={styles.deleteButtonIcon.color} />
             <Text style={styles.deleteButtonText}>Eliminar recorrido</Text>
@@ -105,8 +115,14 @@ export function RecorridoDetailScreen({
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
-    headerIcon: {
-      color: theme.colors.primary,
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: theme.typography.size.md,
+      color: theme.colors.textMuted,
     },
     scrollContent: {
       paddingBottom: 32,
@@ -238,11 +254,13 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       backgroundColor: theme.colors.background,
       gap: theme.spacing.md,
+      padding: theme.spacing.xl,
     },
     errorText: {
       fontSize: theme.typography.size.md,
       fontWeight: theme.typography.weight.semibold,
       color: theme.colors.text,
+      textAlign: 'center',
     },
     backButton: {
       backgroundColor: theme.colors.primary,
@@ -252,6 +270,19 @@ const createStyles = (theme: Theme) =>
     },
     backButtonText: {
       color: theme.colors.primaryLight,
+      fontSize: theme.typography.size.md,
+      fontWeight: theme.typography.weight.semibold,
+    },
+    retryButton: {
+      backgroundColor: theme.colors.surface,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.md,
+      borderRadius: theme.radii.small,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+    },
+    retryButtonText: {
+      color: theme.colors.primary,
       fontSize: theme.typography.size.md,
       fontWeight: theme.typography.weight.semibold,
     },

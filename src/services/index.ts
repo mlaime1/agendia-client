@@ -6,6 +6,7 @@ export { clientsService } from './clients';
 export { tripsService } from './trips';
 export { summariesService } from './summaries';
 export { ratesService } from './rates';
+export { itinerariesService } from './itineraries';
 export { defaultsService } from './defaults';
 export { ApiError, api, getBackendApiBaseUrl } from './backendApi';
 export type * from './types';

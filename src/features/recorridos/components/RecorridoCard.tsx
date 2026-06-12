@@ -3,19 +3,21 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { Theme, useThemedStyles } from '../../../theme';
-import type { Recorrido } from '../types';
+import type { Itinerary } from '../../../services/types';
 
 type RecorridoCardProps = {
-  recorrido: Recorrido;
+  recorrido: Itinerary;
   onPress: (id: string) => void;
 };
 
 export function RecorridoCard({ recorrido, onPress }: RecorridoCardProps) {
   const styles = useThemedStyles(createStyles);
 
-  const dayLabelsDisplay = recorrido.days.join(', ');
-  const stopCountText = recorrido.stopCount === 1 ? '1 parada' : `${recorrido.stopCount} paradas`;
-  const metaText = `${stopCountText} · ${dayLabelsDisplay}`;
+  const stopCountText = recorrido.stops
+    ? recorrido.stops.length === 1
+      ? '1 parada'
+      : `${recorrido.stops.length} paradas`
+    : '—';
 
   return (
     <Pressable
@@ -31,44 +33,48 @@ export function RecorridoCard({ recorrido, onPress }: RecorridoCardProps) {
             {recorrido.name}
           </Text>
           <Text style={styles.cardMeta} numberOfLines={1}>
-            {metaText}
+            {stopCountText}
           </Text>
         </View>
         <AppIcon name="chevronRight" size={18} color={styles.chevronColor.color} />
       </View>
 
-      {/* Stops visualization */}
-      <View style={styles.stopsRow}>
-        {recorrido.stops.map((stop, idx) => {
-          const isFirst = idx === 0;
-          const isLast = idx === recorrido.stops.length - 1;
-          const isMid = !isFirst && !isLast;
+      {recorrido.stops && recorrido.stops.length > 0 && (
+        <View style={styles.stopsRow}>
+          {recorrido.stops.slice(0, 2).map((stop, idx) => {
+            const isFirst = idx === 0;
+            const isLast = idx === Math.min(recorrido.stops!.length - 1, 1);
 
-          return (
-            <React.Fragment key={stop.id}>
-              <View style={[styles.stopDot, isMid && styles.stopDotMid]} />
-              {!isLast && <View style={styles.stopLine} />}
-              {isFirst && <Text style={styles.stopLabel} numberOfLines={1}>{stop.address.split(',')[0]}</Text>}
-              {isLast && <Text style={styles.stopLabel} numberOfLines={1}>{stop.address.split(',')[0]}</Text>}
-            </React.Fragment>
-          );
-        })}
-        {recorrido.stops.length > 2 && (
-          <View style={styles.stopsOverflow}>
-            <Text style={styles.stopsOverflowText}>...</Text>
-          </View>
-        )}
-      </View>
+            return (
+              <React.Fragment key={stop.id}>
+                <View style={styles.stopDot} />
+                {!isLast && <View style={styles.stopLine} />}
+                <Text style={styles.stopLabel} numberOfLines={1}>
+                  {stop.address.split(',')[0]}
+                </Text>
+              </React.Fragment>
+            );
+          })}
+          {recorrido.stops.length > 2 && (
+            <View style={styles.stopsOverflow}>
+              <Text style={styles.stopsOverflowText}>
+                +{recorrido.stops.length - 2}
+              </Text>
+            </View>
+          )}
+        </View>
+      )}
 
-      {/* Rates */}
-      <View style={styles.ratesRow}>
-        {recorrido.rates.map((rate) => (
-          <View key={rate.type} style={styles.rateChip}>
-            <Text style={styles.rateType}>{rate.type}</Text>
-            <Text style={styles.ratePrice}>{rate.price || '—'}</Text>
-          </View>
-        ))}
-      </View>
+      {recorrido.rates && recorrido.rates.length > 0 && (
+        <View style={styles.ratesRow}>
+          {recorrido.rates.map((rate) => (
+            <View key={rate.id} style={styles.rateChip}>
+              <Text style={styles.rateType}>{rate.trip_type}</Text>
+              <Text style={styles.ratePrice}>${rate.base_price}</Text>
+            </View>
+          ))}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -134,11 +140,6 @@ const createStyles = (theme: Theme) =>
       borderRadius: 4,
       backgroundColor: theme.colors.primary,
       flexShrink: 0,
-    },
-    stopDotMid: {
-      width: 6,
-      height: 6,
-      backgroundColor: `${theme.colors.primary}70`,
     },
     stopLine: {
       flex: 1,

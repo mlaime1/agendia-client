@@ -2,10 +2,10 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { Theme, useThemedStyles } from '../../../theme';
-import type { RateConfig } from '../types';
+import type { ItineraryRate } from '../../../services/types';
 
 type RatesGridProps = {
-  rates: RateConfig[];
+  rates: ItineraryRate[];
 };
 
 export function RatesGrid({ rates }: RatesGridProps) {
@@ -14,9 +14,9 @@ export function RatesGrid({ rates }: RatesGridProps) {
   return (
     <View style={styles.ratesGrid}>
       {rates.map((rate) => (
-        <View key={rate.type} style={styles.rateCard}>
-          <Text style={styles.rateType}>{rate.type}</Text>
-          <Text style={styles.ratePrice}>{rate.price || '—'}</Text>
+        <View key={rate.id} style={styles.rateCard}>
+          <Text style={styles.rateType}>{rate.trip_type}</Text>
+          <Text style={styles.ratePrice}>${rate.base_price}</Text>
         </View>
       ))}
     </View>

@@ -2,21 +2,18 @@ import React, { useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { Platform } from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { Theme, useThemedStyles } from '../../../theme';
-import { getMockRecorridosByClient } from '../data/mockRecorridos';
+import { useItineraries } from '../hooks/useItineraries';
 import { RecorridoCard } from '../components/RecorridoCard';
 import type { RecorridoListScreenProps } from '../types';
+import type { Itinerary } from '../../../services/types';
 
 type RecorridosScreenProps = RecorridoListScreenProps & {
   onSelectRecorrido: (recorridoId: string) => void;
@@ -30,23 +27,40 @@ export function RecorridosScreen({
   onCreateRecorrido,
 }: RecorridosScreenProps) {
   const styles = useThemedStyles(createStyles);
-  const recorridos = useMemo(
-    () => getMockRecorridosByClient(selectedClientId),
-    [selectedClientId],
+  const { itineraries, loading, error, refetch } = useItineraries();
+
+  const filteredItineraries = useMemo(
+    () => itineraries.filter((i) => i.client_id === selectedClientId),
+    [itineraries, selectedClientId],
   );
 
-  const isEmpty = recorridos.length === 0;
+  const isEmpty = !loading && filteredItineraries.length === 0;
 
   const headerBadge = (
     <View style={styles.headerBadge}>
       <View style={styles.headerBadgeDot} />
-      <Text style={styles.headerBadgeText}>{recorridos.length} recorridos</Text>
+      <Text style={styles.headerBadgeText}>
+        {loading ? '...' : `${filteredItineraries.length} recorridos`}
+      </Text>
     </View>
   );
 
-  const renderRecorrido = ({ item }: { item: typeof recorridos[0] }) => (
+  const renderRecorrido = ({ item }: { item: Itinerary }) => (
     <RecorridoCard recorrido={item} onPress={onSelectRecorrido} />
   );
+
+  if (error) {
+    return (
+      <ScreenWrapper title="Recorridos" onMenuPress={onMenuPress} rightSlot={headerBadge}>
+        <View style={styles.errorState}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={refetch}>
+            <Text style={styles.retryButtonText}>Reintentar</Text>
+          </Pressable>
+        </View>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper
@@ -75,7 +89,7 @@ export function RecorridosScreen({
         </View>
       ) : (
         <FlatList
-          data={recorridos}
+          data={filteredItineraries}
           keyExtractor={(item) => item.id}
           renderItem={renderRecorrido}
           contentContainerStyle={styles.listContent}
@@ -174,5 +188,28 @@ const createStyles = (theme: Theme) =>
       fontSize: theme.typography.size.sm,
       color: theme.colors.textMuted,
       textAlign: 'center',
+    },
+    errorState: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: theme.spacing.xl,
+      gap: theme.spacing.md,
+    },
+    errorText: {
+      fontSize: theme.typography.size.md,
+      color: theme.colors.textMuted,
+      textAlign: 'center',
+    },
+    retryButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: theme.spacing.sm,
+      paddingHorizontal: theme.spacing.lg,
+      borderRadius: theme.radii.medium,
+    },
+    retryButtonText: {
+      color: theme.colors.primaryLight,
+      fontSize: theme.typography.size.md,
+      fontWeight: theme.typography.weight.semibold,
     },
   });

@@ -1,26 +1,22 @@
-export interface RouteStop {
-  id: string;
-  address: string;
-  order: number;
-  type: 'origin' | 'destination' | 'stop';
-}
+import type {
+  Itinerary,
+  ItineraryStop,
+  ItineraryRate,
+  ItineraryRateType,
+  CreateItineraryDto,
+  CreateItineraryStopDto,
+  CreateItineraryRateDto,
+} from '../../services/types';
 
-export interface RateConfig {
-  type: 'ida' | 'ida y vuelta' | 'especial';
-  price: string | null;
-}
-
-export interface Recorrido {
-  id: string;
-  name: string;
-  clientName: string;
-  clientId: string;
-  stopCount: number;
-  days: string[]; // 'L', 'M', 'X', 'J', 'V', 'S', 'D'
-  stops: RouteStop[];
-  rates: RateConfig[];
-  createdAt: string;
-}
+export type {
+  Itinerary,
+  ItineraryStop,
+  ItineraryRate,
+  ItineraryRateType,
+  CreateItineraryDto,
+  CreateItineraryStopDto,
+  CreateItineraryRateDto,
+};
 
 export type RecorridoListScreenProps = {
   onMenuPress: () => void;
@@ -30,4 +26,21 @@ export type RecorridoListScreenProps = {
 export type RecorridoDetailScreenProps = {
   recorridoId: string;
   onBack: () => void;
+};
+
+export type RecorridoListItem = Itinerary & {
+  stopCount: number;
+  ratesSummary: ItineraryRate[];
+};
+
+export type FormStop = {
+  id: string;
+  name: string;
+  address: string;
+  type: 'origin' | 'destination' | 'stop';
+};
+
+export type FormRate = {
+  type: ItineraryRateType;
+  price: string;
 };
