@@ -193,6 +193,11 @@ export function CustomDrawer({
           {/* Menu items */}
           <View style={styles.menuContainer}>
             {menuItems.map((item) => {
+              // Filter out Recorridos for non-driver/admin users
+              if (item.route === 'Recorridos' && user.role !== 'driver' && user.role !== 'admin') {
+                return null;
+              }
+
               const isActive = activeRoute === item.route;
               return (
                 <Pressable

@@ -131,7 +131,7 @@ export const themes = {
 
   blueNight: createTheme({
     primary: '#3B82F6',
-    primaryLight: '#16243F',
+    primaryLight: '#1E3A5F',
     primaryDark: '#60A5FA',
     accent: '#93C5FD',
     background: '#0B1220',
@@ -152,13 +152,13 @@ export const themes = {
 
   dark: createTheme({
     primary: '#3B82F6',
-    primaryLight: '#16243F',
+    primaryLight: '#1E3A5F',
     primaryDark: '#60A5FA',
     accent: '#93C5FD',
     background: '#0B1220',
     surface: '#0F172A',
     surfaceMuted: '#111C31',
-    surfaceSubtle: '#16243F',
+    surfaceSubtle: '#1E3A5F',
     border: '#243041',
     borderStrong: '#334155',
     text: '#F8FAFC',
