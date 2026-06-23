@@ -25,6 +25,7 @@ export interface ClientFull {
   billing_cycle: BillingCycle;
   billing_day: number | null;
   billing_start_date: string | null;
+  timezone?: string | null;
   is_active: boolean;
   schedules: ServiceSchedule[];
   responsibles: Responsible[];

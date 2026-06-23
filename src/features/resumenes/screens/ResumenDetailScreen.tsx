@@ -15,6 +15,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { summariesService } from '../../../services/summaries';
 import type { Summary, SummaryStatus, Trip } from '../../../services/types';
+import {
+  getClientDateKey,
+  formatClientPeriod,
+  formatClientDayHeader,
+  getClientTimezone,
+} from '../../../utils/dateTime';
 
 type ResumenDetailScreenProps = {
   summaryId: string;
@@ -28,23 +34,17 @@ const STATUS_CONFIG: Record<SummaryStatus, { bg: string; text: string; label: st
   archived: { bg: '#F1EFE8', text: '#5F5E5A', label: 'Archivado' },
 };
 
-function parseDateKey(value: string) {
-  return value.split('T')[0];
-}
-
 function formatDateLabel(dateKey: string) {
   const [year, month, day] = dateKey.split('-');
   return `${day}/${month}/${year}`;
 }
 
-function formatDayHeader(dateKey: string) {
-  const date = new Date(`${dateKey}T00:00:00`);
-  const weekday = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][date.getDay()];
-  return `${weekday} ${formatDateLabel(dateKey).slice(0, 5)}`;
+function formatPeriod(start: string, end: string, clientTimezone?: string) {
+  return formatClientPeriod(start, end, clientTimezone);
 }
 
-function formatPeriod(start: string, end: string) {
-  return `${formatDateLabel(parseDateKey(start))} — ${formatDateLabel(parseDateKey(end))}`;
+function formatDayHeader(utcDate: string, clientTimezone?: string) {
+  return formatClientDayHeader(utcDate, clientTimezone);
 }
 
 function formatCurrency(value: string | number) {
@@ -70,11 +70,11 @@ type DayGroup = {
   tripCount: number;
 };
 
-function groupTrips(trips: Trip[]): DayGroup[] {
+function groupTrips(trips: Trip[], clientTimezone?: string): DayGroup[] {
   const dayMap = new Map<string, Map<string, TripGroup>>();
 
   trips.forEach((trip) => {
-    const dateKey = parseDateKey(trip.trip_date);
+    const dateKey = getClientDateKey(trip.trip_date, clientTimezone);
     const groupLabel = formatTripTypeLabel(trip);
     const dayGroups = dayMap.get(dateKey) ?? new Map<string, TripGroup>();
     const currentGroup = dayGroups.get(groupLabel) ?? {
@@ -233,10 +233,11 @@ export function ResumenDetailScreen({ summaryId, onBack }: ResumenDetailScreenPr
 
   const clientName = summary.clients?.nombre || 'Cliente';
   const driverName = summary.users?.name || 'Chofer';
-  const periodLabel = formatPeriod(summary.period_start, summary.period_end);
+  const clientTimezone = getClientTimezone(summary.clients);
+  const periodLabel = formatPeriod(summary.period_start, summary.period_end, clientTimezone);
   const totalAmount = parseFloat(summary.total_amount);
   const trips = summary.trips || [];
-  const groupedTrips = groupTrips(trips);
+  const groupedTrips = groupTrips(trips, clientTimezone);
   const uniqueDays = groupedTrips.length;
 
   const statusAction =
@@ -289,7 +290,7 @@ export function ResumenDetailScreen({ summaryId, onBack }: ResumenDetailScreenPr
             renderItem={({ item }) => (
               <View style={styles.daySection}>
                 <View style={styles.dayHeader}>
-                  <Text style={styles.dayTitle}>{formatDayHeader(item.dateKey)}</Text>
+                  <Text style={styles.dayTitle}>{formatDayHeader(item.dateKey, clientTimezone)}</Text>
                   <Text style={styles.daySubtotal}>Subtotal: ${formatCurrency(item.subtotal)}</Text>
                 </View>
 

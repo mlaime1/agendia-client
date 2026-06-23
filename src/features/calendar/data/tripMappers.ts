@@ -1,7 +1,6 @@
 import { CreateCalendarTripInput, CreateTripPayload, Trip, TripRecord } from '../types';
 
 const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
-const toLocalDateTimeString = (dateKey: string, time: string) => `${dateKey}T${time}:00`;
 
 export const toCreateTripPayloads = ({
   dateKey,
@@ -24,20 +23,20 @@ export const toCreateTripPayloads = ({
   };
 
   if (mode === 'roundTrip') {
-    return [{ ...basePayload, trip_date: toLocalDateTimeString(dateKey, basePayload.trip_time), trip_type: 'ida y vuelta', special_type: null }];
+    return [{ ...basePayload, trip_date: dateKey, trip_type: 'ida y vuelta', special_type: null }];
   }
 
   return [
     {
       ...basePayload,
-      trip_date: toLocalDateTimeString(dateKey, basePayload.trip_time),
+      trip_date: dateKey,
       trip_type: mode === 'special' ? 'especial' : 'ida',
       special_type: mode === 'special' ? specialType?.trim() || 'Ruta especial' : null,
     },
   ];
 };
 
-export const toCalendarTrip = (records: TripRecord[]): Trip => {
+export const toCalendarTrip = (records: TripRecord[], _clientTimezone?: string): Trip => {
   const firstRecord = records[0];
   const isRoundTrip =
     records.length === 2 &&
@@ -50,7 +49,7 @@ export const toCalendarTrip = (records: TripRecord[]): Trip => {
   return {
     id: records.map((record) => record.id).join('+'),
     recordIds: records.map((record) => record.id),
-    date: firstRecord.trip_date.slice(0, 10),
+    date: firstRecord.trip_date,
     time: firstRecord.trip_time,
     mode: isRoundTrip || isSingleRoundTrip ? 'roundTrip' : isSpecial ? 'special' : 'outbound',
     specialType,

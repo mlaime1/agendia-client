@@ -15,6 +15,7 @@ import { Theme } from '../../../theme';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
 import { MOCK_CLIENTS } from '../mockData';
 import type { BillingCycle } from '../../../services/types';
+import { getClientDateKey, getClientTimezone } from '../../../utils/dateTime';
 
 type EditContractScreenProps = {
   clientId: string;
@@ -55,8 +56,12 @@ export function EditContractScreen({ clientId, onBack, onSave }: EditContractScr
   const styles = useThemedStyles(createStyles);
   const client = MOCK_CLIENTS.find((c) => c.id === clientId);
 
+  const clientTimezone = getClientTimezone(client);
+  const safeBillingStartDate = client?.billing_start_date
+    ? getClientDateKey(client.billing_start_date, clientTimezone)
+    : '2026-06-01';
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(client?.billing_cycle || 'monthly');
-  const [billingStartDate, setBillingStartDate] = useState(client?.billing_start_date || '2026-06-01');
+  const [billingStartDate, setBillingStartDate] = useState(safeBillingStartDate);
   const [billingDay, setBillingDay] = useState(client?.billing_day?.toString() || '30');
 
   const [schedules, setSchedules] = useState<ScheduleRow[]>(() =>

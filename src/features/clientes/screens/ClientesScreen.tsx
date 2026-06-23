@@ -16,6 +16,7 @@ import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { clientsService } from '../../../services/clients';
 import type { BillingCycle, Client } from '../../../services/types';
 import { useFeedback } from '../../../state/FeedbackContext';
+import { formatClientDate, getClientTimezone } from '../../../utils/dateTime';
 
 type ClientesScreenProps = {
   selectedClientId: string;
@@ -107,6 +108,7 @@ export function ClientesScreen({ selectedClientId, onMenuPress }: ClientesScreen
   }, [selectedClientId]);
 
   const clientName = client?.nombre || 'Cliente';
+  const clientTimezone = getClientTimezone(client);
 
   const cycleHint = useMemo(() => {
     if (cycle === 'weekly') return 'Usa billing_day como día de corte semanal. Ejemplo: 1 = lunes.';
@@ -224,7 +226,7 @@ export function ClientesScreen({ selectedClientId, onMenuPress }: ClientesScreen
                 billing_day: <Text style={styles.valueStrong}>{formatBillingDay(client?.billing_day)}</Text>
               </Text>
               <Text style={styles.valueLine}>
-                billing_start_date: <Text style={styles.valueStrong}>{client?.billing_start_date || 'Sin definir'}</Text>
+                billing_start_date: <Text style={styles.valueStrong}>{client?.billing_start_date ? formatClientDate(client.billing_start_date, clientTimezone) : 'Sin definir'}</Text>
               </Text>
             </View>
 

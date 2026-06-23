@@ -13,6 +13,7 @@ export interface Client {
   billing_cycle: BillingCycle;
   billing_day?: number | null;
   billing_start_date?: string | null;
+  timezone?: string | null;
   routes?: Route[];
   summaries?: Summary[];
 }

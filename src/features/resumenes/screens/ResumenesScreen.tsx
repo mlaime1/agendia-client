@@ -21,6 +21,17 @@ import { summariesService } from '../../../services/summaries';
 import { clientsService } from '../../../services/clients';
 import { api } from '../../../services/backendApi';
 import type { Summary, SummaryStatus, Client, BillingPreview } from '../../../services/types';
+import {
+  getClientDateKey,
+  formatClientPeriod,
+  getClientMonthLabelFromDate,
+  getClientLongDateLabelFromDate,
+  toDateKey,
+  isSameDay,
+  getClientToday,
+  toClientDate,
+  getClientTimezone,
+} from '../../../utils/dateTime';
 
 type PeriodOption = '7dias' | '15dias' | 'mensual';
 type SummaryFilter = 'all' | SummaryStatus;
@@ -47,19 +58,6 @@ const SUMMARY_FILTER_OPTIONS: Array<{ value: SummaryFilter; label: string }> = [
   { value: 'archived', label: 'Archivado' },
 ];
 
-function parseDateKey(value: string) {
-  return value.split('T')[0];
-}
-
-function formatDateLabel(dateKey: string) {
-  const [year, month, day] = dateKey.split('-');
-  return `${day}/${month}/${year}`;
-}
-
-function formatPeriodLabel(start: string, end: string) {
-  return `${formatDateLabel(parseDateKey(start))} — ${formatDateLabel(parseDateKey(end))}`;
-}
-
 function formatCurrency(value: string | number) {
   const amount = typeof value === 'number' ? value : parseFloat(value || '0');
   return amount.toLocaleString('es-AR', { maximumFractionDigits: 0 });
@@ -85,32 +83,6 @@ function getStatusActionLabel(status: SummaryStatus) {
   return null;
 }
 
-function formatMonthLabel(date: Date) {
-  return date.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
-}
-
-function formatLongDateLabel(date: Date) {
-  return date.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
-}
-
-function toDateKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(
-    date.getDate(),
-  ).padStart(2, '0')}`;
-}
-
-function isSameCalendarDay(left: Date, right: Date) {
-  return (
-    left.getFullYear() === right.getFullYear() &&
-    left.getMonth() === right.getMonth() &&
-    left.getDate() === right.getDate()
-  );
-}
-
 function isDateInRange(date: Date, start: Date, end: Date) {
   const currentTime = date.getTime();
   return currentTime >= start.getTime() && currentTime <= end.getTime();
@@ -123,6 +95,7 @@ type MiniRangeCalendarProps = {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onSelectDate: (date: Date) => void;
+  clientTimezone?: string;
 };
 
 function MiniRangeCalendar({
@@ -132,9 +105,10 @@ function MiniRangeCalendar({
   onPrevMonth,
   onNextMonth,
   onSelectDate,
+  clientTimezone,
 }: MiniRangeCalendarProps) {
-  const days = getMonthDays(monthDate);
-  const leadingEmptyCells = getLeadingEmptyCells(monthDate);
+  const days = getMonthDays(monthDate, clientTimezone);
+  const leadingEmptyCells = getLeadingEmptyCells(monthDate, clientTimezone);
 
   const handleDayPress = (day: { date: Date }) => onSelectDate(day.date);
 
@@ -144,7 +118,7 @@ function MiniRangeCalendar({
         <Pressable style={({ pressed }) => [styles.calendarNavButton, pressed && styles.calendarNavPressed]} onPress={onPrevMonth}>
           <Ionicons name="chevron-back" size={18} color="#1A1A1A" />
         </Pressable>
-        <Text style={styles.calendarMonthLabel}>{formatMonthLabel(monthDate)}</Text>
+        <Text style={styles.calendarMonthLabel}>{getClientMonthLabelFromDate(monthDate, clientTimezone)}</Text>
         <Pressable style={({ pressed }) => [styles.calendarNavButton, pressed && styles.calendarNavPressed]} onPress={onNextMonth}>
           <Ionicons name="chevron-forward" size={18} color="#1A1A1A" />
         </Pressable>
@@ -164,8 +138,8 @@ function MiniRangeCalendar({
         ))}
 
         {days.map((day) => {
-          const isStart = startDate ? isSameCalendarDay(day.date, startDate) : false;
-          const isEnd = endDate ? isSameCalendarDay(day.date, endDate) : false;
+          const isStart = startDate ? isSameDay(day.date, startDate, clientTimezone) : false;
+          const isEnd = endDate ? isSameDay(day.date, endDate, clientTimezone) : false;
           const isInSelectedRange = startDate && endDate ? isDateInRange(day.date, startDate, endDate) : false;
 
           return (
@@ -208,6 +182,7 @@ export function ResumenesScreen({
   const [error, setError] = useState<string | null>(null);
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [modalVisible, setModalVisible] = useState(false);
+  const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
 
   const filteredSummaries = useMemo(() => {
     if (summaryFilter === 'all') {
@@ -223,10 +198,14 @@ export function ResumenesScreen({
       setLoading(false);
       return;
     }
-    
+
     setLoading(true);
     setError(null);
     try {
+      const client = await clientsService.getById(selectedClientId);
+      const tz = getClientTimezone(client);
+      setClientTimezone(tz);
+
       const data = await summariesService.getAllByClient(selectedClientId);
       const ordered = [...data].sort(
         (left, right) => new Date(right.period_end).getTime() - new Date(left.period_end).getTime(),
@@ -301,18 +280,19 @@ export function ResumenesScreen({
     .filter((s) => s.status === 'draft' || s.status === 'sent')
     .reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
 
-  const currentMonth = new Date().getMonth();
-  const currentYear = new Date().getFullYear();
+  const today = getClientToday(clientTimezone);
+  const currentMonth = today.getMonth();
+  const currentYear = today.getFullYear();
   const thisMonthSummaries = summaries.filter((s) => {
     if (!s.paid_at) return false;
-    const paidDate = new Date(s.paid_at);
+    const paidDate = toClientDate(s.paid_at, clientTimezone);
     return paidDate.getMonth() === currentMonth && paidDate.getFullYear() === currentYear;
   });
   const thisMonthAmount = thisMonthSummaries.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
 
   const renderSummaryItem = ({ item }: { item: Summary }) => {
     const statusConfig = STATUS_CONFIG[item.status];
-    const period = formatPeriodLabel(item.period_start, item.period_end);
+    const period = formatClientPeriod(item.period_start, item.period_end, clientTimezone);
     const clientName = item.clients?.nombre || 'Cliente';
     const cycleLabel = getCycleLabel(item.period_type);
     const nextStatus = getNextStatus(item.status);
@@ -480,6 +460,7 @@ export function ResumenesScreen({
         onClose={() => setModalVisible(false)}
         selectedClientId={selectedClientId}
         driverId={driverId}
+        clientTimezone={clientTimezone}
         onSuccess={() => {
           setModalVisible(false);
           loadSummaries();
@@ -499,6 +480,7 @@ type NuevoResumenModalProps = {
   selectedClientId: string;
   driverId: string;
   onSuccess: () => void;
+  clientTimezone?: string;
 };
 
 function NuevoResumenModal({
@@ -507,6 +489,7 @@ function NuevoResumenModal({
   selectedClientId,
   driverId,
   onSuccess,
+  clientTimezone,
 }: NuevoResumenModalProps) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
@@ -530,7 +513,7 @@ function NuevoResumenModal({
     if (visible) {
       setSelectedClient(selectedClientId);
       setActiveTab('auto');
-      setManualMonthDate(new Date());
+      setManualMonthDate(getClientToday(clientTimezone));
       setManualStartDate(null);
       setManualEndDate(null);
       setNotes('');
@@ -538,7 +521,7 @@ function NuevoResumenModal({
       setPreviewError(null);
       loadClients();
     }
-  }, [visible, selectedClientId]);
+  }, [visible, selectedClientId, clientTimezone]);
 
   // Resolve numeric driver id once when modal opens to avoid sending UUIDs where backend expects BigInt
   useEffect(() => {
@@ -603,7 +586,7 @@ function NuevoResumenModal({
       return;
     }
 
-    if (isSameCalendarDay(date, manualStartDate)) {
+    if (isSameDay(date, manualStartDate, clientTimezone)) {
       setManualEndDate(date);
       return;
     }
@@ -646,8 +629,8 @@ function NuevoResumenModal({
           notes: trimmedNotes,
         });
       } else {
-        const periodStart = manualStartDate ? toDateKey(manualStartDate) : null;
-        const periodEnd = manualEndDate ? toDateKey(manualEndDate) : periodStart;
+        const periodStart = manualStartDate ? toDateKey(manualStartDate, clientTimezone) : null;
+        const periodEnd = manualEndDate ? toDateKey(manualEndDate, clientTimezone) : periodStart;
 
         if (!periodStart || !periodEnd) {
           return;
@@ -671,7 +654,7 @@ function NuevoResumenModal({
 
   const formatPreviewPeriod = () => {
     if (!preview) return '';
-    return `${formatDateLabel(parseDateKey(preview.period_start))} → ${formatDateLabel(parseDateKey(preview.period_end))}`;
+    return formatClientPeriod(preview.period_start, preview.period_end, clientTimezone);
   };
 
   const selectedClientData = clients.find((c) => c.id === selectedClient);
@@ -755,19 +738,20 @@ function NuevoResumenModal({
                     )
                   }
                   onSelectDate={selectManualDate}
+                  clientTimezone={clientTimezone}
                 />
 
                 <View style={styles.manualRangeSummary}>
                   <View style={styles.manualRangeSummaryItem}>
                     <Text style={styles.manualRangeSummaryLabel}>Desde</Text>
                     <Text style={styles.manualRangeSummaryValue}>
-                      {manualStartDate ? formatLongDateLabel(manualStartDate) : 'Seleccionar fecha'}
+                      {manualStartDate ? getClientLongDateLabelFromDate(manualStartDate, clientTimezone) : 'Seleccionar fecha'}
                     </Text>
                   </View>
                   <View style={styles.manualRangeSummaryItem}>
                     <Text style={styles.manualRangeSummaryLabel}>Hasta</Text>
                     <Text style={styles.manualRangeSummaryValue}>
-                      {manualEndDate ? formatLongDateLabel(manualEndDate) : 'Seleccionar fecha'}
+                      {manualEndDate ? getClientLongDateLabelFromDate(manualEndDate, clientTimezone) : 'Seleccionar fecha'}
                     </Text>
                   </View>
                 </View>

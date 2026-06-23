@@ -23,6 +23,8 @@ import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 import { useAuth } from '../../../state/AuthContext';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
+import { getClientToday } from '../../../utils/dateTime';
+import { formatInTimeZone } from 'date-fns-tz';
 
 type ClientOption = {
   id: string;
@@ -46,9 +48,6 @@ export function CalendarScreen({
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [monthDate, setMonthDate] = useState(() => new Date());
-  const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
-  const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
-  const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
   const {
     addSpecialTrip,
     addTrip,
@@ -59,20 +58,24 @@ export function CalendarScreen({
     isLoadingTrips,
     error,
     clearError,
+    clientTimezone,
   } = useCalendarTrips(selectedClientId);
+  const days = useMemo(() => getMonthDays(monthDate, clientTimezone), [monthDate, clientTimezone]);
+  const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate, clientTimezone), [monthDate, clientTimezone]);
+  const monthLabel = useMemo(() => getMonthLabel(monthDate, clientTimezone), [monthDate, clientTimezone]);
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
   const [detailDateKey, setDetailDateKey] = useState<string | null>(null);
 
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
-  const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date) : '';
+  const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date, clientTimezone) : '';
   const detailTrips = detailDateKey
     ? Object.entries(tripsByDate).find(([dateKey]) => dateKey === detailDateKey)?.[1] ?? []
     : [];
-  const visibleMonthKey = `${monthDate.getFullYear()}-${(monthDate.getMonth() + 1)
-    .toString()
-    .padStart(2, '0')}`;
+  const visibleMonthKey = clientTimezone
+    ? formatInTimeZone(monthDate, clientTimezone, 'yyyy-MM')
+    : `${monthDate.getFullYear()}-${(monthDate.getMonth() + 1).toString().padStart(2, '0')}`;
   const visibleMonthTrips = trips.filter((trip) => trip.date.startsWith(visibleMonthKey));
   const selectedClientName = clients.find((client) => client.id === selectedClientId)?.name ?? '';
   const headerUserName = isLoading
@@ -112,7 +115,7 @@ export function CalendarScreen({
   };
 
   const goToCurrentMonth = () => {
-    setMonthDate(new Date());
+    setMonthDate(getClientToday(clientTimezone));
     setDetailDateKey(null);
     setSpecialDateKey(null);
   };
@@ -195,6 +198,7 @@ export function CalendarScreen({
               onDayLongPress={setDetailDateKey}
               onDayPress={handleDayPress}
               tripsByDate={tripsByDate}
+              clientTimezone={clientTimezone}
             />
           </>
         )}

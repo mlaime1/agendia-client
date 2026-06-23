@@ -6,6 +6,7 @@ import { useAuth } from '../../../state/AuthContext';
 import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
+import { getClientTimezone } from '../../../utils/dateTime';
 
 type UseCalendarTripsResult = {
   trips: Trip[];
@@ -17,6 +18,7 @@ type UseCalendarTripsResult = {
   isLoadingTrips: boolean;
   error: string | null;
   clearError: () => void;
+  clientTimezone: string;
 };
 
 export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsResult => {
@@ -27,6 +29,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
   const [clientId, setClientId] = useState<string>('');
   const [routeId, setRouteId] = useState<string>('');
   const [rateId, setRateId] = useState<string>('');
+  const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
 
   const userId = userProfile?.id;
 
@@ -73,16 +76,22 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
           }
         }
 
+        let resolvedTimezone = getClientTimezone();
         if (selectedClientId) {
           const selectedClient = await clientsService.getById(selectedClientId);
 
           if (mounted) {
             setClientId(selectedClient.id);
             setRouteId(selectedClient.routes?.[0]?.id ?? '');
+            resolvedTimezone = getClientTimezone(selectedClient);
+            setClientTimezone(resolvedTimezone);
           }
         }
 
-        const list = await tripRepository.listCalendarTrips(selectedClientId || defaults.clientId || undefined);
+        const list = await tripRepository.listCalendarTrips(
+          selectedClientId || defaults.clientId || undefined,
+          resolvedTimezone,
+        );
         if (mounted) {
           setTrips(list);
         }
@@ -139,6 +148,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
             const createdTrip = await tripRepository.createTrips(
               toCreateTripPayloads({ dateKey, mode, ...tripContext }),
               userId,
+              clientTimezone,
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
@@ -146,6 +156,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
               const fallback = tripRepository.createLocalTrips(
                 toCreateTripPayloads({ dateKey, mode, ...tripContext }),
                 userId,
+                clientTimezone,
               );
               mergeTripIntoState(fallback);
             } catch {
@@ -181,6 +192,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
                 ...tripContext,
               }),
               userId,
+              clientTimezone,
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
@@ -194,6 +206,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
                   ...tripContext,
                 }),
                 userId,
+                clientTimezone,
               );
               mergeTripIntoState(fallback);
             } catch {
@@ -215,12 +228,12 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
 
         (async () => {
           try {
-            await tripRepository.updateCalendarTrip(trip, updates);
-            const list = await tripRepository.listCalendarTrips(selectedClientId);
+            await tripRepository.updateCalendarTrip(trip, updates, clientTimezone);
+            const list = await tripRepository.listCalendarTrips(selectedClientId, clientTimezone);
             setTrips(list);
           } catch (err: any) {
             tripRepository.updateLocalCalendarTrip(trip, updates);
-            setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
+            setTrips(tripRepository.getLocalCalendarTrips(selectedClientId, clientTimezone));
             setError(err?.message ?? 'Error actualizando viaje');
           }
         })();
@@ -240,7 +253,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
 
         (async () => {
           try {
-            await tripRepository.deleteCalendarTrip(trip);
+            await tripRepository.deleteCalendarTrip(trip, clientTimezone);
           } catch (err: any) {
             setTrips(previousTrips);
             setError(err?.message ?? 'Error eliminando viaje');
@@ -259,5 +272,6 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     isLoadingTrips,
     error,
     clearError,
+    clientTimezone,
   };
 };

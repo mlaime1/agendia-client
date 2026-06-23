@@ -7,6 +7,7 @@ import { Theme } from '../../../theme';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
 import { useClientDetail, useClientSchedules } from '../hooks';
 import type { ServiceSchedule } from '../../../services/types';
+import { formatClientDate, getClientTimezone } from '../../../utils/dateTime';
 
 type ClientDetailScreenProps = {
   clientId: string;
@@ -28,10 +29,9 @@ function getInitial(name: string) {
   return name.trim().charAt(0).toUpperCase() || 'A';
 }
 
-function formatDate(dateStr: string | null) {
+function formatDate(dateStr: string | null, clientTimezone?: string) {
   if (!dateStr) return '';
-  const [year, month, day] = dateStr.split('-');
-  return `${day}/${month}/${year}`;
+  return formatClientDate(dateStr, clientTimezone);
 }
 
 export function ClientDetailScreen({
@@ -76,7 +76,8 @@ export function ClientDetailScreen({
 
   const initial = getInitial(client.nombre);
   const billingLabel = BILLING_LABELS[client.billing_cycle] || 'Mensual';
-  const billingStart = formatDate(client.billing_start_date || null);
+  const clientTimezone = getClientTimezone(client);
+  const billingStart = formatDate(client.billing_start_date || null, clientTimezone);
 
   return (
     <ScreenWrapper title="Cliente" onBackPress={onBack}>
