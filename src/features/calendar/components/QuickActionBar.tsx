@@ -7,11 +7,13 @@ import { Theme, useTheme, useThemedStyles } from '../../../theme';
 type QuickAction = {
   label: string;
   mode: TripMode;
+  disabled?: boolean;
 };
 
 type QuickActionBarProps = {
   selectedMode: TripMode | null;
   onSelectMode: (mode: TripMode | null) => void;
+  readOnly?: boolean;
 };
 
 const actions: QuickAction[] = [
@@ -29,35 +31,44 @@ const actions: QuickAction[] = [
   },
 ];
 
-export function QuickActionBar({ selectedMode, onSelectMode }: QuickActionBarProps) {
+export function QuickActionBar({ selectedMode, onSelectMode, readOnly = false }: QuickActionBarProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
 
+  const displayActions = actions.map((action) => ({
+    ...action,
+    disabled: readOnly && action.mode !== 'special',
+  }));
+
   return (
     <View style={styles.container}>
-      {actions.map((action) => {
+      {displayActions.map((action) => {
         const isSelected = action.mode === selectedMode;
+        const isDisabled = action.disabled;
 
         return (
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ selected: isSelected }}
+            accessibilityState={{ selected: isSelected, disabled: isDisabled }}
+            disabled={isDisabled}
             key={action.mode}
             onPress={() => onSelectMode(isSelected ? null : action.mode)}
             style={({ pressed }) => [
               styles.button,
-              isSelected && {
+              isDisabled && styles.disabledButton,
+              isSelected && !isDisabled && {
                 backgroundColor: theme.colors.trip[action.mode].bg,
                 borderColor: theme.colors.trip[action.mode].border,
               },
-              pressed && styles.pressedButton,
+              pressed && !isDisabled && styles.pressedButton,
             ]}
           >
             <Text
               style={[
                 styles.label,
-                isSelected && { color: theme.colors.trip[action.mode].text },
-                isSelected && styles.selectedLabel,
+                isDisabled && styles.disabledLabel,
+                isSelected && !isDisabled && { color: theme.colors.trip[action.mode].text },
+                isSelected && !isDisabled && styles.selectedLabel,
               ]}
             >
               {action.label}
@@ -91,11 +102,18 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   pressedButton: {
     opacity: 0.72,
   },
+  disabledButton: {
+    opacity: 0.4,
+  },
   label: {
-      color: theme.colors.textSubtle,
+    color: theme.colors.textSubtle,
     fontSize: 13,
-      fontWeight: '600',
+    fontWeight: '600',
     letterSpacing: 0,
+  },
+  disabledLabel: {
+    color: theme.colors.textSubtle,
+    opacity: 0.5,
   },
   selectedLabel: {
     fontWeight: '700',

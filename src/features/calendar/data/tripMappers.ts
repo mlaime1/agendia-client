@@ -22,14 +22,16 @@ export const toCreateTripPayloads = ({
     notes: note?.trim() || null,
   };
 
+  const tripDate = `${dateKey}T${basePayload.trip_time}:00`;
+
   if (mode === 'roundTrip') {
-    return [{ ...basePayload, trip_date: dateKey, trip_type: 'ida y vuelta', special_type: null }];
+    return [{ ...basePayload, trip_date: tripDate, trip_type: 'ida y vuelta', special_type: null }];
   }
 
   return [
     {
       ...basePayload,
-      trip_date: dateKey,
+      trip_date: tripDate,
       trip_type: mode === 'special' ? 'especial' : 'ida',
       special_type: mode === 'special' ? specialType?.trim() || 'Ruta especial' : null,
     },

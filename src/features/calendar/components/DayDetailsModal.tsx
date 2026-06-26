@@ -23,6 +23,7 @@ type DayDetailsModalProps = {
   onClose: () => void;
   onUpdateTrip: (tripId: string, updates: TripUpdates) => void;
   onDeleteTrip: (tripId: string) => void;
+  readOnly?: boolean;
 };
 
 const tripLabels: Record<TripMode, string> = {
@@ -43,6 +44,7 @@ export function DayDetailsModal({
   onClose,
   onUpdateTrip,
   onDeleteTrip,
+  readOnly = false,
 }: DayDetailsModalProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -195,42 +197,48 @@ export function DayDetailsModal({
                       </Text>
                     </View>
 
-                    <View style={styles.timeField}>
-                      <Text style={styles.inputLabel}>Hora</Text>
-                      <TextInput
-                        inputMode="numeric"
-                        maxLength={5}
-                        onChangeText={(time) => onUpdateTrip(trip.id, { time })}
-                        placeholder="HH:mm"
-                        placeholderTextColor={theme.colors.textSubtle}
-                        style={styles.timeInput}
-                        value={trip.time}
-                      />
-                    </View>
+                    {!readOnly && (
+                      <View style={styles.timeField}>
+                        <Text style={styles.inputLabel}>Hora</Text>
+                        <TextInput
+                          inputMode="numeric"
+                          maxLength={5}
+                          onChangeText={(time) => onUpdateTrip(trip.id, { time })}
+                          placeholder="HH:mm"
+                          placeholderTextColor={theme.colors.textSubtle}
+                          style={styles.timeInput}
+                          value={trip.time}
+                        />
+                      </View>
+                    )}
                   </View>
 
-                  <Text style={styles.inputLabel}>Tipo</Text>
-                  <View style={styles.modeRow}>
-                    {modeOptions.map((mode) => {
-                      const isSelected = trip.mode === mode;
+                  {!readOnly && (
+                    <>
+                      <Text style={styles.inputLabel}>Tipo</Text>
+                      <View style={styles.modeRow}>
+                        {modeOptions.map((mode) => {
+                          const isSelected = trip.mode === mode;
 
-                      return (
-                        <Pressable
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: isSelected }}
-                          key={mode}
-                          onPress={() => handleModeChange(trip, mode)}
-                          style={[styles.modeButton, isSelected && styles.selectedModeButton]}
-                        >
-                          <Text style={[styles.modeText, isSelected && styles.selectedModeText]}>
-                            {tripLabels[mode]}
-                          </Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
+                          return (
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityState={{ selected: isSelected }}
+                              key={mode}
+                              onPress={() => handleModeChange(trip, mode)}
+                              style={[styles.modeButton, isSelected && styles.selectedModeButton]}
+                            >
+                              <Text style={[styles.modeText, isSelected && styles.selectedModeText]}>
+                                {tripLabels[mode]}
+                              </Text>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    </>
+                  )}
 
-                  {trip.mode === 'special' ? (
+                  {trip.mode === 'special' && !readOnly ? (
                     <>
                       <Text style={styles.inputLabel}>Detalle especial</Text>
                       <TextInput
@@ -243,7 +251,11 @@ export function DayDetailsModal({
                     </>
                   ) : null}
 
-                  {openNoteEditors[trip.id] ? (
+                  {trip.mode === 'special' && readOnly && trip.specialType ? (
+                    <Text style={styles.specialTypeLabel}>{trip.specialType}</Text>
+                  ) : null}
+
+                  {!readOnly && openNoteEditors[trip.id] ? (
                     <View style={styles.noteEditor}>
                       <TextInput
                         multiline
@@ -283,29 +295,35 @@ export function DayDetailsModal({
                     </View>
                   ) : null}
 
-                  <View style={styles.actionsRow}>
-                    <Pressable
-                      accessibilityLabel="Agregar nota"
-                      accessibilityRole="button"
-                      onPress={() => toggleNoteEditor(trip.id)}
-                      style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
-                    >
-                      <AppIcon
-                        name={openNoteEditors[trip.id] ? 'message' : 'edit'}
-                        size={18}
-                        color={theme.colors.primary}
-                      />
-                    </Pressable>
+                  {readOnly && trip.note ? (
+                    <Text style={styles.noteDisplay}>{trip.note}</Text>
+                  ) : null}
 
-                    <Pressable
-                      accessibilityLabel="Borrar viaje"
-                      accessibilityRole="button"
-                      onPress={() => confirmDeleteTrip(trip)}
-                      style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
-                    >
-                      <AppIcon name="trash" size={18} color={theme.colors.danger} />
-                    </Pressable>
-                  </View>
+                  {!readOnly && (
+                    <View style={styles.actionsRow}>
+                      <Pressable
+                        accessibilityLabel="Agregar nota"
+                        accessibilityRole="button"
+                        onPress={() => toggleNoteEditor(trip.id)}
+                        style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
+                      >
+                        <AppIcon
+                          name={openNoteEditors[trip.id] ? 'message' : 'edit'}
+                          size={18}
+                          color={theme.colors.primary}
+                        />
+                      </Pressable>
+
+                      <Pressable
+                        accessibilityLabel="Borrar viaje"
+                        accessibilityRole="button"
+                        onPress={() => confirmDeleteTrip(trip)}
+                        style={({ pressed }) => [styles.iconActionButton, pressed && styles.iconActionButtonPressed]}
+                      >
+                        <AppIcon name="trash" size={18} color={theme.colors.danger} />
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
               ))}
             </ScrollView>
@@ -516,5 +534,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   iconActionButtonPressed: {
     opacity: 0.85,
+  },
+  specialTypeLabel: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0,
+    paddingVertical: 8,
+  },
+  noteDisplay: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    lineHeight: 18,
+    letterSpacing: 0,
+    paddingVertical: 8,
   },
 });

@@ -21,7 +21,10 @@ type UseCalendarTripsResult = {
   clientTimezone: string;
 };
 
-export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsResult => {
+export const useCalendarTrips = (
+  selectedClientId?: string,
+  readOnly: boolean = false,
+): UseCalendarTripsResult => {
   const { userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
@@ -132,7 +135,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     });
   };
 
-  const addTrip = userId
+  const addTrip = userId && !readOnly
     ? (dateKey: string, mode: TripMode) => {
         let tripContext;
 
@@ -166,10 +169,17 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
           }
         })();
       }
-    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
+    : readOnly
+      ? () => {}
+      : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
 
   const addSpecialTrip = userId
     ? (input: PendingSpecialTrip) => {
+        if (readOnly) {
+          setError('No tienes permisos para crear viajes en este calendario.');
+          return;
+        }
+
         const { dateKey, specialType, note } = input;
 
         let tripContext;
@@ -218,7 +228,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
       }
     : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
 
-  const updateTrip = userId
+  const updateTrip = userId && !readOnly
     ? (tripId: string, updates: TripUpdates) => {
         const trip = trips.find((currentTrip) => currentTrip.id === tripId);
 
@@ -238,9 +248,11 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
           }
         })();
       }
-    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para actualizar viajes.');
+    : readOnly
+      ? () => {}
+      : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para actualizar viajes.');
 
-  const deleteTrip = userId
+  const deleteTrip = userId && !readOnly
     ? (tripId: string) => {
         const trip = trips.find((currentTrip) => currentTrip.id === tripId);
 
@@ -260,7 +272,9 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
           }
         })();
       }
-    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para eliminar viajes.');
+    : readOnly
+      ? () => {}
+      : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para eliminar viajes.');
 
   return {
     trips,

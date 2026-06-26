@@ -6,21 +6,28 @@ import { Theme, useTheme, useThemedStyles } from '../../../theme';
 type SpecialTripModalProps = {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (specialType: string, note: string) => void;
+  onConfirm: (specialType: string, note: string, price?: string) => void;
+  canSetPrice?: boolean;
 };
 
-export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripModalProps) {
+export function SpecialTripModal({ visible, onClose, onConfirm, canSetPrice = false }: SpecialTripModalProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [specialType, setSpecialType] = useState('Parada extra');
   const [note, setNote] = useState('');
+  const [price, setPrice] = useState('');
 
   useEffect(() => {
     if (visible) {
       setSpecialType('Parada extra');
       setNote('');
+      setPrice('');
     }
   }, [visible]);
+
+  const handleConfirm = () => {
+    onConfirm(specialType, note, canSetPrice ? price : undefined);
+  };
 
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
@@ -47,12 +54,26 @@ export function SpecialTripModal({ visible, onClose, onConfirm }: SpecialTripMod
             value={note}
           />
 
+          {canSetPrice && (
+            <>
+              <Text style={styles.label}>Precio</Text>
+              <TextInput
+                inputMode="decimal"
+                onChangeText={setPrice}
+                placeholder="0.00"
+                placeholderTextColor={theme.colors.textSubtle}
+                style={styles.input}
+                value={price}
+              />
+            </>
+          )}
+
           <View style={styles.actions}>
             <Pressable onPress={onClose} style={[styles.actionButton, styles.secondaryButton]}>
               <Text style={styles.secondaryText}>Cancelar</Text>
             </Pressable>
             <Pressable
-              onPress={() => onConfirm(specialType, note)}
+              onPress={handleConfirm}
               style={[styles.actionButton, styles.primaryButton]}
             >
               <Text style={styles.primaryText}>Agregar viaje</Text>

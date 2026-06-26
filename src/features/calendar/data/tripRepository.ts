@@ -171,6 +171,7 @@ export const tripRepository = {
 
         if (updates.specialType !== undefined) body.special_type = updates.specialType?.trim() || null;
         if (updates.note !== undefined) body.notes = updates.note ?? null;
+        if (updates.time !== undefined) body.trip_date = `${trip.date}T${updates.time}:00`;
 
         if (updates.mode === 'special') {
           body.trip_type = 'especial';

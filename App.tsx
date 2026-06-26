@@ -75,8 +75,11 @@ function AppContent() {
   useEffect(() => {
     if (isAuthenticated) {
       loadClients();
+      if (userProfile?.role === 'client' && userProfile?.linked_client_id && !selectedClientId) {
+        setSelectedClientId(userProfile.linked_client_id);
+      }
     }
-  }, [isAuthenticated, loadClients]);
+  }, [isAuthenticated, loadClients, userProfile]);
   const handleNavigate = (routeName: string) => {
     setNavigation({ screen: routeName as AppRoute });
     if (routeName === 'Clientes') {
@@ -243,7 +246,11 @@ function AppContent() {
           <CalendarScreen
             onMenuPress={() => setDrawerVisible(true)}
             clients={drawerClients}
-            selectedClientId={selectedClientId}
+            selectedClientId={
+              userProfile?.role === 'client'
+                ? userProfile?.linked_client_id || selectedClientId
+                : selectedClientId
+            }
             onSelectClient={setSelectedClientId}
           />
         );
@@ -260,6 +267,7 @@ function AppContent() {
           name: userProfile?.name || 'Usuario',
           email: userProfile?.email || '',
           role: userProfile?.role || 'driver',
+          linked_client_id: userProfile?.linked_client_id,
         }}
         clients={drawerClients}
         selectedClientId={selectedClientId}

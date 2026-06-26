@@ -23,9 +23,10 @@ type AgendiaHeaderProps = {
   onMenuPress: () => void;
   clients: ClientOption[];
   selectedClientId: string;
-  onSelectClient: (clientId: string) => void;
+  onSelectClient?: (clientId: string) => void;
   onUserPress?: () => void;
   rightSlot?: React.ReactNode;
+  hideClientSelector?: boolean;
 };
 
 export function AgendiaHeader({
@@ -38,6 +39,7 @@ export function AgendiaHeader({
   onSelectClient,
   onUserPress,
   rightSlot,
+  hideClientSelector = false,
 }: AgendiaHeaderProps) {
   const styles = useThemedStyles(createStyles);
   const [clientModalVisible, setClientModalVisible] = useState(false);
@@ -54,7 +56,7 @@ export function AgendiaHeader({
   };
 
   const handleSelectClient = (clientId: string) => {
-    onSelectClient(clientId);
+    onSelectClient?.(clientId);
     setClientModalVisible(false);
   };
 
@@ -88,26 +90,41 @@ export function AgendiaHeader({
         </View>
 
         <View style={styles.userRow}>
-          <TouchableOpacity
-            style={styles.userPill}
-            onPress={handleOpenClientSelector}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel="Cambiar agenda"
-          >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{avatarLetter}</Text>
-            </View>
+          {hideClientSelector ? (
+            <View style={styles.userPillStatic}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{avatarLetter}</Text>
+              </View>
 
-            <View style={styles.userInfo}>
-              <Text style={styles.userLabel}>Viendo agenda de</Text>
-              <Text style={styles.userName} numberOfLines={1}>
-                {selectedClient?.name || 'Seleccionar cliente'}
-              </Text>
+              <View style={styles.userInfo}>
+                <Text style={styles.userLabel}>Agenda de</Text>
+                <Text style={styles.userName} numberOfLines={1}>
+                  {selectedClient?.name || userName}
+                </Text>
+              </View>
             </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.userPill}
+              onPress={handleOpenClientSelector}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Cambiar agenda"
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{avatarLetter}</Text>
+              </View>
 
-            <Text style={styles.caret}>⌄</Text>
-          </TouchableOpacity>
+              <View style={styles.userInfo}>
+                <Text style={styles.userLabel}>Viendo agenda de</Text>
+                <Text style={styles.userName} numberOfLines={1}>
+                  {selectedClient?.name || 'Seleccionar cliente'}
+                </Text>
+              </View>
+
+              <Text style={styles.caret}>⌄</Text>
+            </TouchableOpacity>
+          )}
 
           {rightSlot ?? (
             <View style={styles.badge}>
@@ -231,6 +248,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     justifyContent: 'space-between',
   },
   userPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: theme.colors.primaryLight,
+    borderRadius: 999,
+    paddingTop: 7,
+    paddingRight: 14,
+    paddingBottom: 7,
+    paddingLeft: 8,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  userPillStatic: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,

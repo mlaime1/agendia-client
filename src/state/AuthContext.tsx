@@ -58,6 +58,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         profile = {
           ...backendProfile,
           role: normalizeRole(backendProfile.role),
+          linked_client_id: backendProfile.linked_client_id ?? null,
+          timezone: backendProfile.timezone ?? null,
         };
 
         console.log('[AuthContext] profile loaded from backend:', {
@@ -73,6 +75,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           email: supabaseUser.email || '',
           alias: supabaseUser.user_metadata?.alias || null,
           role: normalizeRole(supabaseUser.user_metadata?.role),
+          linked_client_id: supabaseUser.user_metadata?.linked_client_id ?? null,
+          timezone: supabaseUser.user_metadata?.timezone ?? null,
         };
 
         console.log('[AuthContext] profile loaded from supabase fallback:', {
