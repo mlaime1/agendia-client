@@ -44,6 +44,7 @@ const trip = {
 const summaryStatus = {
   draft: { bg: '#FAEEDA', text: '#854F0B' },
   sent: { bg: '#E6F1FB', text: '#185FA5' },
+  partial: { bg: '#FFF4E5', text: '#B45F06' },
   paid: { bg: '#EAF3DE', text: '#3B6D11' },
   archived: { bg: '#F1EFE8', text: '#5F5E5A' },
 } as const;
@@ -131,7 +132,7 @@ export const themes = {
 
   blueNight: createTheme({
     primary: '#3B82F6',
-    primaryLight: '#16243F',
+    primaryLight: '#1E3A5F',
     primaryDark: '#60A5FA',
     accent: '#93C5FD',
     background: '#0B1220',
@@ -152,13 +153,13 @@ export const themes = {
 
   dark: createTheme({
     primary: '#3B82F6',
-    primaryLight: '#16243F',
+    primaryLight: '#1E3A5F',
     primaryDark: '#60A5FA',
     accent: '#93C5FD',
     background: '#0B1220',
     surface: '#0F172A',
     surfaceMuted: '#111C31',
-    surfaceSubtle: '#16243F',
+    surfaceSubtle: '#1E3A5F',
     border: '#243041',
     borderStrong: '#334155',
     text: '#F8FAFC',

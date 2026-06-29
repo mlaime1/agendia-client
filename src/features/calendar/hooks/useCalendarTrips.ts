@@ -6,6 +6,8 @@ import { useAuth } from '../../../state/AuthContext';
 import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
+import { getClientTimezone } from '../../../utils/dateTime';
+import { isNetworkError } from '../../../utils/isNetworkError';
 
 type UseCalendarTripsResult = {
   trips: Trip[];
@@ -17,16 +19,21 @@ type UseCalendarTripsResult = {
   isLoadingTrips: boolean;
   error: string | null;
   clearError: () => void;
+  clientTimezone: string;
 };
 
-export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsResult => {
-  const { session, userProfile } = useAuth();
+export const useCalendarTrips = (
+  selectedClientId?: string,
+  readOnly: boolean = false,
+): UseCalendarTripsResult => {
+  const { userProfile } = useAuth();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string>('');
   const [routeId, setRouteId] = useState<string>('');
   const [rateId, setRateId] = useState<string>('');
+  const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
 
   const userId = userProfile?.id;
 
@@ -63,7 +70,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
       }
 
       try {
-        const defaults = await defaultsService.getDefaults(session?.access_token);
+        const defaults = await defaultsService.getDefaults();
 
         if (mounted && defaults.clientId && defaults.routeId) {
           setClientId(defaults.clientId);
@@ -73,16 +80,23 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
           }
         }
 
+        let resolvedTimezone = getClientTimezone();
         if (selectedClientId) {
-          const selectedClient = await clientsService.getById(selectedClientId, session?.access_token);
+          const selectedClient = await clientsService.getById(selectedClientId);
 
           if (mounted) {
             setClientId(selectedClient.id);
-            setRouteId(selectedClient.routes?.[0]?.id ?? '');
+            const activeRoute = selectedClient.routes?.find((route) => route.is_active !== false);
+            setRouteId(activeRoute?.id ?? '');
+            resolvedTimezone = getClientTimezone(selectedClient);
+            setClientTimezone(resolvedTimezone);
           }
         }
 
-        const list = await tripRepository.listCalendarTrips(selectedClientId || defaults.clientId || undefined, session?.access_token);
+        const list = await tripRepository.listCalendarTrips(
+          selectedClientId || defaults.clientId || undefined,
+          resolvedTimezone,
+        );
         if (mounted) {
           setTrips(list);
         }
@@ -101,7 +115,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     return () => {
       mounted = false;
     };
-  }, [selectedClientId, session?.access_token, userId]);
+  }, [selectedClientId, userId]);
 
   const tripsByDate = useMemo(
     () =>
@@ -123,7 +137,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     });
   };
 
-  const addTrip = userId
+  const addTrip = userId && !readOnly
     ? (dateKey: string, mode: TripMode) => {
         let tripContext;
 
@@ -139,29 +153,38 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
             const createdTrip = await tripRepository.createTrips(
               toCreateTripPayloads({ dateKey, mode, ...tripContext }),
               userId,
-              session?.access_token,
+              clientTimezone,
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
-            try {
-              const fallback = tripRepository.createLocalTrips(
-                toCreateTripPayloads({ dateKey, mode, ...tripContext }),
-                userId,
-                session?.access_token,
-              );
-              mergeTripIntoState(fallback);
-            } catch {
-              // no-op: keep user-facing error below
+            if (isNetworkError(err)) {
+              try {
+                const fallback = tripRepository.createLocalTrips(
+                  toCreateTripPayloads({ dateKey, mode, ...tripContext }),
+                  userId,
+                  clientTimezone,
+                );
+                mergeTripIntoState(fallback);
+              } catch {
+                // no-op
+              }
             }
             setError(err?.message ?? 'Error creando viaje');
           }
         })();
       }
-    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
+    : readOnly
+      ? () => {}
+      : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
 
   const addSpecialTrip = userId
     ? (input: PendingSpecialTrip) => {
-        const { dateKey, specialType, note } = input;
+        if (readOnly) {
+          setError('No tienes permisos para crear viajes en este calendario.');
+          return;
+        }
+
+        const { dateKey, specialType, note, price } = input;
 
         let tripContext;
 
@@ -180,28 +203,32 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
                 mode: 'special',
                 specialType,
                 note,
+                price,
                 ...tripContext,
               }),
               userId,
-              session?.access_token,
+              clientTimezone,
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
-            try {
-              const fallback = tripRepository.createLocalTrips(
-                toCreateTripPayloads({
-                  dateKey,
-                  mode: 'special',
-                  specialType,
-                  note,
-                  ...tripContext,
-                }),
-                userId,
-                session?.access_token,
-              );
-              mergeTripIntoState(fallback);
-            } catch {
-              // no-op: keep user-facing error below
+            if (isNetworkError(err)) {
+              try {
+                const fallback = tripRepository.createLocalTrips(
+                  toCreateTripPayloads({
+                    dateKey,
+                    mode: 'special',
+                    specialType,
+                    note,
+                    price,
+                    ...tripContext,
+                  }),
+                  userId,
+                  clientTimezone,
+                );
+                mergeTripIntoState(fallback);
+              } catch {
+                // no-op
+              }
             }
             setError(err?.message ?? 'Error creando viaje especial');
           }
@@ -209,7 +236,7 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
       }
     : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
 
-  const updateTrip = userId
+  const updateTrip = userId && !readOnly
     ? (tripId: string, updates: TripUpdates) => {
         const trip = trips.find((currentTrip) => currentTrip.id === tripId);
 
@@ -219,19 +246,23 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
 
         (async () => {
           try {
-            await tripRepository.updateCalendarTrip(trip, updates, session?.access_token);
-            const list = await tripRepository.listCalendarTrips(selectedClientId, session?.access_token);
+            await tripRepository.updateCalendarTrip(trip, updates, clientTimezone);
+            const list = await tripRepository.listCalendarTrips(selectedClientId, clientTimezone);
             setTrips(list);
           } catch (err: any) {
-            tripRepository.updateLocalCalendarTrip(trip, updates);
-            setTrips(tripRepository.getLocalCalendarTrips(selectedClientId));
+            if (isNetworkError(err)) {
+              tripRepository.updateLocalCalendarTrip(trip, updates);
+              setTrips(tripRepository.getLocalCalendarTrips(selectedClientId, clientTimezone));
+            }
             setError(err?.message ?? 'Error actualizando viaje');
           }
         })();
       }
-    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para actualizar viajes.');
+    : readOnly
+      ? () => {}
+      : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para actualizar viajes.');
 
-  const deleteTrip = userId
+  const deleteTrip = userId && !readOnly
     ? (tripId: string) => {
         const trip = trips.find((currentTrip) => currentTrip.id === tripId);
 
@@ -244,14 +275,16 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
 
         (async () => {
           try {
-            await tripRepository.deleteCalendarTrip(trip, session?.access_token);
+            await tripRepository.deleteCalendarTrip(trip, clientTimezone);
           } catch (err: any) {
             setTrips(previousTrips);
             setError(err?.message ?? 'Error eliminando viaje');
           }
         })();
       }
-    : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para eliminar viajes.');
+    : readOnly
+      ? () => {}
+      : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para eliminar viajes.');
 
   return {
     trips,
@@ -263,5 +296,6 @@ export const useCalendarTrips = (selectedClientId?: string): UseCalendarTripsRes
     isLoadingTrips,
     error,
     clearError,
+    clientTimezone,
   };
 };

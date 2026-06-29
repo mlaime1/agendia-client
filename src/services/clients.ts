@@ -1,39 +1,59 @@
-// src/services/clients.ts
-
 import { api } from './backendApi';
-import type { Client, CreateClientDto, UpdateClientDto, UpdateBillingDto } from './types';
-
-const withAuth = (accessToken?: string) =>
-  accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined;
+import type {
+  Client,
+  CreateClientDto,
+  UpdateClientDto,
+  UpdateBillingDto,
+  ServiceSchedule,
+  CreateScheduleDto,
+  UpdateScheduleDto,
+  BulkSchedulesDto,
+} from './types';
 
 export const clientsService = {
-  /** GET /clients */
-  getAll(accessToken?: string): Promise<Client[]> {
-    return api.get<Client[]>('/clients', withAuth(accessToken));
+  getAll(): Promise<Client[]> {
+    return api.get<Client[]>('/clients');
   },
 
-  /** GET /clients/:id — incluye routes y últimas 5 summaries */
-  getById(id: string, accessToken?: string): Promise<Client> {
-    return api.get<Client>(`/clients/${id}`, withAuth(accessToken));
+  getById(id: string): Promise<Client> {
+    return api.get<Client>(`/clients/${id}`);
   },
 
-  /** POST /clients */
   create(body: CreateClientDto): Promise<Client> {
     return api.post<Client>('/clients', body);
   },
 
-  /** PATCH /clients/:id */
   update(id: string, body: UpdateClientDto): Promise<Client> {
     return api.patch<Client>(`/clients/${id}`, body);
   },
 
-  /** PATCH /clients/:id/billing */
   updateBilling(id: string, body: UpdateBillingDto): Promise<Client> {
     return api.patch<Client>(`/clients/${id}/billing`, body);
   },
 
-  /** DELETE /clients/:id */
   remove(id: string): Promise<void> {
     return api.delete<void>(`/clients/${id}`);
+  },
+
+  // --- Schedules ---
+
+  getSchedules(clientId: string): Promise<ServiceSchedule[]> {
+    return api.get<ServiceSchedule[]>(`/clients/${clientId}/schedules`);
+  },
+
+  createSchedule(clientId: string, body: CreateScheduleDto): Promise<ServiceSchedule> {
+    return api.post<ServiceSchedule>(`/clients/${clientId}/schedules`, body);
+  },
+
+  updateSchedule(clientId: string, scheduleId: string, body: UpdateScheduleDto): Promise<ServiceSchedule> {
+    return api.patch<ServiceSchedule>(`/clients/${clientId}/schedules/${scheduleId}`, body);
+  },
+
+  deleteSchedule(clientId: string, scheduleId: string): Promise<void> {
+    return api.delete<void>(`/clients/${clientId}/schedules/${scheduleId}`);
+  },
+
+  bulkReplaceSchedules(clientId: string, body: BulkSchedulesDto): Promise<ServiceSchedule[]> {
+    return api.put<ServiceSchedule[]>(`/clients/${clientId}/schedules`, body);
   },
 };

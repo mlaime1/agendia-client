@@ -3,7 +3,9 @@
 
 export type BillingCycle = 'weekly' | 'biweekly' | 'monthly';
 export type TripType = 'ida' | 'vuelta' | 'ida y vuelta' | 'especial';
-export type SummaryStatus = 'draft' | 'sent' | 'paid' | 'archived';
+export type SummaryStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'archived';
+export type PaymentStatus = 'pending' | 'partial' | 'paid';
+export type PaymentMethod = 'cash' | 'transfer' | 'debit' | 'credit' | 'other';
 
 export interface Client {
   id: string;
@@ -13,6 +15,7 @@ export interface Client {
   billing_cycle: BillingCycle;
   billing_day?: number | null;
   billing_start_date?: string | null;
+  timezone?: string | null;
   routes?: Route[];
   summaries?: Summary[];
 }
@@ -22,6 +25,8 @@ export interface Route {
   created_at: string;
   name?: string | null;
   client_id?: string | null;
+  is_active: boolean;
+  deleted_at?: string | null;
   route_stops?: RouteStop[];
 }
 
@@ -44,6 +49,16 @@ export interface Rate {
   end_date?: string | null;
 }
 
+export interface Payment {
+  id: string;
+  trip_id: string;
+  amount: string;
+  method: PaymentMethod;
+  paid_at: string;
+  notes?: string | null;
+  created_at: string;
+}
+
 export interface Trip {
   id: string;
   created_at: string;
@@ -59,6 +74,9 @@ export interface Trip {
   special_type?: string | null;
   notes?: string | null;
   summary_id?: string | null;
+  payment_status?: PaymentStatus;
+  paid_amount?: string;
+  payments?: Payment[];
   clients?: Client;
   routes?: Route;
   rates?: Rate;
@@ -71,9 +89,10 @@ export interface Summary {
   driver_id: string;
   period_start: string;
   period_end: string;
-  period_type: BillingCycle;
+  period_type: BillingCycle | 'manual' | string;
   total_trips: number;
   total_amount: string;
+  paid_amount: string;
   status: SummaryStatus;
   sent_at?: string | null;
   paid_at?: string | null;
@@ -103,10 +122,10 @@ export interface CreateTripDto {
   user_id: string;
   client_id: string;
   route_id: string;
-  rate_id: string | null;
+  rate_id?: string | null;
   trip_date: string;
   trip_type: TripType;
-  final_price: number;
+  final_price?: number;
   has_surcharge?: boolean;
   surcharge_reason?: string;
   special_type?: string;
@@ -136,6 +155,7 @@ export interface CreateSummaryManualDto {
   driver_id: string;
   period_start: string;
   period_end: string;
+  period_type?: 'manual' | string;
   notes?: string;
 }
 
@@ -146,4 +166,112 @@ export interface UpdateSummaryStatusDto {
 export interface CreateSummaryAutoDto {
   driver_id: string;
   notes?: string;
+}
+
+// --- Service Schedules ---
+
+export interface ServiceSchedule {
+  id: string;
+  client_id: string;
+  day_of_week: number;
+  pickup_time: string;
+  return_time: string | null;
+  label: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateScheduleDto {
+  day_of_week: number;
+  pickup_time: string;
+  return_time?: string | null;
+  label?: string | null;
+  is_active?: boolean;
+}
+
+export type UpdateScheduleDto = Partial<CreateScheduleDto>;
+
+export interface BulkSchedulesDto {
+  schedules: CreateScheduleDto[];
+}
+
+// --- Itineraries (Recorridos) ---
+
+export interface Itinerary {
+  id: string;
+  created_at: string;
+  name: string;
+  client_id: string;
+  is_active: boolean;
+  deleted_at?: string | null;
+  clients?: Client;
+  stops?: ItineraryStop[];
+  rates?: ItineraryRate[];
+}
+
+export interface ItineraryStop {
+  id: string;
+  created_at: string;
+  itinerary_id: string;
+  address: string;
+  stop_order: number;
+  lat?: number | null;
+  lng?: number | null;
+}
+
+export type ItineraryRateType = 'ida' | 'ida y vuelta' | 'especial';
+
+export interface ItineraryRate {
+  id: string;
+  created_at: string;
+  itinerary_id: string;
+  trip_type: ItineraryRateType;
+  base_price: string;
+  surcharge_price?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+}
+
+export interface CreateItineraryDto {
+  name: string;
+  client_id: string;
+}
+
+export type UpdateItineraryDto = Partial<CreateItineraryDto>;
+
+export interface CreateItineraryStopDto {
+  address: string;
+  stop_order?: number;
+  lat?: number;
+  lng?: number;
+}
+
+export type UpdateItineraryStopDto = Partial<CreateItineraryStopDto>;
+
+export interface CreateItineraryRateDto {
+  trip_type: ItineraryRateType;
+  base_price: number;
+  surcharge_price?: number;
+  start_date?: string;
+  end_date?: string;
+}
+
+export type UpdateItineraryRateDto = Partial<CreateItineraryRateDto>;
+
+export interface ItineraryMatchPoint {
+  lat: number;
+  lng: number;
+}
+
+export interface ItineraryMatchDto {
+  client_id: string;
+  points: ItineraryMatchPoint[];
+}
+
+export interface ItineraryMatchResult {
+  itinerary_id: string;
+  name: string;
+  distance_km: number;
+  rate: ItineraryRate | null;
 }

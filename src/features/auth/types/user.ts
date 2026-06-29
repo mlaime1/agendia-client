@@ -6,4 +6,6 @@ export type UserProfile = {
   email: string;
   alias: string | null;
   role: UserRole;
+  linked_client_id?: string | null;
+  timezone?: string | null;
 };

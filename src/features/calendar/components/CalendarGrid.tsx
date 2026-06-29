@@ -5,6 +5,7 @@ import { CalendarDay, Trip } from '../types';
 import { isSameDay, toDateKey } from '../utils/date';
 import { CalendarDayCell } from './CalendarDayCell';
 import { Theme, useThemedStyles } from '../../../theme';
+import { getClientToday } from '../../../utils/dateTime';
 
 type CalendarGridProps = {
   days: CalendarDay[];
@@ -12,10 +13,10 @@ type CalendarGridProps = {
   tripsByDate: Record<string, Trip[]>;
   onDayPress: (dateKey: string) => void;
   onDayLongPress: (dateKey: string) => void;
+  clientTimezone?: string;
 };
 
 const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-const today = new Date();
 
 type CalendarCell = {
   id: string;
@@ -23,30 +24,33 @@ type CalendarCell = {
   isCurrentMonth: boolean;
 };
 
-const createCalendarDay = (date: Date): CalendarDay => ({
-  date,
-  dateKey: toDateKey(date),
-  dayNumber: date.getDate(),
-  isToday: isSameDay(date, today),
-});
-
 export function CalendarGrid({
   days,
   leadingEmptyCells,
   tripsByDate,
   onDayPress,
   onDayLongPress,
+  clientTimezone,
 }: CalendarGridProps) {
   const styles = useThemedStyles(createStyles);
+  const today = getClientToday(clientTimezone);
   const monthStart = days[0]?.date ?? today;
   const year = monthStart.getFullYear();
   const month = monthStart.getMonth();
+
+  const createCalendarDay = (date: Date): CalendarDay => ({
+    date,
+    dateKey: toDateKey(date, clientTimezone),
+    dayNumber: date.getDate(),
+    isToday: isSameDay(date, today, clientTimezone),
+  });
+
   const monthCells: CalendarCell[] = [
     ...Array.from({ length: leadingEmptyCells }, (_, index) => {
       const date = new Date(year, month, index - leadingEmptyCells + 1);
 
       return {
-        id: `leading-${toDateKey(date)}`,
+        id: `leading-${toDateKey(date, clientTimezone)}`,
         day: createCalendarDay(date),
         isCurrentMonth: false,
       };
@@ -64,7 +68,7 @@ export function CalendarGrid({
       const date = new Date(year, month, days.length + index + 1);
 
       return {
-        id: `trailing-${toDateKey(date)}`,
+        id: `trailing-${toDateKey(date, clientTimezone)}`,
         day: createCalendarDay(date),
         isCurrentMonth: false,
       };

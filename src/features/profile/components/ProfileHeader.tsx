@@ -85,7 +85,7 @@ const createStyles = (theme: Theme) =>
     },
     email: {
       fontSize: 12,
-      color: theme.colors.textSecondary,
+      color: theme.colors.textMuted,
       marginTop: 8,
     },
   });

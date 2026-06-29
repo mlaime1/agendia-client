@@ -22,6 +22,7 @@ type User = {
   email: string;
   role: string;
   avatar?: string;
+  linked_client_id?: string | null;
 };
 
 type Client = {
@@ -175,24 +176,39 @@ export function CustomDrawer({
               <Text style={styles.userRole}>{getRoleLabel(user.role)}</Text>
             </View>
 
-            {/* Client selector */}
-            <Pressable
-              style={({ pressed }) => [
-                styles.clientSelector,
-                pressed && styles.clientSelectorPressed,
-              ]}
-              onPress={() => setClientModalVisible(true)}
-            >
-              <Text style={styles.clientSelectorText} numberOfLines={1}>
-                {selectedClient?.name || 'Seleccionar cliente'}
-              </Text>
-              <AppIcon name="chevronDown" size={16} color={theme.colors.primaryLight} />
-            </Pressable>
+            {/* Client selector - only for driver/admin */}
+            {user.role === 'driver' || user.role === 'admin' ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.clientSelector,
+                  pressed && styles.clientSelectorPressed,
+                ]}
+                onPress={() => setClientModalVisible(true)}
+              >
+                <Text style={styles.clientSelectorText} numberOfLines={1}>
+                  {selectedClient?.name || 'Seleccionar cliente'}
+                </Text>
+                <AppIcon name="chevronDown" size={16} color={theme.colors.primaryLight} />
+              </Pressable>
+            ) : (
+              <View style={styles.clientInfo}>
+                <Text style={styles.clientInfoText}>Mi calendario</Text>
+              </View>
+            )}
           </View>
 
           {/* Menu items */}
           <View style={styles.menuContainer}>
             {menuItems.map((item) => {
+              // Filter out driver-only sections for non-driver/admin users
+              if (
+                (item.route === 'Recorridos' || item.route === 'Resumenes') &&
+                user.role !== 'driver' &&
+                user.role !== 'admin'
+              ) {
+                return null;
+              }
+
               const isActive = activeRoute === item.route;
               return (
                 <Pressable
@@ -380,6 +396,19 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
     flex: 1,
     marginRight: 8,
+  },
+  clientInfo: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.whiteTransparent18,
+    borderRadius: theme.radii.pill,
+    backgroundColor: theme.colors.whiteTransparent12,
+  },
+  clientInfoText: {
+    color: theme.colors.primaryLight,
+    fontSize: 14,
+    fontWeight: '600',
   },
   menuContainer: {
     flex: 1,

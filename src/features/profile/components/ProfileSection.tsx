@@ -55,7 +55,7 @@ const createStyles = (theme: Theme) =>
     title: {
       fontSize: 11,
       fontWeight: '700',
-      color: theme.colors.textSecondary,
+      color: theme.colors.textMuted,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
       paddingHorizontal: 18,
@@ -86,7 +86,7 @@ const createStyles = (theme: Theme) =>
     },
     label: {
       fontSize: 11,
-      color: theme.colors.textSecondary,
+      color: theme.colors.textMuted,
       fontWeight: '500',
       lineHeight: 1,
       marginBottom: 3,
@@ -100,7 +100,7 @@ const createStyles = (theme: Theme) =>
     badge: {
       fontSize: 9,
       fontWeight: '700',
-      color: theme.colors.textSecondary,
+      color: theme.colors.textMuted,
       backgroundColor: theme.colors.background,
       borderRadius: 999,
       paddingVertical: 3,

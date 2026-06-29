@@ -107,7 +107,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     alignItems: 'flex-start',
   },
   rightSlot: {
-    width: 48,
+    minWidth: 48,
     alignItems: 'flex-end',
   },
   iconButton: {

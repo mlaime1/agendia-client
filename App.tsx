@@ -6,9 +6,17 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthScreen } from './src/features/auth/screens/AuthScreen';
 import { CalendarScreen } from './src/features/calendar/screens/CalendarScreen';
 import { ClientesScreen } from './src/features/clientes/screens/ClientesScreen';
+import { ClientsListScreen } from './src/features/clientes/screens/ClientsListScreen';
+import { ClientDetailScreen } from './src/features/clientes/screens/ClientDetailScreen';
+import { EditClientScreen } from './src/features/clientes/screens/EditClientScreen';
+import { EditContractScreen } from './src/features/clientes/screens/EditContractScreen';
+import { AddResponsibleScreen } from './src/features/clientes/screens/AddResponsibleScreen';
 import { ResumenesScreen } from './src/features/resumenes/screens/ResumenesScreen';
 import { ResumenDetailScreen } from './src/features/resumenes/screens/ResumenDetailScreen';
 import { ProfileScreen } from './src/features/profile/screens/ProfileScreen';
+import { RecorridosScreen } from './src/features/recorridos/screens/RecorridosScreen';
+import { RecorridoDetailScreen } from './src/features/recorridos/screens/RecorridoDetailScreen';
+import { CreateRecorridoScreen } from './src/features/recorridos/screens/CreateRecorridoScreen';
 import { CustomDrawer } from './src/components/CustomDrawer';
 import { FeedbackProvider } from './src/state/FeedbackContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
@@ -22,23 +30,39 @@ void SplashScreen.preventAutoHideAsync();
 
 type AppRoute = 'Calendario' | 'Historial' | 'Recorridos' | 'Resumenes' | 'Clientes' | 'Perfil';
 
+type ClientsNavigation =
+  | { screen: 'list' }
+  | { screen: 'detail'; clientId: string }
+  | { screen: 'edit'; clientId: string }
+  | { screen: 'editContract'; clientId: string }
+  | { screen: 'addResponsible'; clientId: string };
+
+type RecorridosNavigation =
+  | { screen: 'list' }
+  | { screen: 'detail'; recorridoId: string }
+  | { screen: 'create' };
+
 type NavigationState = 
   | { screen: AppRoute }
-  | { screen: 'ResumenDetail'; summaryId: string };
+  | { screen: 'ResumenDetail'; summaryId: string }
+  | { screen: 'RecorridoDetail'; recorridoId: string }
+  | { screen: 'RecorridoCreate' };
 
 function AppContent() {
-  const { isAuthenticated, isLoading, session, userProfile, logout } = useAuth();
+  const { isAuthenticated, isLoading, userProfile, logout } = useAuth();
   const { theme } = useTheme();
+  const [recorridosNav, setRecorridosNav] = useState<RecorridosNavigation>({ screen: 'list' });
   const styles = useThemedStyles(createStyles);
   
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [navigation, setNavigation] = useState<NavigationState>({ screen: 'Calendario' });
+  const [clientsNav, setClientsNav] = useState<ClientsNavigation>({ screen: 'list' });
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>('');
 
   const loadClients = useCallback(async () => {
     try {
-      const data = await clientsService.getAll(session?.access_token);
+      const data = await clientsService.getAll();
       setClients(data);
       if (data.length > 0 && !selectedClientId) {
         setSelectedClientId(data[0].id);
@@ -46,16 +70,40 @@ function AppContent() {
     } catch (err) {
       console.error('Error loading clients:', err);
     }
-  }, [selectedClientId, session?.access_token]);
+  }, [selectedClientId]);
 
   useEffect(() => {
     if (isAuthenticated) {
       loadClients();
+      if (userProfile?.role === 'client' && userProfile?.linked_client_id && !selectedClientId) {
+        setSelectedClientId(userProfile.linked_client_id);
+      }
     }
-  }, [isAuthenticated, loadClients]);
-
+  }, [isAuthenticated, loadClients, userProfile]);
   const handleNavigate = (routeName: string) => {
     setNavigation({ screen: routeName as AppRoute });
+    if (routeName === 'Clientes') {
+      setClientsNav({ screen: 'list' });
+    }
+    if (routeName === 'Recorridos') {
+      setRecorridosNav({ screen: 'list' });
+    }
+  };
+
+  const handleOpenRecorridoDetail = (recorridoId: string) => {
+    setNavigation({ screen: 'RecorridoDetail', recorridoId });
+  };
+
+  const handleOpenCreateRecorrido = () => {
+    setNavigation({ screen: 'RecorridoCreate' });
+  };
+
+  const handleBackFromCreateRecorrido = () => {
+    setNavigation({ screen: 'Recorridos' });
+  };
+
+  const handleBackFromRecorridoDetail = () => {
+    setNavigation({ screen: 'Recorridos' });
   };
 
   const handleOpenDetail = (summaryId: string) => {
@@ -89,12 +137,39 @@ function AppContent() {
 
   const drawerClients = clients.map((c) => ({ id: c.id, name: c.nombre }));
   const driverId = userProfile?.id || '';
-  const activeRoute = navigation.screen === 'ResumenDetail' ? 'Resumenes' : navigation.screen;
+  const activeRoute = 
+    navigation.screen === 'ResumenDetail' ? 'Resumenes' 
+    : navigation.screen === 'RecorridoDetail' ? 'Recorridos'
+    : navigation.screen === 'RecorridoCreate' ? 'Recorridos'
+    : navigation.screen;
 
   const selectedClientName = clients.find((c) => c.id === selectedClientId)?.nombre ?? '';
 
   const renderCurrentScreen = () => {
     switch (navigation.screen) {
+      case 'ResumenDetail':
+        return (
+          <ResumenDetailScreen
+            summaryId={navigation.summaryId}
+            onBack={handleBackFromDetail}
+          />
+        );
+      case 'RecorridoDetail':
+        return (
+          <RecorridoDetailScreen
+            recorridoId={navigation.recorridoId}
+            onBack={handleBackFromRecorridoDetail}
+            onMenuPress={() => setDrawerVisible(true)}
+          />
+        );
+      case 'RecorridoCreate':
+        return (
+          <CreateRecorridoScreen
+            clientId={selectedClientId}
+            onBack={handleBackFromCreateRecorrido}
+            onMenuPress={() => setDrawerVisible(true)}
+          />
+        );
       case 'Resumenes':
         return (
           <ResumenesScreen
@@ -104,25 +179,65 @@ function AppContent() {
             onOpenDetail={handleOpenDetail}
           />
         );
-      case 'ResumenDetail':
-        return (
-          <ResumenDetailScreen
-            summaryId={navigation.summaryId}
-            onBack={handleBackFromDetail}
-          />
-        );
       case 'Clientes':
-        return (
-          <ClientesScreen
-            selectedClientId={selectedClientId}
-            onMenuPress={() => setDrawerVisible(true)}
-          />
-        );
+        switch (clientsNav.screen) {
+          case 'detail':
+            return (
+              <ClientDetailScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'list' })}
+                onEditClient={() => setClientsNav({ screen: 'edit', clientId: clientsNav.clientId })}
+                onEditContract={() => setClientsNav({ screen: 'editContract', clientId: clientsNav.clientId })}
+                onAddResponsible={() => setClientsNav({ screen: 'addResponsible', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'edit':
+            return (
+              <EditClientScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+                onSave={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'editContract':
+            return (
+              <EditContractScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+                onSave={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'addResponsible':
+            return (
+              <AddResponsibleScreen
+                clientId={clientsNav.clientId}
+                onBack={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
+              />
+            );
+          case 'list':
+          default:
+            return (
+              <ClientsListScreen
+                onMenuPress={() => setDrawerVisible(true)}
+                onSelectClient={(clientId) => setClientsNav({ screen: 'detail', clientId })}
+                onNewClient={() => {}}
+              />
+            );
+        }
       case 'Perfil':
         return (
           <ProfileScreen
             userProfile={userProfile || { id: '', name: '', email: '', alias: null, role: 'driver' }}
             onMenuPress={() => setDrawerVisible(true)}
+          />
+        );
+      case 'Recorridos':
+        return (
+          <RecorridosScreen
+            selectedClientId={selectedClientId}
+            onMenuPress={() => setDrawerVisible(true)}
+            onSelectRecorrido={handleOpenRecorridoDetail}
+            onCreateRecorrido={handleOpenCreateRecorrido}
           />
         );
       case 'Calendario':
@@ -131,7 +246,11 @@ function AppContent() {
           <CalendarScreen
             onMenuPress={() => setDrawerVisible(true)}
             clients={drawerClients}
-            selectedClientId={selectedClientId}
+            selectedClientId={
+              userProfile?.role === 'client'
+                ? userProfile?.linked_client_id || selectedClientId
+                : selectedClientId
+            }
             onSelectClient={setSelectedClientId}
           />
         );
@@ -148,6 +267,7 @@ function AppContent() {
           name: userProfile?.name || 'Usuario',
           email: userProfile?.email || '',
           role: userProfile?.role || 'driver',
+          linked_client_id: userProfile?.linked_client_id,
         }}
         clients={drawerClients}
         selectedClientId={selectedClientId}

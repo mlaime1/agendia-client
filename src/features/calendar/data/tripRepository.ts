@@ -2,10 +2,13 @@ import { toCalendarTrip } from './tripMappers';
 import { CreateTripPayload, Trip, TripRecord, TripUpdates } from '../types';
 import { tripsService } from '../../../services';
 import type { Trip as ServiceTrip } from '../../../services/types';
+import { getClientDateKey, formatClientTime } from '../../../utils/dateTime';
 
 const createTripId = () => `trip-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-const normalizeServiceTripDate = (tripDate: string) => tripDate.slice(0, 10);
+const normalizeServiceTripDate = (tripDate: string, clientTimezone?: string) =>
+  getClientDateKey(tripDate, clientTimezone);
+
 const normalizeLocalTripDate = (tripDate: string) => tripDate.slice(0, 10);
 
 const normalizeServiceTripType = (tripType: ServiceTrip['trip_type']): TripRecord['trip_type'] => {
@@ -37,7 +40,7 @@ const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecor
   user_id: userId,
   client_id: payload.client_id,
   route_id: payload.route_id,
-  rate_id: payload.rate_id,
+  rate_id: payload.rate_id ?? null,
   summary_id: null,
   trip_date: normalizeLocalTripDate(payload.trip_date),
   trip_time: payload.trip_time,
@@ -55,15 +58,15 @@ const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecor
   created_at: new Date().toISOString(),
 });
 
-const mapServiceTripToRecord = (s: ServiceTrip): TripRecord => ({
+const mapServiceTripToRecord = (s: ServiceTrip, clientTimezone?: string): TripRecord => ({
   id: s.id,
   user_id: s.user_id,
   client_id: s.client_id,
   route_id: s.route_id,
   rate_id: s.rate_id,
   summary_id: s.summary_id ?? null,
-  trip_date: normalizeServiceTripDate(s.trip_date),
-  trip_time: s.created_at ? new Date(s.created_at).toTimeString().slice(0, 5) : '08:00',
+  trip_date: normalizeServiceTripDate(s.trip_date, clientTimezone),
+  trip_time: formatClientTime(s.trip_date, clientTimezone),
   trip_type: normalizeServiceTripType(s.trip_type),
   final_price: Number(s.final_price) || 0,
   has_surcharge: s.has_surcharge,
@@ -73,7 +76,7 @@ const mapServiceTripToRecord = (s: ServiceTrip): TripRecord => ({
   created_at: s.created_at,
 });
 
-const groupRecordsForCalendar = (records: TripRecord[]) => {
+const groupRecordsForCalendar = (records: TripRecord[], clientTimezone?: string) => {
   const trips: Trip[] = [];
   const pendingRoundTrips = new Map<string, TripRecord[]>();
 
@@ -88,7 +91,7 @@ const groupRecordsForCalendar = (records: TripRecord[]) => {
         groupedRecords.some((item) => item.trip_type === 'outbound') &&
         groupedRecords.some((item) => item.trip_type === 'return')
       ) {
-        trips.push(toCalendarTrip(groupedRecords));
+        trips.push(toCalendarTrip(groupedRecords, clientTimezone));
         pendingRoundTrips.delete(roundTripKey);
         return;
       }
@@ -97,77 +100,85 @@ const groupRecordsForCalendar = (records: TripRecord[]) => {
       return;
     }
 
-    trips.push(toCalendarTrip([record]));
+    trips.push(toCalendarTrip([record], clientTimezone));
   });
 
   pendingRoundTrips.forEach((records) => {
-    records.forEach((record) => trips.push(toCalendarTrip([record])));
+    records.forEach((record) => trips.push(toCalendarTrip([record], clientTimezone)));
   });
 
   return trips.sort((left, right) => left.date.localeCompare(right.date) || left.time.localeCompare(right.time));
 };
 
 export const tripRepository = {
-  // Intenta cargar desde el API; lanza si falla
-  listCalendarTrips: async (clientId?: string, accessToken?: string): Promise<Trip[]> => {
-    const serviceTrips = await tripsService.getAll(accessToken);
-    let records = serviceTrips.map(mapServiceTripToRecord);
+  listCalendarTrips: async (clientId?: string, clientTimezone?: string): Promise<Trip[]> => {
+    const serviceTrips = await tripsService.getAll();
+    let records = serviceTrips.map((s) => mapServiceTripToRecord(s, clientTimezone));
     tripRecords = records.length ? records : tripRecords;
 
     if (clientId) {
       records = records.filter((r) => r.client_id === clientId);
     }
 
-    return groupRecordsForCalendar(records.length ? records : (clientId ? tripRecords.filter(r => r.client_id === clientId) : tripRecords));
+    return groupRecordsForCalendar(
+      records.length ? records : clientId ? tripRecords.filter((r) => r.client_id === clientId) : tripRecords,
+      clientTimezone,
+    );
   },
 
-  // Local-only list (fallback)
-  getLocalCalendarTrips: (clientId?: string): Trip[] =>
-    groupRecordsForCalendar(clientId ? tripRecords.filter((r) => r.client_id === clientId) : tripRecords),
+  getLocalCalendarTrips: (clientId?: string, clientTimezone?: string): Trip[] =>
+    groupRecordsForCalendar(
+      clientId ? tripRecords.filter((r) => r.client_id === clientId) : tripRecords,
+      clientTimezone,
+    ),
 
-  // Intenta crear en API; lanza si falla
-  createTrips: async (payloads: CreateTripPayload[], userId: string, accessToken?: string): Promise<Trip> => {
+  createTrips: async (payloads: CreateTripPayload[], userId: string, clientTimezone?: string): Promise<Trip> => {
     const created: ServiceTrip[] = await Promise.all(
       payloads.map((p) => {
         const body: any = {
           user_id: userId,
           client_id: p.client_id,
           route_id: p.route_id,
-          rate_id: null,
           trip_date: p.trip_date,
           trip_type: p.trip_type,
-          final_price: 0,
         };
 
-        // Agregar campos opcionales solo si existen
         if (p.trip_time) body.trip_time = p.trip_time;
         if (p.special_type) body.special_type = p.special_type;
         if (p.notes) body.notes = p.notes;
 
-        return tripsService.create(body, accessToken);
+        if (p.trip_type === 'especial' && p.price) {
+          const manualPrice = parseFloat(p.price);
+          if (!Number.isNaN(manualPrice)) {
+            body.final_price = manualPrice;
+          }
+        }
+
+        console.log('[tripRepository] creating trip body:', JSON.stringify(body, null, 2));
+
+        return tripsService.create(body);
       }),
     );
 
-    const records = created.map(mapServiceTripToRecord);
+    const records = created.map((s) => mapServiceTripToRecord(s, clientTimezone));
     tripRecords = [...tripRecords, ...records];
-    return toCalendarTrip(records);
+    return toCalendarTrip(records, clientTimezone);
   },
 
-  // Local fallback create (no API)
-  createLocalTrips: (payloads: CreateTripPayload[], userId: string): Trip => {
+  createLocalTrips: (payloads: CreateTripPayload[], userId: string, clientTimezone?: string): Trip => {
     const records = payloads.map((p) => createTripRecord(p, userId));
     tripRecords = [...tripRecords, ...records];
-    return toCalendarTrip(records);
+    return toCalendarTrip(records, clientTimezone);
   },
 
-  // Intenta actualizar en API; lanza si falla
-  updateCalendarTrip: async (trip: Trip, updates: TripUpdates, accessToken?: string): Promise<void> => {
+  updateCalendarTrip: async (trip: Trip, updates: TripUpdates, clientTimezone?: string): Promise<void> => {
     await Promise.all(
       trip.recordIds.map((id) => {
         const body: any = {};
 
         if (updates.specialType !== undefined) body.special_type = updates.specialType?.trim() || null;
         if (updates.note !== undefined) body.notes = updates.note ?? null;
+        if (updates.time !== undefined) body.trip_date = `${trip.date}T${updates.time}:00`;
 
         if (updates.mode === 'special') {
           body.trip_type = 'especial';
@@ -178,23 +189,21 @@ export const tripRepository = {
           body.trip_type = 'ida';
         }
 
-        return tripsService.update(id, body, accessToken);
+        return tripsService.update(id, body);
       }),
     );
 
-    const serviceTrips = await tripsService.getAll(accessToken);
-    tripRecords = serviceTrips.map(mapServiceTripToRecord);
+    const serviceTrips = await tripsService.getAll();
+    tripRecords = serviceTrips.map((s) => mapServiceTripToRecord(s, clientTimezone));
   },
 
-  // Intenta borrar en API; lanza si falla
-  deleteCalendarTrip: async (trip: Trip, accessToken?: string): Promise<void> => {
-    await Promise.all(trip.recordIds.map((id) => tripsService.remove(id, accessToken)));
+  deleteCalendarTrip: async (trip: Trip, clientTimezone?: string): Promise<void> => {
+    await Promise.all(trip.recordIds.map((id) => tripsService.remove(id)));
 
-    const remainingServiceTrips = await tripsService.getAll(accessToken);
-    tripRecords = remainingServiceTrips.map(mapServiceTripToRecord);
+    const remainingServiceTrips = await tripsService.getAll();
+    tripRecords = remainingServiceTrips.map((s) => mapServiceTripToRecord(s, clientTimezone));
   },
 
-  // Local fallback update
   updateLocalCalendarTrip: (trip: Trip, updates: TripUpdates): void => {
     tripRecords = tripRecords.map((record) => {
       if (!trip.recordIds.includes(record.id)) return record;
@@ -213,7 +222,6 @@ export const tripRepository = {
     });
   },
 
-  // Local fallback delete
   deleteLocalCalendarTrip: (trip: Trip): void => {
     tripRecords = tripRecords.filter((record) => !trip.recordIds.includes(record.id));
   },

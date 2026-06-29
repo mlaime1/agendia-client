@@ -19,10 +19,13 @@ import { ErrorBanner } from '../components/ErrorBanner';
 import { QuickActionBar } from '../components/QuickActionBar';
 import { SpecialTripModal } from '../components/SpecialTripModal';
 import { useCalendarTrips } from '../hooks/useCalendarTrips';
+import { useCalendarPermissions } from '../hooks/useCalendarPermissions';
 import { TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 import { useAuth } from '../../../state/AuthContext';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
+import { getClientToday } from '../../../utils/dateTime';
+import { formatInTimeZone } from 'date-fns-tz';
 
 type ClientOption = {
   id: string;
@@ -45,10 +48,8 @@ export function CalendarScreen({
   const { profileError, refreshProfile, userProfile, isLoading } = useAuth();
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const permissions = useCalendarPermissions(clients, selectedClientId);
   const [monthDate, setMonthDate] = useState(() => new Date());
-  const days = useMemo(() => getMonthDays(monthDate), [monthDate]);
-  const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate), [monthDate]);
-  const monthLabel = useMemo(() => getMonthLabel(monthDate), [monthDate]);
   const {
     addSpecialTrip,
     addTrip,
@@ -59,22 +60,26 @@ export function CalendarScreen({
     isLoadingTrips,
     error,
     clearError,
-  } = useCalendarTrips(selectedClientId);
+    clientTimezone,
+  } = useCalendarTrips(permissions.resolvedClientId, !permissions.canCreateRegularTrips);
+  const days = useMemo(() => getMonthDays(monthDate, clientTimezone), [monthDate, clientTimezone]);
+  const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate, clientTimezone), [monthDate, clientTimezone]);
+  const monthLabel = useMemo(() => getMonthLabel(monthDate, clientTimezone), [monthDate, clientTimezone]);
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
   const [detailDateKey, setDetailDateKey] = useState<string | null>(null);
 
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
-  const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date) : '';
+  const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date, clientTimezone) : '';
   const detailTrips = detailDateKey
     ? Object.entries(tripsByDate).find(([dateKey]) => dateKey === detailDateKey)?.[1] ?? []
     : [];
-  const visibleMonthKey = `${monthDate.getFullYear()}-${(monthDate.getMonth() + 1)
-    .toString()
-    .padStart(2, '0')}`;
+  const visibleMonthKey = clientTimezone
+    ? formatInTimeZone(monthDate, clientTimezone, 'yyyy-MM')
+    : `${monthDate.getFullYear()}-${(monthDate.getMonth() + 1).toString().padStart(2, '0')}`;
   const visibleMonthTrips = trips.filter((trip) => trip.date.startsWith(visibleMonthKey));
-  const selectedClientName = clients.find((client) => client.id === selectedClientId)?.name ?? '';
+  const selectedClientName = clients.find((client) => client.id === permissions.resolvedClientId)?.name ?? '';
   const headerUserName = isLoading
     ? 'Cargando...'
     : selectedClientName || userProfile?.name || 'No autenticado';
@@ -112,7 +117,7 @@ export function CalendarScreen({
   };
 
   const goToCurrentMonth = () => {
-    setMonthDate(new Date());
+    setMonthDate(getClientToday(clientTimezone));
     setDetailDateKey(null);
     setSpecialDateKey(null);
   };
@@ -131,12 +136,12 @@ export function CalendarScreen({
     addTrip(dateKey, selectedMode);
   };
 
-  const handleSpecialConfirm = (specialType: string, note: string) => {
+  const handleSpecialConfirm = (specialType: string, note: string, price?: string) => {
     if (!specialDateKey) {
       return;
     }
 
-    addSpecialTrip({ dateKey: specialDateKey, specialType, note });
+    addSpecialTrip({ dateKey: specialDateKey, specialType, note, price });
     setSpecialDateKey(null);
   };
 
@@ -158,11 +163,12 @@ export function CalendarScreen({
               onMenuPress={handleOpenMenu}
               onTodayPress={goToCurrentMonth}
               clients={clients}
-              onSelectClient={onSelectClient}
-              selectedClientId={selectedClientId}
+              onSelectClient={permissions.showClientSelector ? onSelectClient : undefined}
+              selectedClientId={permissions.resolvedClientId || ''}
               tripCount={visibleMonthTrips.length}
               userName={headerUserName}
               rightSlot={monthSelector}
+              hideClientSelector={!permissions.showClientSelector}
             />
           </View>
 
@@ -187,7 +193,11 @@ export function CalendarScreen({
           </View>
         ) : (
           <>
-            <QuickActionBar selectedMode={selectedMode} onSelectMode={setSelectedMode} />
+            <QuickActionBar
+              selectedMode={selectedMode}
+              onSelectMode={setSelectedMode}
+              readOnly={!permissions.canCreateRegularTrips && !permissions.canCreateSpecialTrips}
+            />
 
             <CalendarGrid
               days={days}
@@ -195,6 +205,7 @@ export function CalendarScreen({
               onDayLongPress={setDetailDateKey}
               onDayPress={handleDayPress}
               tripsByDate={tripsByDate}
+              clientTimezone={clientTimezone}
             />
           </>
         )}
@@ -204,6 +215,7 @@ export function CalendarScreen({
         onClose={() => setSpecialDateKey(null)}
         onConfirm={handleSpecialConfirm}
         visible={specialDateKey !== null}
+        canSetPrice={permissions.canSetPrice}
       />
 
       <DayDetailsModal
@@ -213,6 +225,7 @@ export function CalendarScreen({
         trips={detailTrips}
         onUpdateTrip={updateTrip}
         visible={detailDateKey !== null}
+        readOnly={!permissions.canEdit}
       />
     </SafeAreaView>
   );

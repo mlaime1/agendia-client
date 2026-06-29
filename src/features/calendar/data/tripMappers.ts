@@ -1,13 +1,13 @@
 import { CreateCalendarTripInput, CreateTripPayload, Trip, TripRecord } from '../types';
 
 const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
-const toLocalDateTimeString = (dateKey: string, time: string) => `${dateKey}T${time}:00`;
 
 export const toCreateTripPayloads = ({
   dateKey,
   mode,
   specialType,
   note,
+  price,
   clientId,
   routeId,
 }: CreateCalendarTripInput & { clientId: string; routeId: string }): CreateTripPayload[] => {
@@ -18,26 +18,28 @@ export const toCreateTripPayloads = ({
   const basePayload = {
     client_id: clientId,
     route_id: routeId,
-    rate_id: null,
     trip_time: getCurrentTime(),
     notes: note?.trim() || null,
   };
 
+  const tripDate = `${dateKey}T${basePayload.trip_time}:00`;
+
   if (mode === 'roundTrip') {
-    return [{ ...basePayload, trip_date: toLocalDateTimeString(dateKey, basePayload.trip_time), trip_type: 'ida y vuelta', special_type: null }];
+    return [{ ...basePayload, trip_date: tripDate, trip_type: 'ida y vuelta', special_type: null }];
   }
 
   return [
     {
       ...basePayload,
-      trip_date: toLocalDateTimeString(dateKey, basePayload.trip_time),
+      trip_date: tripDate,
       trip_type: mode === 'special' ? 'especial' : 'ida',
       special_type: mode === 'special' ? specialType?.trim() || 'Ruta especial' : null,
+      price: mode === 'special' ? price : undefined,
     },
   ];
 };
 
-export const toCalendarTrip = (records: TripRecord[]): Trip => {
+export const toCalendarTrip = (records: TripRecord[], _clientTimezone?: string): Trip => {
   const firstRecord = records[0];
   const isRoundTrip =
     records.length === 2 &&
@@ -50,7 +52,7 @@ export const toCalendarTrip = (records: TripRecord[]): Trip => {
   return {
     id: records.map((record) => record.id).join('+'),
     recordIds: records.map((record) => record.id),
-    date: firstRecord.trip_date.slice(0, 10),
+    date: firstRecord.trip_date,
     time: firstRecord.trip_time,
     mode: isRoundTrip || isSingleRoundTrip ? 'roundTrip' : isSpecial ? 'special' : 'outbound',
     specialType,
