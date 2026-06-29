@@ -7,6 +7,7 @@ export const toCreateTripPayloads = ({
   mode,
   specialType,
   note,
+  price,
   clientId,
   routeId,
 }: CreateCalendarTripInput & { clientId: string; routeId: string }): CreateTripPayload[] => {
@@ -17,7 +18,6 @@ export const toCreateTripPayloads = ({
   const basePayload = {
     client_id: clientId,
     route_id: routeId,
-    rate_id: null,
     trip_time: getCurrentTime(),
     notes: note?.trim() || null,
   };
@@ -34,6 +34,7 @@ export const toCreateTripPayloads = ({
       trip_date: tripDate,
       trip_type: mode === 'special' ? 'especial' : 'ida',
       special_type: mode === 'special' ? specialType?.trim() || 'Ruta especial' : null,
+      price: mode === 'special' ? price : undefined,
     },
   ];
 };

@@ -6,6 +6,7 @@ interface UseItineraryDetailReturn {
   itinerary: Itinerary | null;
   stops: ItineraryStop[];
   rates: ItineraryRate[];
+  isActive: boolean;
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -44,6 +45,8 @@ export function useItineraryDetail(itineraryId: string): UseItineraryDetailRetur
     fetchItinerary();
   }, [fetchItinerary]);
 
+  const isActive = itinerary?.is_active ?? true;
+
   const deleteItinerary = async () => {
     await itinerariesService.remove(itineraryId);
     setItinerary(null);
@@ -55,6 +58,7 @@ export function useItineraryDetail(itineraryId: string): UseItineraryDetailRetur
     itinerary,
     stops,
     rates,
+    isActive,
     loading,
     error,
     refetch: fetchItinerary,

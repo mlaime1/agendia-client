@@ -10,9 +10,13 @@ import {
 import { AppIcon } from '../../../components/AppIcon';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { Theme, useThemedStyles } from '../../../theme';
+import { useFeedback } from '../../../state/FeedbackContext';
 import { useItineraryDetail } from '../hooks/useItineraryDetail';
 import { StopTimeline } from '../components/StopTimeline';
 import { RatesGrid } from '../components/RatesGrid';
+import { confirmAction } from '../../../utils/confirmAction';
+import { getErrorMessage } from '../../../utils/errorMessage';
+import { formatClientDate } from '../../../utils/dateTime';
 import type { RecorridoDetailScreenProps } from '../types';
 
 type RecorridoDetailScreenInternalProps = RecorridoDetailScreenProps & {
@@ -25,7 +29,8 @@ export function RecorridoDetailScreen({
   onMenuPress,
 }: RecorridoDetailScreenInternalProps) {
   const styles = useThemedStyles(createStyles);
-  const { itinerary, stops, rates, loading, error, refetch, deleteItinerary } =
+  const { showFeedback } = useFeedback();
+  const { itinerary, stops, rates, isActive, loading, error, refetch, deleteItinerary } =
     useItineraryDetail(recorridoId);
 
   if (loading) {
@@ -58,6 +63,25 @@ export function RecorridoDetailScreen({
 
   const clientName = itinerary.clients?.nombre || 'Sin cliente';
 
+  const handleDelete = () => {
+    if (!isActive) return;
+
+    confirmAction(
+      'Desactivar recorrido',
+      'El recorrido se desactivará y ya no podrá usarse para nuevos viajes. ¿Continuar?',
+      async () => {
+        try {
+          await deleteItinerary();
+          showFeedback({ type: 'success', message: 'Recorrido desactivado' });
+          onBack();
+        } catch (err) {
+          showFeedback({ type: 'error', message: getErrorMessage(err, 'Error al desactivar el recorrido') });
+        }
+      },
+      'Desactivar',
+    );
+  };
+
   return (
     <ScreenWrapper
       onMenuPress={onMenuPress}
@@ -72,23 +96,32 @@ export function RecorridoDetailScreen({
           <View style={styles.heroInfo}>
             <Text style={styles.heroName}>{itinerary.name}</Text>
             <Text style={styles.heroMeta}>{clientName}</Text>
+            {!isActive && (
+              <View style={styles.inactiveBadge}>
+                <AppIcon name="alert" size={11} color={styles.inactiveBadgeText.color} />
+                <Text style={styles.inactiveBadgeText}>
+                  Inactivo
+                  {itinerary.deleted_at ? ` · ${formatClientDate(itinerary.deleted_at)}` : ''}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Paradas</Text>
-            <Pressable style={styles.sectionButton}>
-              <AppIcon name="edit" size={14} color={styles.sectionButtonIcon.color} />
-              <Text style={styles.sectionButtonText}>Reordenar</Text>
+            <Pressable style={[styles.sectionButton, !isActive && styles.sectionButtonDisabled]} disabled={!isActive}>
+              <AppIcon name="edit" size={14} color={isActive ? styles.sectionButtonIcon.color : styles.sectionButtonDisabledIcon.color} />
+              <Text style={[styles.sectionButtonText, !isActive && styles.sectionButtonDisabledText]}>Reordenar</Text>
             </Pressable>
           </View>
           <StopTimeline stops={stops} />
-          <Pressable style={styles.addStop}>
+          <Pressable style={[styles.addStop, !isActive && styles.addStopDisabled]} disabled={!isActive}>
             <View style={styles.addStopIcon}>
-              <AppIcon name="plus" size={14} color={styles.addStopIconColor.color} />
+              <AppIcon name="plus" size={14} color={isActive ? styles.addStopIconColor.color : styles.addStopDisabledIcon.color} />
             </View>
-            <Text style={styles.addStopLabel}>Agregar parada</Text>
+            <Text style={[styles.addStopLabel, !isActive && styles.addStopDisabledLabel]}>Agregar parada</Text>
           </Pressable>
         </View>
 
@@ -101,11 +134,18 @@ export function RecorridoDetailScreen({
 
         <View style={styles.actions}>
           <Pressable
-            style={({ pressed }) => [styles.deleteButton, pressed && styles.deleteButtonPressed]}
-            onPress={deleteItinerary}
+            style={({ pressed }) => [
+              styles.deleteButton,
+              !isActive && styles.deleteButtonDisabled,
+              pressed && isActive && styles.deleteButtonPressed,
+            ]}
+            onPress={handleDelete}
+            disabled={!isActive}
           >
-            <AppIcon name="trash" size={17} color={styles.deleteButtonIcon.color} />
-            <Text style={styles.deleteButtonText}>Eliminar recorrido</Text>
+            <AppIcon name="trash" size={17} color={isActive ? styles.deleteButtonIcon.color : styles.deleteButtonDisabledIcon.color} />
+            <Text style={[styles.deleteButtonText, !isActive && styles.deleteButtonDisabledText]}>
+              {isActive ? 'Eliminar recorrido' : 'Recorrido desactivado'}
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -160,6 +200,24 @@ const createStyles = (theme: Theme) =>
       fontWeight: theme.typography.weight.medium,
       marginTop: 3,
     },
+    inactiveBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: theme.spacing.xs,
+      marginTop: theme.spacing.xs,
+      backgroundColor: theme.colors.semantic.warning.bg,
+      borderWidth: 1,
+      borderColor: theme.colors.semantic.warning.border,
+      borderRadius: theme.radii.small,
+      paddingVertical: 3,
+      paddingHorizontal: theme.spacing.sm,
+    },
+    inactiveBadgeText: {
+      fontSize: theme.typography.size.xs,
+      fontWeight: theme.typography.weight.bold,
+      color: theme.colors.semantic.warning.text,
+    },
     section: {
       backgroundColor: theme.colors.surface,
       borderRadius: theme.radii.large,
@@ -195,6 +253,15 @@ const createStyles = (theme: Theme) =>
       fontWeight: theme.typography.weight.semibold,
       color: theme.colors.primary,
     },
+    sectionButtonDisabled: {
+      opacity: 0.4,
+    },
+    sectionButtonDisabledIcon: {
+      color: theme.colors.textMuted,
+    },
+    sectionButtonDisabledText: {
+      color: theme.colors.textMuted,
+    },
     addStop: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -222,6 +289,15 @@ const createStyles = (theme: Theme) =>
       fontWeight: theme.typography.weight.semibold,
       color: theme.colors.primary,
     },
+    addStopDisabled: {
+      opacity: 0.4,
+    },
+    addStopDisabledIcon: {
+      color: theme.colors.textMuted,
+    },
+    addStopDisabledLabel: {
+      color: theme.colors.textMuted,
+    },
     actions: {
       paddingHorizontal: theme.spacing.md,
       gap: theme.spacing.sm,
@@ -247,6 +323,15 @@ const createStyles = (theme: Theme) =>
       fontSize: theme.typography.size.md,
       fontWeight: theme.typography.weight.semibold,
       color: theme.colors.danger,
+    },
+    deleteButtonDisabled: {
+      borderColor: `${theme.colors.disabled}50`,
+    },
+    deleteButtonDisabledIcon: {
+      color: theme.colors.disabled,
+    },
+    deleteButtonDisabledText: {
+      color: theme.colors.disabled,
     },
     errorContainer: {
       flex: 1,

@@ -40,7 +40,7 @@ const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecor
   user_id: userId,
   client_id: payload.client_id,
   route_id: payload.route_id,
-  rate_id: payload.rate_id,
+  rate_id: payload.rate_id ?? null,
   summary_id: null,
   trip_date: normalizeLocalTripDate(payload.trip_date),
   trip_time: payload.trip_time,
@@ -139,15 +139,22 @@ export const tripRepository = {
           user_id: userId,
           client_id: p.client_id,
           route_id: p.route_id,
-          rate_id: null,
           trip_date: p.trip_date,
           trip_type: p.trip_type,
-          final_price: 0,
         };
 
         if (p.trip_time) body.trip_time = p.trip_time;
         if (p.special_type) body.special_type = p.special_type;
         if (p.notes) body.notes = p.notes;
+
+        if (p.trip_type === 'especial' && p.price) {
+          const manualPrice = parseFloat(p.price);
+          if (!Number.isNaN(manualPrice)) {
+            body.final_price = manualPrice;
+          }
+        }
+
+        console.log('[tripRepository] creating trip body:', JSON.stringify(body, null, 2));
 
         return tripsService.create(body);
       }),

@@ -7,6 +7,7 @@ import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
 import { getClientTimezone } from '../../../utils/dateTime';
+import { isNetworkError } from '../../../utils/isNetworkError';
 
 type UseCalendarTripsResult = {
   trips: Trip[];
@@ -85,7 +86,8 @@ export const useCalendarTrips = (
 
           if (mounted) {
             setClientId(selectedClient.id);
-            setRouteId(selectedClient.routes?.[0]?.id ?? '');
+            const activeRoute = selectedClient.routes?.find((route) => route.is_active !== false);
+            setRouteId(activeRoute?.id ?? '');
             resolvedTimezone = getClientTimezone(selectedClient);
             setClientTimezone(resolvedTimezone);
           }
@@ -155,15 +157,17 @@ export const useCalendarTrips = (
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
-            try {
-              const fallback = tripRepository.createLocalTrips(
-                toCreateTripPayloads({ dateKey, mode, ...tripContext }),
-                userId,
-                clientTimezone,
-              );
-              mergeTripIntoState(fallback);
-            } catch {
-              // no-op
+            if (isNetworkError(err)) {
+              try {
+                const fallback = tripRepository.createLocalTrips(
+                  toCreateTripPayloads({ dateKey, mode, ...tripContext }),
+                  userId,
+                  clientTimezone,
+                );
+                mergeTripIntoState(fallback);
+              } catch {
+                // no-op
+              }
             }
             setError(err?.message ?? 'Error creando viaje');
           }
@@ -180,7 +184,7 @@ export const useCalendarTrips = (
           return;
         }
 
-        const { dateKey, specialType, note } = input;
+        const { dateKey, specialType, note, price } = input;
 
         let tripContext;
 
@@ -199,6 +203,7 @@ export const useCalendarTrips = (
                 mode: 'special',
                 specialType,
                 note,
+                price,
                 ...tripContext,
               }),
               userId,
@@ -206,21 +211,24 @@ export const useCalendarTrips = (
             );
             mergeTripIntoState(createdTrip);
           } catch (err: any) {
-            try {
-              const fallback = tripRepository.createLocalTrips(
-                toCreateTripPayloads({
-                  dateKey,
-                  mode: 'special',
-                  specialType,
-                  note,
-                  ...tripContext,
-                }),
-                userId,
-                clientTimezone,
-              );
-              mergeTripIntoState(fallback);
-            } catch {
-              // no-op
+            if (isNetworkError(err)) {
+              try {
+                const fallback = tripRepository.createLocalTrips(
+                  toCreateTripPayloads({
+                    dateKey,
+                    mode: 'special',
+                    specialType,
+                    note,
+                    price,
+                    ...tripContext,
+                  }),
+                  userId,
+                  clientTimezone,
+                );
+                mergeTripIntoState(fallback);
+              } catch {
+                // no-op
+              }
             }
             setError(err?.message ?? 'Error creando viaje especial');
           }
@@ -242,8 +250,10 @@ export const useCalendarTrips = (
             const list = await tripRepository.listCalendarTrips(selectedClientId, clientTimezone);
             setTrips(list);
           } catch (err: any) {
-            tripRepository.updateLocalCalendarTrip(trip, updates);
-            setTrips(tripRepository.getLocalCalendarTrips(selectedClientId, clientTimezone));
+            if (isNetworkError(err)) {
+              tripRepository.updateLocalCalendarTrip(trip, updates);
+              setTrips(tripRepository.getLocalCalendarTrips(selectedClientId, clientTimezone));
+            }
             setError(err?.message ?? 'Error actualizando viaje');
           }
         })();

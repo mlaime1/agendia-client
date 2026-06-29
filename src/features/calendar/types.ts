@@ -22,12 +22,13 @@ export type TripRecord = {
 export type CreateTripPayload = {
   client_id: string;
   route_id: string;
-  rate_id: string | null;
+  rate_id?: string | null;
   trip_date: string;
   trip_time: string;
   trip_type: 'ida' | 'ida y vuelta' | 'especial';
   special_type?: string | null;
   notes?: string | null;
+  price?: string;
 };
 
 export type CreateCalendarTripInput = {
@@ -35,6 +36,7 @@ export type CreateCalendarTripInput = {
   mode: TripMode;
   specialType?: string;
   note?: string;
+  price?: string;
 };
 
 export type Trip = {
@@ -60,4 +62,5 @@ export type PendingSpecialTrip = {
   dateKey: string;
   specialType: string;
   note: string;
+  price?: string;
 };

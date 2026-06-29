@@ -136,12 +136,12 @@ export function CalendarScreen({
     addTrip(dateKey, selectedMode);
   };
 
-  const handleSpecialConfirm = (specialType: string, note: string, _price?: string) => {
+  const handleSpecialConfirm = (specialType: string, note: string, price?: string) => {
     if (!specialDateKey) {
       return;
     }
 
-    addSpecialTrip({ dateKey: specialDateKey, specialType, note });
+    addSpecialTrip({ dateKey: specialDateKey, specialType, note, price });
     setSpecialDateKey(null);
   };
 

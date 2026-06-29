@@ -12,6 +12,7 @@ type RecorridoCardProps = {
 
 export function RecorridoCard({ recorrido, onPress }: RecorridoCardProps) {
   const styles = useThemedStyles(createStyles);
+  const isActive = recorrido.is_active !== false;
 
   const stopCountText = recorrido.stops
     ? recorrido.stops.length === 1
@@ -21,9 +22,14 @@ export function RecorridoCard({ recorrido, onPress }: RecorridoCardProps) {
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      style={({ pressed }) => [styles.card, !isActive && styles.cardInactive, pressed && styles.cardPressed]}
       onPress={() => onPress(recorrido.id)}
     >
+      {!isActive && (
+        <View style={styles.inactiveBadge}>
+          <Text style={styles.inactiveBadgeText}>Inactivo</Text>
+        </View>
+      )}
       <View style={styles.cardHeader}>
         <View style={styles.routeIcon}>
           <AppIcon name="map" size={20} color={styles.iconColor.color} />
@@ -90,6 +96,27 @@ const createStyles = (theme: Theme) =>
     },
     cardPressed: {
       opacity: 0.8,
+    },
+    cardInactive: {
+      opacity: 0.75,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    inactiveBadge: {
+      position: 'absolute',
+      top: theme.spacing.sm,
+      right: theme.spacing.sm,
+      backgroundColor: theme.colors.semantic.warning.bg,
+      borderWidth: 1,
+      borderColor: theme.colors.semantic.warning.border,
+      borderRadius: theme.radii.small,
+      paddingVertical: 2,
+      paddingHorizontal: theme.spacing.sm,
+      zIndex: 1,
+    },
+    inactiveBadgeText: {
+      fontSize: theme.typography.size.xs,
+      fontWeight: theme.typography.weight.bold,
+      color: theme.colors.semantic.warning.text,
     },
     cardHeader: {
       flexDirection: 'row',

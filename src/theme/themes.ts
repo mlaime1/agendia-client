@@ -44,6 +44,7 @@ const trip = {
 const summaryStatus = {
   draft: { bg: '#FAEEDA', text: '#854F0B' },
   sent: { bg: '#E6F1FB', text: '#185FA5' },
+  partial: { bg: '#FFF4E5', text: '#B45F06' },
   paid: { bg: '#EAF3DE', text: '#3B6D11' },
   archived: { bg: '#F1EFE8', text: '#5F5E5A' },
 } as const;

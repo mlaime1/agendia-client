@@ -3,7 +3,9 @@
 
 export type BillingCycle = 'weekly' | 'biweekly' | 'monthly';
 export type TripType = 'ida' | 'vuelta' | 'ida y vuelta' | 'especial';
-export type SummaryStatus = 'draft' | 'sent' | 'paid' | 'archived';
+export type SummaryStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'archived';
+export type PaymentStatus = 'pending' | 'partial' | 'paid';
+export type PaymentMethod = 'cash' | 'transfer' | 'debit' | 'credit' | 'other';
 
 export interface Client {
   id: string;
@@ -23,6 +25,8 @@ export interface Route {
   created_at: string;
   name?: string | null;
   client_id?: string | null;
+  is_active: boolean;
+  deleted_at?: string | null;
   route_stops?: RouteStop[];
 }
 
@@ -45,6 +49,16 @@ export interface Rate {
   end_date?: string | null;
 }
 
+export interface Payment {
+  id: string;
+  trip_id: string;
+  amount: string;
+  method: PaymentMethod;
+  paid_at: string;
+  notes?: string | null;
+  created_at: string;
+}
+
 export interface Trip {
   id: string;
   created_at: string;
@@ -60,6 +74,9 @@ export interface Trip {
   special_type?: string | null;
   notes?: string | null;
   summary_id?: string | null;
+  payment_status?: PaymentStatus;
+  paid_amount?: string;
+  payments?: Payment[];
   clients?: Client;
   routes?: Route;
   rates?: Rate;
@@ -72,9 +89,10 @@ export interface Summary {
   driver_id: string;
   period_start: string;
   period_end: string;
-  period_type: BillingCycle;
+  period_type: BillingCycle | 'manual' | string;
   total_trips: number;
   total_amount: string;
+  paid_amount: string;
   status: SummaryStatus;
   sent_at?: string | null;
   paid_at?: string | null;
@@ -104,10 +122,10 @@ export interface CreateTripDto {
   user_id: string;
   client_id: string;
   route_id: string;
-  rate_id: string | null;
+  rate_id?: string | null;
   trip_date: string;
   trip_type: TripType;
-  final_price: number;
+  final_price?: number;
   has_surcharge?: boolean;
   surcharge_reason?: string;
   special_type?: string;
@@ -137,6 +155,7 @@ export interface CreateSummaryManualDto {
   driver_id: string;
   period_start: string;
   period_end: string;
+  period_type?: 'manual' | string;
   notes?: string;
 }
 
@@ -184,6 +203,8 @@ export interface Itinerary {
   created_at: string;
   name: string;
   client_id: string;
+  is_active: boolean;
+  deleted_at?: string | null;
   clients?: Client;
   stops?: ItineraryStop[];
   rates?: ItineraryRate[];

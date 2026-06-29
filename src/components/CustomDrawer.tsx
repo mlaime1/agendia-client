@@ -200,8 +200,12 @@ export function CustomDrawer({
           {/* Menu items */}
           <View style={styles.menuContainer}>
             {menuItems.map((item) => {
-              // Filter out Recorridos for non-driver/admin users
-              if (item.route === 'Recorridos' && user.role !== 'driver' && user.role !== 'admin') {
+              // Filter out driver-only sections for non-driver/admin users
+              if (
+                (item.route === 'Recorridos' || item.route === 'Resumenes') &&
+                user.role !== 'driver' &&
+                user.role !== 'admin'
+              ) {
                 return null;
               }
 
