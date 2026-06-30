@@ -14,6 +14,7 @@ type CalendarGridProps = {
   onDayPress: (dateKey: string) => void;
   onDayLongPress: (dateKey: string) => void;
   clientTimezone?: string;
+  isAddModeActive?: boolean;
 };
 
 const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -31,6 +32,7 @@ export function CalendarGrid({
   onDayPress,
   onDayLongPress,
   clientTimezone,
+  isAddModeActive,
 }: CalendarGridProps) {
   const styles = useThemedStyles(createStyles);
   const today = getClientToday(clientTimezone);
@@ -94,6 +96,7 @@ export function CalendarGrid({
             {row.map((cell) => (
               <CalendarDayCell
                 day={cell.day}
+                isAddModeActive={isAddModeActive}
                 isCurrentMonth={cell.isCurrentMonth}
                 key={cell.id}
                 onLongPress={onDayLongPress}

@@ -13,10 +13,10 @@ import {
 
 import { AppIcon } from '../../../components/AppIcon';
 import { AgendiaHeader } from '../../../components/AgendiaHeader';
+import { AddTripPanel } from '../components/AddTripPanel';
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
 import { ErrorBanner } from '../components/ErrorBanner';
-import { QuickActionBar } from '../components/QuickActionBar';
 import { SpecialTripModal } from '../components/SpecialTripModal';
 import { useCalendarTrips } from '../hooks/useCalendarTrips';
 import { useCalendarPermissions } from '../hooks/useCalendarPermissions';
@@ -61,14 +61,37 @@ export function CalendarScreen({
     error,
     clearError,
     clientTimezone,
+    routeId,
+    setRouteId,
+    availableRoutes,
   } = useCalendarTrips(permissions.resolvedClientId, !permissions.canCreateRegularTrips);
   const days = useMemo(() => getMonthDays(monthDate, clientTimezone), [monthDate, clientTimezone]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate, clientTimezone), [monthDate, clientTimezone]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate, clientTimezone), [monthDate, clientTimezone]);
 
-  const [selectedMode, setSelectedMode] = useState<TripMode | null>('outbound');
+  const [selectedMode, setSelectedMode] = useState<TripMode | null>(null);
+  const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
   const [detailDateKey, setDetailDateKey] = useState<string | null>(null);
+
+  const defaultRouteId = availableRoutes.find((route) => route.is_active !== false)?.id || '';
+
+  const resetAddPanel = () => {
+    setIsAddPanelOpen(false);
+    setSelectedMode(null);
+    setRouteId(defaultRouteId || routeId);
+  };
+
+  const toggleAddPanel = () => {
+    if (isAddPanelOpen) {
+      resetAddPanel();
+      return;
+    }
+
+    setIsAddPanelOpen(true);
+    setSelectedMode('outbound');
+    setRouteId(defaultRouteId || routeId);
+  };
 
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
   const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date, clientTimezone) : '';
@@ -133,6 +156,10 @@ export function CalendarScreen({
       return;
     }
 
+    if (!routeId) {
+      return;
+    }
+
     addTrip(dateKey, selectedMode);
   };
 
@@ -153,6 +180,47 @@ export function CalendarScreen({
     deleteTrip?.(tripId);
   };
 
+  const headerActionButtons = (
+    <View style={styles.actionButtonsRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Navegación"
+        onPress={() => {}}
+        style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
+      >
+        <AppIcon name="map" size={15} color={theme.colors.primary} />
+        <Text style={styles.actionButtonLabel}>Navegación</Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={isAddPanelOpen ? 'Cancelar' : 'Agregar viaje'}
+        onPress={toggleAddPanel}
+        style={({ pressed }) => [
+          styles.actionButton,
+          isAddPanelOpen ? styles.actionButtonCancel : styles.actionButtonPrimary,
+          pressed && styles.actionButtonPressed,
+        ]}
+      >
+        <AppIcon name={isAddPanelOpen ? 'close' : 'plus'} size={15} color={theme.colors.textInverse} />
+        <Text style={[styles.actionButtonLabel, styles.actionButtonLabelInverse]}>
+          {isAddPanelOpen ? 'Cancelar' : 'Agregar viaje'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+
+  const headerExpandedPanel = (
+    <AddTripPanel
+      isOpen={isAddPanelOpen}
+      selectedMode={selectedMode ?? 'outbound'}
+      onSelectMode={setSelectedMode}
+      routeId={routeId}
+      routes={availableRoutes}
+      onSelectRoute={setRouteId}
+    />
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ErrorBanner message={error} onDismiss={clearError} />
@@ -169,6 +237,8 @@ export function CalendarScreen({
               userName={headerUserName}
               rightSlot={monthSelector}
               hideClientSelector={!permissions.showClientSelector}
+              actionButtonsSlot={headerActionButtons}
+              expandedSlot={headerExpandedPanel}
             />
           </View>
 
@@ -192,22 +262,15 @@ export function CalendarScreen({
             <View style={[styles.loadingLine, styles.loadingLineShort]} />
           </View>
         ) : (
-          <>
-            <QuickActionBar
-              selectedMode={selectedMode}
-              onSelectMode={setSelectedMode}
-              readOnly={!permissions.canCreateRegularTrips && !permissions.canCreateSpecialTrips}
-            />
-
-            <CalendarGrid
-              days={days}
-              leadingEmptyCells={leadingEmptyCells}
-              onDayLongPress={setDetailDateKey}
-              onDayPress={handleDayPress}
-              tripsByDate={tripsByDate}
-              clientTimezone={clientTimezone}
-            />
-          </>
+          <CalendarGrid
+            days={days}
+            leadingEmptyCells={leadingEmptyCells}
+            onDayLongPress={setDetailDateKey}
+            onDayPress={handleDayPress}
+            tripsByDate={tripsByDate}
+            clientTimezone={clientTimezone}
+            isAddModeActive={isAddPanelOpen}
+          />
         )}
       </ScrollView>
 
@@ -327,5 +390,40 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   loadingLineShort: {
     width: '72%',
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: theme.colors.borderStrong,
+    backgroundColor: theme.colors.primaryLight,
+  },
+  actionButtonPrimary: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  actionButtonCancel: {
+    backgroundColor: theme.colors.primaryDark,
+    borderColor: theme.colors.primaryDark,
+  },
+  actionButtonPressed: {
+    opacity: 0.85,
+  },
+  actionButtonLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: theme.colors.primary,
+  },
+  actionButtonLabelInverse: {
+    color: theme.colors.textInverse,
   },
 });

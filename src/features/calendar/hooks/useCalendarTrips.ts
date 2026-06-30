@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { clientsService } from '../../../services/clients';
 import { defaultsService } from '../../../services/defaults';
 import { useAuth } from '../../../state/AuthContext';
+import type { Route } from '../../../services/types';
 import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
@@ -20,6 +21,9 @@ type UseCalendarTripsResult = {
   error: string | null;
   clearError: () => void;
   clientTimezone: string;
+  routeId: string;
+  setRouteId: (routeId: string) => void;
+  availableRoutes: Route[];
 };
 
 export const useCalendarTrips = (
@@ -32,7 +36,7 @@ export const useCalendarTrips = (
   const [error, setError] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string>('');
   const [routeId, setRouteId] = useState<string>('');
-  const [rateId, setRateId] = useState<string>('');
+  const [availableRoutes, setAvailableRoutes] = useState<Route[]>([]);
   const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
 
   const userId = userProfile?.id;
@@ -50,7 +54,7 @@ export const useCalendarTrips = (
       throw new Error('Seleccioná un cliente con una ruta cargada antes de crear viajes.');
     }
 
-    return { clientId: resolvedClientId, routeId, rateId: rateId || undefined };
+    return { clientId: resolvedClientId, routeId };
   };
 
   useEffect(() => {
@@ -72,31 +76,29 @@ export const useCalendarTrips = (
       try {
         const defaults = await defaultsService.getDefaults();
 
-        if (mounted && defaults.clientId && defaults.routeId) {
-          setClientId(defaults.clientId);
-          setRouteId(defaults.routeId);
-          if (defaults.rateId) {
-            setRateId(defaults.rateId);
-          }
-        }
-
+        let resolvedClientId = selectedClientId || defaults.clientId || undefined;
+        let resolvedRouteId = defaults.routeId || '';
         let resolvedTimezone = getClientTimezone();
-        if (selectedClientId) {
-          const selectedClient = await clientsService.getById(selectedClientId);
+        let resolvedRoutes: Route[] = [];
 
-          if (mounted) {
-            setClientId(selectedClient.id);
-            const activeRoute = selectedClient.routes?.find((route) => route.is_active !== false);
-            setRouteId(activeRoute?.id ?? '');
-            resolvedTimezone = getClientTimezone(selectedClient);
-            setClientTimezone(resolvedTimezone);
-          }
+        if (resolvedClientId) {
+          const clientDetail = await clientsService.getById(resolvedClientId);
+
+          resolvedRoutes = clientDetail.routes ?? [];
+          resolvedTimezone = getClientTimezone(clientDetail);
+
+          const activeRoute = resolvedRoutes.find((route) => route.is_active !== false);
+          resolvedRouteId = resolvedRouteId || activeRoute?.id || '';
         }
 
-        const list = await tripRepository.listCalendarTrips(
-          selectedClientId || defaults.clientId || undefined,
-          resolvedTimezone,
-        );
+        if (mounted) {
+          setClientId(resolvedClientId || '');
+          setRouteId(resolvedRouteId);
+          setAvailableRoutes(resolvedRoutes);
+          setClientTimezone(resolvedTimezone);
+        }
+
+        const list = await tripRepository.listCalendarTrips(resolvedClientId, resolvedTimezone);
         if (mounted) {
           setTrips(list);
         }
@@ -297,5 +299,8 @@ export const useCalendarTrips = (
     error,
     clearError,
     clientTimezone,
+    routeId,
+    setRouteId,
+    availableRoutes,
   };
 };
