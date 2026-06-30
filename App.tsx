@@ -7,6 +7,7 @@ import { AuthScreen } from './src/features/auth/screens/AuthScreen';
 import { CalendarScreen } from './src/features/calendar/screens/CalendarScreen';
 import { ClientesScreen } from './src/features/clientes/screens/ClientesScreen';
 import { ClientsListScreen } from './src/features/clientes/screens/ClientsListScreen';
+import { CreateClientScreen } from './src/features/clientes/screens/CreateClientScreen';
 import { ClientDetailScreen } from './src/features/clientes/screens/ClientDetailScreen';
 import { EditClientScreen } from './src/features/clientes/screens/EditClientScreen';
 import { EditContractScreen } from './src/features/clientes/screens/EditContractScreen';
@@ -32,6 +33,7 @@ type AppRoute = 'Calendario' | 'Historial' | 'Recorridos' | 'Resumenes' | 'Clien
 
 type ClientsNavigation =
   | { screen: 'list' }
+  | { screen: 'create' }
   | { screen: 'detail'; clientId: string }
   | { screen: 'edit'; clientId: string }
   | { screen: 'editContract'; clientId: string }
@@ -214,13 +216,23 @@ function AppContent() {
                 onBack={() => setClientsNav({ screen: 'detail', clientId: clientsNav.clientId })}
               />
             );
+          case 'create':
+            return (
+              <CreateClientScreen
+                onBack={() => setClientsNav({ screen: 'list' })}
+                onClientCreated={(clientId) => {
+                  void loadClients();
+                  setClientsNav({ screen: 'detail', clientId });
+                }}
+              />
+            );
           case 'list':
           default:
             return (
               <ClientsListScreen
                 onMenuPress={() => setDrawerVisible(true)}
                 onSelectClient={(clientId) => setClientsNav({ screen: 'detail', clientId })}
-                onNewClient={() => {}}
+                onNewClient={() => setClientsNav({ screen: 'create' })}
               />
             );
         }

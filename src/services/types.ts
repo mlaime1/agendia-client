@@ -196,6 +196,28 @@ export interface BulkSchedulesDto {
   schedules: CreateScheduleDto[];
 }
 
+// --- Invitations ---
+
+export interface Invitation {
+  id: string;
+  code: string;
+  driver_id: string;
+  client_id: string | null;
+  created_at: string;
+  expires_at: string;
+  used_at?: string | null;
+  used_by_id?: string | null;
+}
+
+export interface CreateInvitationDto {
+  client_id?: string | null;
+}
+
+export interface InvitationCodeResult {
+  code: string;
+  expires_at: string;
+}
+
 // --- Itineraries (Recorridos) ---
 
 export interface Itinerary {
