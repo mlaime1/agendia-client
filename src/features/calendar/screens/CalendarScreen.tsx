@@ -318,6 +318,7 @@ export function CalendarScreen({
         dateLabel={detailDateLabel}
         onDeleteTrip={handleDeleteTrip}
         onClose={() => setDetailDateKey(null)}
+        routes={availableRoutes}
         trips={detailTrips}
         onUpdateTrip={updateTrip}
         visible={detailDateKey !== null}

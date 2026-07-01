@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
+import type { Route } from '../../../services/types';
 import { Trip, TripMode, TripUpdates } from '../types';
 import { TripStamp } from './TripStamp';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
@@ -20,6 +21,7 @@ type DayDetailsModalProps = {
   visible: boolean;
   dateLabel: string;
   trips: Trip[];
+  routes?: Route[];
   onClose: () => void;
   onUpdateTrip: (tripId: string, updates: TripUpdates) => void;
   onDeleteTrip: (tripId: string) => void;
@@ -41,6 +43,7 @@ export function DayDetailsModal({
   visible,
   dateLabel,
   trips,
+  routes = [],
   onClose,
   onUpdateTrip,
   onDeleteTrip,
@@ -51,6 +54,19 @@ export function DayDetailsModal({
   const translateY = useRef(new Animated.Value(0)).current;
   const [openNoteEditors, setOpenNoteEditors] = useState<Record<string, boolean>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
+
+  const routeById = useMemo(() => {
+    const map = new Map<string, string>();
+    routes.forEach((route) => map.set(route.id, route.name || 'Ruta'));
+    return map;
+  }, [routes]);
+
+  const getRouteLabel = (trip: Trip) => {
+    if (trip.mode === 'special') {
+      return trip.specialType || 'Viaje especial';
+    }
+    return trip.routeId ? routeById.get(trip.routeId) || 'Ruta' : 'Ruta';
+  };
 
   useEffect(() => {
     if (visible) {
@@ -190,11 +206,11 @@ export function DayDetailsModal({
                 <View key={trip.id} style={styles.tripCard}>
                   <View style={styles.tripHeader}>
                     <View style={styles.tripTitleGroup}>
-                      <TripStamp mode={trip.mode} />
-                      <Text style={styles.tripTitle}>
-                        Viaje {index + 1}
-                        {trip.mode === 'special' && trip.specialType ? ` - ${trip.specialType}` : ''}
-                      </Text>
+                      <Text style={styles.tripTitle}>{getRouteLabel(trip)}</Text>
+                      <View style={styles.tripMetaRow}>
+                        <TripStamp mode={trip.mode} />
+                        <Text style={styles.tripTime}>{trip.time}</Text>
+                      </View>
                     </View>
 
                     {!readOnly && (
@@ -409,12 +425,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   tripTitleGroup: {
     flex: 1,
-    gap: 7,
+    gap: 6,
   },
   tripTitle: {
     color: theme.colors.text,
     fontSize: 14,
     fontWeight: '800',
+    letterSpacing: 0,
+  },
+  tripMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  tripTime: {
+    color: theme.colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
     letterSpacing: 0,
   },
   timeField: {

@@ -45,6 +45,7 @@ export type Trip = {
   date: string;
   time: string;
   mode: TripMode;
+  routeId?: string;
   specialType?: string;
   note?: string;
   finalPrice?: number;

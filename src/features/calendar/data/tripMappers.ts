@@ -69,6 +69,7 @@ export const toCalendarTrip = (records: TripRecord[], _clientTimezone?: string):
     date: firstRecord.trip_date,
     time: firstRecord.trip_time,
     mode: isRoundTrip || isSingleRoundTrip ? 'roundTrip' : isSpecial ? 'special' : 'outbound',
+    routeId: firstRecord.route_id || undefined,
     specialType,
     note: firstRecord.notes ?? undefined,
     finalPrice: firstRecord.final_price,
