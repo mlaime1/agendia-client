@@ -43,6 +43,8 @@ export const useCalendarTrips = ({
   canDeleteTrips = false,
 }: UseCalendarTripsOptions = {}): UseCalendarTripsResult => {
   const { userProfile } = useAuth();
+  const userRole = userProfile?.role;
+  const isClient = userRole === 'client';
   const [trips, setTrips] = useState<Trip[]>([]);
   const [isLoadingTrips, setIsLoadingTrips] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,12 +94,18 @@ export const useCalendarTrips = ({
       }
 
       try {
-        const defaults = await defaultsService.getDefaults();
-
-        let resolvedClientId = selectedClientId || defaults.clientId || undefined;
-        let resolvedRouteId = defaults.routeId || '';
+        let resolvedClientId: string | undefined = selectedClientId;
+        let resolvedRouteId = '';
         let resolvedTimezone = getClientTimezone();
         let resolvedRoutes: Route[] = [];
+
+        if (isClient) {
+          resolvedClientId = selectedClientId;
+        } else {
+          const defaults = await defaultsService.getDefaults();
+          resolvedClientId = selectedClientId || defaults.clientId || undefined;
+          resolvedRouteId = defaults.routeId || '';
+        }
 
         if (resolvedClientId) {
           const clientDetail = await clientsService.getById(resolvedClientId);
@@ -149,14 +157,11 @@ export const useCalendarTrips = ({
       }
 
       try {
-        console.log('[useCalendarTrips] fetching rates for routeId:', routeId, 'clientId:', selectedClientId);
         const rates = await itinerariesService.getRates(routeId);
-        console.log('[useCalendarTrips] rates response:', rates);
         if (mounted) {
           setAvailableRates(rates);
         }
-      } catch (error) {
-        console.log('[useCalendarTrips] rates error:', error);
+      } catch {
         if (mounted) {
           setAvailableRates([]);
         }
@@ -215,11 +220,6 @@ export const useCalendarTrips = ({
         }
 
         const rateId = resolveRateId(mode);
-
-        if (!rateId) {
-          console.warn('[useCalendarTrips] No rate found for mode:', mode, '- creating trip without rate_id');
-        }
-
         const payload = toCreateTripPayloads({ dateKey, mode, rateId: rateId ?? null, ...tripContext });
 
         (async () => {

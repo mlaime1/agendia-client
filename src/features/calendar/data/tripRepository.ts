@@ -117,7 +117,9 @@ const groupRecordsForCalendar = (records: TripRecord[], clientTimezone?: string)
 
 export const tripRepository = {
   listCalendarTrips: async (clientId?: string, clientTimezone?: string): Promise<Trip[]> => {
-    const serviceTrips = await tripsService.getAll();
+    const serviceTrips = clientId
+      ? await tripsService.getByClient(clientId)
+      : await tripsService.getAll();
     let records = serviceTrips.map((s) => mapServiceTripToRecord(s, clientTimezone));
     tripRecords = records.length ? records : tripRecords;
 

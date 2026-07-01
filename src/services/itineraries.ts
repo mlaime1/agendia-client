@@ -59,9 +59,7 @@ export const itinerariesService = {
   // ── Rates ──────────────────────────────────────────────
 
   getRates(itineraryId: string): Promise<ItineraryRate[]> {
-    const url = `/itineraries/${itineraryId}/rates`;
-    console.log('[itinerariesService.getRates] GET', url);
-    return api.get<ItineraryRate[]>(url);
+    return api.get<ItineraryRate[]>(`/itineraries/${itineraryId}/rates`);
   },
 
   addRate(itineraryId: string, body: CreateItineraryRateDto): Promise<ItineraryRate> {
