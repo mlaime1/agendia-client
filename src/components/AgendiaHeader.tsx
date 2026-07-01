@@ -19,31 +19,27 @@ type ClientOption = {
 
 type AgendiaHeaderProps = {
   userName: string;
-  tripCount: number;
   onTodayPress: () => void;
   onMenuPress: () => void;
   clients: ClientOption[];
   selectedClientId: string;
   onSelectClient?: (clientId: string) => void;
   onUserPress?: () => void;
-  rightSlot?: React.ReactNode;
   hideClientSelector?: boolean;
-  actionButtonsSlot?: React.ReactNode;
+  profileActionsSlot?: React.ReactNode;
   expandedSlot?: React.ReactNode;
 };
 
 export function AgendiaHeader({
   userName,
-  tripCount,
   onTodayPress,
   onMenuPress,
   clients,
   selectedClientId,
   onSelectClient,
   onUserPress,
-  rightSlot,
   hideClientSelector = false,
-  actionButtonsSlot,
+  profileActionsSlot,
   expandedSlot,
 }: AgendiaHeaderProps) {
   const { theme } = useTheme();
@@ -54,7 +50,6 @@ export function AgendiaHeader({
     [clients, selectedClientId],
   );
   const avatarLetter = (selectedClient?.name || userName).trim().charAt(0).toUpperCase() || 'A';
-  const tripsLabel = `${tripCount} ${tripCount === 1 ? 'viaje' : 'viajes'}`;
 
   const handleOpenClientSelector = () => {
     onUserPress?.();
@@ -132,17 +127,10 @@ export function AgendiaHeader({
             </TouchableOpacity>
           )}
 
-          {rightSlot ?? (
-            <View style={styles.badge}>
-              <View style={styles.badgeDot} />
-              <Text style={styles.badgeText}>{tripsLabel}</Text>
-            </View>
-          )}
+          {profileActionsSlot ? (
+            <View style={styles.profileActions}>{profileActionsSlot}</View>
+          ) : null}
         </View>
-
-        {actionButtonsSlot ? (
-          <View style={styles.actionButtonsSlot}>{actionButtonsSlot}</View>
-        ) : null}
 
         {expandedSlot ? <View style={styles.expandedSlot}>{expandedSlot}</View> : null}
       </View>
@@ -258,8 +246,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 12,
   },
   userPill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -271,8 +261,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingLeft: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    minWidth: 0,
   },
   userPillStatic: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -284,6 +276,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     paddingLeft: 8,
     borderWidth: 1,
     borderColor: theme.colors.border,
+    minWidth: 0,
   },
   avatar: {
     width: 32,
@@ -314,31 +307,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   caret: {
     marginLeft: 2,
   },
-  actionButtonsSlot: {
-    marginTop: 12,
-  },
-  expandedSlot: {
-    marginTop: 0,
-  },
-  badge: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
+  profileActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  badgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: theme.colors.primaryLight,
-  },
-  badgeText: {
-    color: theme.colors.textInverse,
-    fontSize: 12,
-    fontWeight: '600',
+  expandedSlot: {
+    marginTop: 14,
   },
   modalOverlay: {
     flex: 1,

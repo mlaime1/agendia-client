@@ -29,6 +29,12 @@ type AddTripPanelProps = {
   canCreateSpecialTrips?: boolean;
 };
 
+const allTripTypeOptions: TripTypeOption[] = [
+  { mode: 'outbound', label: 'Ida' },
+  { mode: 'roundTrip', label: 'Ida y vuelta' },
+  { mode: 'special', label: 'Especial' },
+];
+
 export function AddTripPanel({
   isOpen,
   selectedMode,
@@ -39,11 +45,9 @@ export function AddTripPanel({
   canCreateRegularTrips = true,
   canCreateSpecialTrips = true,
 }: AddTripPanelProps) {
-  const allTripTypeOptions: TripTypeOption[] = [
-    { mode: 'outbound', label: 'Ida' },
-    { mode: 'roundTrip', label: 'Ida y vuelta' },
-    { mode: 'special', label: 'Especial' },
-  ];
+  const { theme } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const [routeModalVisible, setRouteModalVisible] = useState(false);
 
   const tripTypeOptions = useMemo(() => {
     return allTripTypeOptions.filter((option) => {
@@ -60,9 +64,6 @@ export function AddTripPanel({
       onSelectMode(tripTypeOptions[0].mode);
     }
   }, [tripTypeOptions, selectedMode, onSelectMode]);
-  const { theme } = useTheme();
-  const styles = useThemedStyles(createStyles);
-  const [routeModalVisible, setRouteModalVisible] = useState(false);
 
   const isRouteSelectorDisabled = selectedMode === 'special';
 
@@ -75,10 +76,10 @@ export function AddTripPanel({
 
   const selectedRouteLabel = useMemo(() => {
     if (!routeId) {
-      return '— Elegir ruta —';
+      return 'Sin ruta seleccionada';
     }
 
-    return routeOptions.find((option) => option.id === routeId)?.label ?? '— Elegir ruta —';
+    return routeOptions.find((option) => option.id === routeId)?.label ?? 'Ruta';
   }, [routeId, routeOptions]);
 
   const hintText = useMemo(() => {
@@ -90,7 +91,7 @@ export function AddTripPanel({
       return 'Elegí una ruta para poder crear viajes';
     }
 
-    return 'Elegí la ruta y tocá los días';
+    return 'Tocá los días para agregar viajes';
   }, [selectedMode, routeId]);
 
   const handleSelectRoute = (id: string) => {
@@ -98,71 +99,74 @@ export function AddTripPanel({
     setRouteModalVisible(false);
   };
 
+  if (!isOpen) {
+    return null;
+  }
+
   return (
     <React.Fragment>
-      <View style={[styles.panel, isOpen && styles.panelOpen]}>
-        <View style={styles.panelInner}>
-          <View style={styles.divider} />
+      <View style={styles.container}>
+        <View style={styles.segmentedControl}>
+          {tripTypeOptions.map((option) => {
+            const isActive = option.mode === selectedMode;
 
-          <View style={styles.pillsRow}>
-            {tripTypeOptions.map((option) => {
-              const isActive = option.mode === selectedMode;
-
-              return (
-                <Pressable
-                  key={option.mode}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isActive }}
-                  onPress={() => onSelectMode(option.mode)}
-                  style={({ pressed }) => [
-                    styles.pill,
-                    isActive && { backgroundColor: theme.colors.primary, borderColor: theme.colors.primary },
-                    pressed && !isActive && styles.pillPressed,
+            return (
+              <Pressable
+                key={option.mode}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
+                onPress={() => onSelectMode(option.mode)}
+                style={({ pressed }) => [
+                  styles.segment,
+                  isActive && styles.segmentActive,
+                  pressed && !isActive && styles.segmentPressed,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.segmentLabel,
+                    isActive && styles.segmentLabelActive,
                   ]}
+                  numberOfLines={1}
                 >
-                  <Text
-                    style={[
-                      styles.pillLabel,
-                      isActive && { color: theme.colors.textInverse },
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isRouteSelectorDisabled }}
-            disabled={isRouteSelectorDisabled}
-            onPress={() => setRouteModalVisible(true)}
-            style={({ pressed }) => [
-              styles.routeSelector,
-              isRouteSelectorDisabled && styles.routeSelectorDisabled,
-              pressed && !isRouteSelectorDisabled && styles.routeSelectorPressed,
-            ]}
-          >
-            <Text
-              style={[
-                styles.routeSelectorLabel,
-                isRouteSelectorDisabled && styles.routeSelectorLabelDisabled,
-                !routeId && styles.routeSelectorPlaceholder,
-              ]}
-              numberOfLines={1}
-            >
-              {selectedRouteLabel}
-            </Text>
-            <AppIcon
-              name="chevronDown"
-              size={16}
-              color={isRouteSelectorDisabled ? theme.colors.disabled : theme.colors.primary}
-            />
-          </Pressable>
-
-          <Text style={styles.hint}>{hintText}</Text>
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ disabled: isRouteSelectorDisabled }}
+          disabled={isRouteSelectorDisabled}
+          onPress={() => setRouteModalVisible(true)}
+          style={({ pressed }) => [
+            styles.routeSelector,
+            isRouteSelectorDisabled && styles.routeSelectorDisabled,
+            pressed && !isRouteSelectorDisabled && styles.routeSelectorPressed,
+          ]}
+        >
+          <AppIcon
+            name="mapPin"
+            size={14}
+            color={isRouteSelectorDisabled ? theme.colors.textSubtle : theme.colors.textMuted}
+          />
+          <Text
+            style={[
+              styles.routeSelectorLabel,
+              isRouteSelectorDisabled && styles.routeSelectorLabelDisabled,
+            ]}
+            numberOfLines={1}
+          >
+            {selectedRouteLabel}
+          </Text>
+          {!isRouteSelectorDisabled && (
+            <AppIcon name="chevronDown" size={14} color={theme.colors.textSubtle} />
+          )}
+        </Pressable>
+
+        <Text style={styles.hint}>{hintText}</Text>
       </View>
 
       <Modal
@@ -225,83 +229,64 @@ export function AddTripPanel({
 }
 
 const createStyles = (theme: Theme) => StyleSheet.create({
-  panel: {
-    overflow: 'hidden',
-    maxHeight: 0,
-    opacity: 0,
+  container: {
+    gap: 12,
   },
-  panelOpen: {
-    maxHeight: 220,
-    opacity: 1,
-  },
-  panelInner: {
-    paddingTop: 12,
-  },
-  divider: {
-    height: 0.5,
-    backgroundColor: theme.colors.border,
-    marginBottom: 12,
-  },
-  pillsRow: {
+  segmentedControl: {
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 12,
+    backgroundColor: theme.colors.surfaceMuted,
+    borderRadius: 10,
+    padding: 3,
+    gap: 3,
   },
-  pill: {
+  segment: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 0.5,
-    borderColor: theme.colors.borderStrong,
-    backgroundColor: 'transparent',
+    paddingHorizontal: 4,
+    borderRadius: 8,
   },
-  pillPressed: {
-    backgroundColor: theme.colors.primaryLight,
+  segmentActive: {
+    backgroundColor: theme.colors.primary,
   },
-  pillLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: theme.colors.primary,
+  segmentPressed: {
+    backgroundColor: theme.colors.surfaceSubtle,
+  },
+  segmentLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
+  },
+  segmentLabelActive: {
+    color: theme.colors.textInverse,
+    fontWeight: '700',
   },
   routeSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    paddingRight: 10,
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: theme.colors.borderStrong,
-    backgroundColor: theme.colors.surface,
+    gap: 8,
+    paddingVertical: 6,
   },
   routeSelectorDisabled: {
-    opacity: 0.45,
-    backgroundColor: theme.colors.surfaceMuted,
+    opacity: 0.55,
   },
   routeSelectorPressed: {
-    borderColor: theme.colors.primary,
+    opacity: 0.7,
   },
   routeSelectorLabel: {
     flex: 1,
     fontSize: 13,
     fontWeight: '500',
-    color: theme.colors.primary,
+    color: theme.colors.textMuted,
   },
   routeSelectorLabelDisabled: {
     color: theme.colors.textSubtle,
   },
-  routeSelectorPlaceholder: {
-    color: theme.colors.textSubtle,
-  },
   hint: {
-    marginTop: 5,
-    minHeight: 15,
     fontSize: 11,
     fontWeight: '500',
-    color: theme.colors.textMuted,
+    color: theme.colors.textSubtle,
   },
   modalOverlay: {
     flex: 1,

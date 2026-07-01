@@ -1,11 +1,25 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { CalendarDay, Trip } from '../types';
+import { CalendarDay, Trip, TripMode } from '../types';
 import { isSameDay, toDateKey } from '../utils/date';
 import { CalendarDayCell } from './CalendarDayCell';
-import { Theme, useThemedStyles } from '../../../theme';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 import { getClientToday } from '../../../utils/dateTime';
+
+const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+const legendItems: { label: string; mode: TripMode }[] = [
+  { label: 'Ida', mode: 'outbound' },
+  { label: 'Vuelta', mode: 'roundTrip' },
+  { label: 'Especial', mode: 'special' },
+];
+
+type CalendarCell = {
+  id: string;
+  day: CalendarDay;
+  isCurrentMonth: boolean;
+};
 
 type CalendarGridProps = {
   days: CalendarDay[];
@@ -17,14 +31,6 @@ type CalendarGridProps = {
   isAddModeActive?: boolean;
 };
 
-const weekdays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
-type CalendarCell = {
-  id: string;
-  day: CalendarDay;
-  isCurrentMonth: boolean;
-};
-
 export function CalendarGrid({
   days,
   leadingEmptyCells,
@@ -34,6 +40,7 @@ export function CalendarGrid({
   clientTimezone,
   isAddModeActive,
 }: CalendarGridProps) {
+  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const today = getClientToday(clientTimezone);
   const monthStart = days[0]?.date ?? today;
@@ -107,32 +114,71 @@ export function CalendarGrid({
           </View>
         ))}
       </View>
+
+      <View style={styles.legend}>
+        {legendItems.map((item) => (
+          <View key={item.mode} style={styles.legendItem}>
+            <View
+              style={[
+                styles.legendDot,
+                { backgroundColor: theme.colors.trip[item.mode].border },
+              ]}
+            />
+            <Text style={styles.legendLabel}>{item.label}</Text>
+          </View>
+        ))}
+      </View>
     </View>
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  container: {
-    gap: 7,
-  },
-  weekHeader: {
-    flexDirection: 'row',
-    paddingHorizontal: 1,
-  },
-  weekday: {
-    flex: 1,
-    color: theme.colors.textSubtle,
-    fontSize: 12,
-    fontWeight: '800',
-    letterSpacing: 0,
-    textAlign: 'center',
-  },
-  rows: {
-    gap: 4,
-  },
-  row: {
-    flexDirection: 'row',
-    gap: 4,
-    alignItems: 'stretch',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      gap: 8,
+    },
+    weekHeader: {
+      flexDirection: 'row',
+      paddingHorizontal: 1,
+    },
+    weekday: {
+      flex: 1,
+      color: theme.colors.textSubtle,
+      fontSize: 11,
+      fontWeight: '700',
+      letterSpacing: 0,
+      textAlign: 'center',
+    },
+    rows: {
+      gap: 2,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'stretch',
+    },
+    legend: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 16,
+      marginTop: 8,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: theme.colors.border,
+    },
+    legendItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    legendDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    legendLabel: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 0,
+    },
+  });

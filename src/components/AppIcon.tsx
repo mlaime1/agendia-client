@@ -21,6 +21,7 @@ import {
   IconInfoCircle,
   IconMail,
   IconMap,
+  IconMapPin,
   IconMenu2,
   IconMessageCircle,
   IconNotes,
@@ -61,6 +62,7 @@ export type AppIconName =
   | 'info'
   | 'mail'
   | 'map'
+  | 'mapPin'
   | 'menu'
   | 'message'
   | 'notes'
@@ -102,6 +104,7 @@ const iconMap = {
   info: IconInfoCircle,
   mail: IconMail,
   map: IconMap,
+  mapPin: IconMapPin,
   menu: IconMenu2,
   message: IconMessageCircle,
   notes: IconNotes,

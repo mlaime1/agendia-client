@@ -72,7 +72,10 @@ export function CalendarScreen({
     canDeleteTrips: permissions.canDeleteTrips,
   });
   const days = useMemo(() => getMonthDays(monthDate, clientTimezone), [monthDate, clientTimezone]);
-  const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate, clientTimezone), [monthDate, clientTimezone]);
+  const leadingEmptyCells = useMemo(
+    () => getLeadingEmptyCells(monthDate, clientTimezone),
+    [monthDate, clientTimezone],
+  );
   const monthLabel = useMemo(() => getMonthLabel(monthDate, clientTimezone), [monthDate, clientTimezone]);
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>(null);
@@ -119,35 +122,11 @@ export function CalendarScreen({
   const headerUserName = isLoading
     ? 'Cargando...'
     : selectedClientName || userProfile?.name || 'No autenticado';
-  const monthSelector = (
-    <View style={styles.monthSelector}>
-      <Pressable
-        accessibilityLabel="Mes anterior"
-        onPress={() => changeMonth(-1)}
-        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
-      >
-        <AppIcon name="chevronLeft" size={18} color={theme.colors.primary} />
-      </Pressable>
-
-      <View style={styles.monthSelectorTextGroup}>
-        <Text style={styles.monthSelectorLabel}>{monthLabel}</Text>
-        <Text style={styles.monthSelectorSummary}>
-          {visibleMonthTrips.length === 1 ? '1 viaje' : `${visibleMonthTrips.length} viajes`}
-        </Text>
-      </View>
-
-      <Pressable
-        accessibilityLabel="Mes siguiente"
-        onPress={() => changeMonth(1)}
-        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
-      >
-        <AppIcon name="chevronRight" size={18} color={theme.colors.primary} />
-      </Pressable>
-    </View>
-  );
 
   const changeMonth = (offset: number) => {
-    setMonthDate((currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
+    setMonthDate(
+      (currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1),
+    );
     setDetailDateKey(null);
     setSpecialDateKey(null);
   };
@@ -193,37 +172,48 @@ export function CalendarScreen({
     deleteTrip?.(tripId);
   };
 
-  const headerActionButtons = (
-    <View style={styles.actionButtonsRow}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Navegación"
-        onPress={() => {}}
-        style={({ pressed }) => [styles.actionButton, pressed && styles.actionButtonPressed]}
-      >
-        <AppIcon name="map" size={15} color={theme.colors.primary} />
-        <Text style={styles.actionButtonLabel}>Navegación</Text>
-      </Pressable>
+  const addTripLabel = isAddPanelOpen ? 'Cerrar' : 'Agregar viaje';
+  const addTripIcon = isAddPanelOpen ? 'close' : 'plus';
+
+  const profileActionsSlot = (
+    <React.Fragment>
+      {permissions.showClientSelector && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Navegación"
+          onPress={() => {}}
+          style={({ pressed }) => [styles.iconAction, pressed && styles.iconActionPressed]}
+        >
+          <AppIcon name="map" size={18} color={theme.colors.textMuted} />
+        </Pressable>
+      )}
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={isAddPanelOpen ? 'Cancelar' : 'Agregar viaje'}
+        accessibilityLabel={addTripLabel}
         accessibilityState={{ disabled: !canOpenAddPanel }}
         disabled={!canOpenAddPanel}
         onPress={toggleAddPanel}
         style={({ pressed }) => [
-          styles.actionButton,
-          isAddPanelOpen ? styles.actionButtonCancel : styles.actionButtonPrimary,
-          !canOpenAddPanel && styles.actionButtonDisabled,
-          pressed && canOpenAddPanel && styles.actionButtonPressed,
+          styles.iconAction,
+          isAddPanelOpen && styles.iconActionActive,
+          !canOpenAddPanel && styles.iconActionDisabled,
+          pressed && canOpenAddPanel && styles.iconActionPressed,
         ]}
       >
-        <AppIcon name={isAddPanelOpen ? 'close' : 'plus'} size={15} color={theme.colors.textInverse} />
-        <Text style={[styles.actionButtonLabel, styles.actionButtonLabelInverse]}>
-          {isAddPanelOpen ? 'Cancelar' : 'Agregar viaje'}
-        </Text>
+        <AppIcon
+          name={addTripIcon}
+          size={18}
+          color={
+            isAddPanelOpen
+              ? theme.colors.textInverse
+              : canOpenAddPanel
+                ? theme.colors.textMuted
+                : theme.colors.textSubtle
+          }
+        />
       </Pressable>
-    </View>
+    </React.Fragment>
   );
 
   const headerExpandedPanel = (
@@ -239,6 +229,33 @@ export function CalendarScreen({
     />
   );
 
+  const monthSelector = (
+    <View style={styles.monthSelector}>
+      <Pressable
+        accessibilityLabel="Mes anterior"
+        onPress={() => changeMonth(-1)}
+        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
+      >
+        <AppIcon name="chevronLeft" size={18} color={theme.colors.primary} />
+      </Pressable>
+
+      <View style={styles.monthSelectorTextGroup}>
+        <Text style={styles.monthSelectorLabel}>{monthLabel}</Text>
+        <Text style={styles.monthSelectorSummary}>
+          {visibleMonthTrips.length === 1 ? '1 viaje' : `${visibleMonthTrips.length} viajes`}
+        </Text>
+      </View>
+
+      <Pressable
+        accessibilityLabel="Mes siguiente"
+        onPress={() => changeMonth(1)}
+        style={({ pressed }) => [styles.monthSelectorButton, pressed && styles.pressedButton]}
+      >
+        <AppIcon name="chevronRight" size={18} color={theme.colors.primary} />
+      </Pressable>
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ErrorBanner message={error} onDismiss={clearError} />
@@ -251,14 +268,14 @@ export function CalendarScreen({
               clients={clients}
               onSelectClient={permissions.showClientSelector ? onSelectClient : undefined}
               selectedClientId={permissions.resolvedClientId || ''}
-              tripCount={visibleMonthTrips.length}
               userName={headerUserName}
-              rightSlot={monthSelector}
               hideClientSelector={!permissions.showClientSelector}
-              actionButtonsSlot={headerActionButtons}
+              profileActionsSlot={profileActionsSlot}
               expandedSlot={headerExpandedPanel}
             />
           </View>
+
+          <View style={styles.monthSelectorContainer}>{monthSelector}</View>
 
           {profileError ? (
             <View style={styles.profileWarning}>
@@ -268,7 +285,6 @@ export function CalendarScreen({
               </Pressable>
             </View>
           ) : null}
-
         </View>
 
         {isLoadingTrips ? (
@@ -312,141 +328,125 @@ export function CalendarScreen({
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
-  },
-  content: {
-    paddingHorizontal: 10,
-    paddingTop: 0,
-    paddingBottom: 28,
-  },
-  header: {
-    gap: 10,
-  },
-  fullBleedHeader: {
-    marginHorizontal: -10,
-  },
-  profileWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.semantic.error.border,
-    borderRadius: 8,
-    backgroundColor: theme.colors.semantic.error.bg,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  profileWarningText: {
-    flex: 1,
-    color: theme.colors.semantic.error.text,
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0,
-  },
-  profileWarningAction: {
-    color: theme.colors.primary,
-    fontSize: 12,
-    fontWeight: '900',
-    letterSpacing: 0,
-  },
-  monthSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  monthSelectorButton: {
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  monthSelectorTextGroup: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 84,
-  },
-  monthSelectorLabel: {
-    color: theme.colors.primary,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0,
-  },
-  monthSelectorSummary: {
-    color: theme.colors.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0,
-  },
-  pressedButton: {
-    opacity: 0.72,
-  },
-  loadingCard: {
-    marginTop: 12,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 12,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-    backgroundColor: theme.colors.surface,
-  },
-  loadingTitle: {
-    color: theme.colors.textMuted,
-    fontSize: 14,
-    fontWeight: '800',
-    letterSpacing: 0,
-  },
-  loadingLine: {
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: theme.colors.surfaceMuted,
-  },
-  loadingLineShort: {
-    width: '72%',
-  },
-  actionButtonsRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 9,
-    borderRadius: 10,
-    borderWidth: 0.5,
-    borderColor: theme.colors.borderStrong,
-    backgroundColor: theme.colors.primaryLight,
-  },
-  actionButtonPrimary: {
-    backgroundColor: theme.colors.primary,
-    borderColor: theme.colors.primary,
-  },
-  actionButtonCancel: {
-    backgroundColor: theme.colors.primaryDark,
-    borderColor: theme.colors.primaryDark,
-  },
-  actionButtonDisabled: {
-    opacity: 0.45,
-    backgroundColor: theme.colors.disabled,
-    borderColor: theme.colors.disabled,
-  },
-  actionButtonPressed: {
-    opacity: 0.85,
-  },
-  actionButtonLabel: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: theme.colors.primary,
-  },
-  actionButtonLabelInverse: {
-    color: theme.colors.textInverse,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    safeArea: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+    },
+    content: {
+      paddingHorizontal: 10,
+      paddingTop: 0,
+      paddingBottom: 28,
+    },
+    header: {
+      gap: 10,
+    },
+    fullBleedHeader: {
+      marginHorizontal: -10,
+    },
+    monthSelectorContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 4,
+    },
+    profileWarning: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      borderWidth: 1,
+      borderColor: theme.colors.semantic.error.border,
+      borderRadius: 8,
+      backgroundColor: theme.colors.semantic.error.bg,
+      paddingHorizontal: 10,
+      paddingVertical: 8,
+    },
+    profileWarningText: {
+      flex: 1,
+      color: theme.colors.semantic.error.text,
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0,
+    },
+    profileWarningAction: {
+      color: theme.colors.primary,
+      fontSize: 12,
+      fontWeight: '900',
+      letterSpacing: 0,
+    },
+    monthSelector: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+    },
+    monthSelectorButton: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    monthSelectorTextGroup: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: 100,
+    },
+    monthSelectorLabel: {
+      color: theme.colors.primary,
+      fontSize: 15,
+      fontWeight: '800',
+      letterSpacing: 0,
+    },
+    monthSelectorSummary: {
+      color: theme.colors.textMuted,
+      fontSize: 11,
+      fontWeight: '600',
+      letterSpacing: 0,
+    },
+    pressedButton: {
+      opacity: 0.72,
+    },
+    loadingCard: {
+      marginTop: 12,
+      gap: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 12,
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      backgroundColor: theme.colors.surface,
+    },
+    loadingTitle: {
+      color: theme.colors.textMuted,
+      fontSize: 14,
+      fontWeight: '800',
+      letterSpacing: 0,
+    },
+    loadingLine: {
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    loadingLineShort: {
+      width: '72%',
+    },
+    iconAction: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 999,
+      backgroundColor: theme.colors.surfaceMuted,
+    },
+    iconActionActive: {
+      backgroundColor: theme.colors.primary,
+    },
+    iconActionDisabled: {
+      opacity: 0.45,
+    },
+    iconActionPressed: {
+      opacity: 0.8,
+    },
+  });

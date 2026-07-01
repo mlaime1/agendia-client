@@ -1,9 +1,8 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { CalendarDay, Trip } from '../types';
-import { TripStamp } from './TripStamp';
-import { Theme, useThemedStyles } from '../../../theme';
+import { CalendarDay, Trip, TripMode } from '../types';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type CalendarDayCellProps = {
   day: CalendarDay;
@@ -14,7 +13,20 @@ type CalendarDayCellProps = {
   onLongPress: (dateKey: string) => void;
 };
 
-const visibleStampCount = 3;
+const tripModePriority: TripMode[] = ['special', 'roundTrip', 'outbound'];
+
+const getTripDotColor = (mode: TripMode, theme: Theme) => {
+  switch (mode) {
+    case 'outbound':
+      return theme.colors.trip.outbound.border;
+    case 'roundTrip':
+      return theme.colors.trip.roundTrip.border;
+    case 'special':
+      return theme.colors.trip.special.border;
+    default:
+      return theme.colors.textSubtle;
+  }
+};
 
 export function CalendarDayCell({
   day,
@@ -24,9 +36,11 @@ export function CalendarDayCell({
   onPress,
   onLongPress,
 }: CalendarDayCellProps) {
+  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const visibleTrips = trips.slice(0, visibleStampCount);
-  const hiddenTripCount = Math.max(trips.length - visibleStampCount, 0);
+  const primaryTrip = trips.length > 0
+    ? trips.find((trip) => tripModePriority.includes(trip.mode)) ?? trips[0]
+    : null;
 
   return (
     <Pressable
@@ -38,90 +52,86 @@ export function CalendarDayCell({
         styles.cell,
         !isCurrentMonth && styles.outsideMonthCell,
         day.isToday && styles.todayCell,
-        trips.length > 0 && styles.hasTripsCell,
         isAddModeActive && isCurrentMonth && styles.addModeCell,
         pressed && styles.pressedCell,
       ]}
     >
-      <Text
-        style={[
-          styles.dayNumber,
-          !isCurrentMonth && styles.outsideMonthText,
-          day.isToday && styles.todayText,
-        ]}
-      >
-        {day.dayNumber}
-      </Text>
+      <View style={styles.dayContent}>
+        <Text
+          style={[
+            styles.dayNumber,
+            !isCurrentMonth && styles.outsideMonthText,
+            day.isToday && styles.todayText,
+          ]}
+        >
+          {day.dayNumber}
+        </Text>
 
-      <View style={styles.stamps}>
-        {visibleTrips.map((trip) => (
-          <TripStamp key={trip.id} mode={trip.mode} />
-        ))}
+        {primaryTrip ? (
+          <View
+            style={[
+              styles.tripDot,
+              { backgroundColor: getTripDotColor(primaryTrip.mode, theme) },
+            ]}
+          />
+        ) : (
+          <View style={styles.tripDotPlaceholder} />
+        )}
       </View>
-
-      {hiddenTripCount > 0 ? <Text style={styles.overflow}>+{hiddenTripCount}</Text> : null}
     </Pressable>
   );
 }
 
-const createStyles = (theme: Theme) => StyleSheet.create({
-  cell: {
-    flex: 1,
-    height: 92,
-    position: 'relative',
-    paddingHorizontal: 4,
-    paddingTop: 6,
-    paddingBottom: 5,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 6,
-    backgroundColor: theme.colors.surface,
-  },
-  todayCell: {
-    borderColor: theme.colors.primary,
-    borderWidth: 1.5,
-  },
-  hasTripsCell: {
-    backgroundColor: theme.colors.surfaceSubtle,
-  },
-  outsideMonthCell: {
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceMuted,
-  },
-  addModeCell: {
-    backgroundColor: theme.colors.primaryLight,
-    borderColor: theme.colors.primary,
-  },
-  pressedCell: {
-    transform: [{ scale: 0.97 }],
-  },
-  dayNumber: {
-    color: theme.colors.textMuted,
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0,
-    lineHeight: 16,
-  },
-  todayText: {
-    color: theme.colors.primary,
-  },
-  outsideMonthText: {
-    color: theme.colors.textSubtle,
-  },
-  stamps: {
-    flex: 1,
-    alignItems: 'stretch',
-    justifyContent: 'flex-start',
-    gap: 3,
-    marginTop: 8,
-  },
-  overflow: {
-    position: 'absolute',
-    top: 6,
-    right: 5,
-    color: theme.colors.semantic.warning.text,
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0,
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    cell: {
+      flex: 1,
+      aspectRatio: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 999,
+      backgroundColor: 'transparent',
+    },
+    todayCell: {
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+    },
+    outsideMonthCell: {
+      opacity: 0.45,
+    },
+    addModeCell: {
+      backgroundColor: theme.colors.primaryLight,
+    },
+    pressedCell: {
+      opacity: 0.7,
+    },
+    dayContent: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    dayNumber: {
+      color: theme.colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+      letterSpacing: 0,
+      lineHeight: 16,
+    },
+    todayText: {
+      color: theme.colors.primary,
+      fontWeight: '800',
+    },
+    outsideMonthText: {
+      color: theme.colors.textSubtle,
+    },
+    tripDot: {
+      width: 5,
+      height: 5,
+      borderRadius: 3,
+    },
+    tripDotPlaceholder: {
+      width: 5,
+      height: 5,
+    },
+  });
