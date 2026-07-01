@@ -64,7 +64,13 @@ export function CalendarScreen({
     routeId,
     setRouteId,
     availableRoutes,
-  } = useCalendarTrips(permissions.resolvedClientId, !permissions.canCreateRegularTrips);
+  } = useCalendarTrips({
+    selectedClientId: permissions.resolvedClientId,
+    canCreateRegularTrips: permissions.canCreateRegularTrips,
+    canCreateSpecialTrips: permissions.canCreateSpecialTrips,
+    canEdit: permissions.canEdit,
+    canDeleteTrips: permissions.canDeleteTrips,
+  });
   const days = useMemo(() => getMonthDays(monthDate, clientTimezone), [monthDate, clientTimezone]);
   const leadingEmptyCells = useMemo(() => getLeadingEmptyCells(monthDate, clientTimezone), [monthDate, clientTimezone]);
   const monthLabel = useMemo(() => getMonthLabel(monthDate, clientTimezone), [monthDate, clientTimezone]);
@@ -82,14 +88,21 @@ export function CalendarScreen({
     setRouteId(defaultRouteId || routeId);
   };
 
+  const canOpenAddPanel = permissions.canCreateAnyTrip;
+
   const toggleAddPanel = () => {
+    if (!canOpenAddPanel) {
+      return;
+    }
+
     if (isAddPanelOpen) {
       resetAddPanel();
       return;
     }
 
+    const initialMode = permissions.canCreateRegularTrips ? 'outbound' : 'special';
     setIsAddPanelOpen(true);
-    setSelectedMode('outbound');
+    setSelectedMode(initialMode);
     setRouteId(defaultRouteId || routeId);
   };
 
@@ -195,11 +208,14 @@ export function CalendarScreen({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={isAddPanelOpen ? 'Cancelar' : 'Agregar viaje'}
+        accessibilityState={{ disabled: !canOpenAddPanel }}
+        disabled={!canOpenAddPanel}
         onPress={toggleAddPanel}
         style={({ pressed }) => [
           styles.actionButton,
           isAddPanelOpen ? styles.actionButtonCancel : styles.actionButtonPrimary,
-          pressed && styles.actionButtonPressed,
+          !canOpenAddPanel && styles.actionButtonDisabled,
+          pressed && canOpenAddPanel && styles.actionButtonPressed,
         ]}
       >
         <AppIcon name={isAddPanelOpen ? 'close' : 'plus'} size={15} color={theme.colors.textInverse} />
@@ -218,6 +234,8 @@ export function CalendarScreen({
       routeId={routeId}
       routes={availableRoutes}
       onSelectRoute={setRouteId}
+      canCreateRegularTrips={permissions.canCreateRegularTrips}
+      canCreateSpecialTrips={permissions.canCreateSpecialTrips}
     />
   );
 
@@ -414,6 +432,11 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   actionButtonCancel: {
     backgroundColor: theme.colors.primaryDark,
     borderColor: theme.colors.primaryDark,
+  },
+  actionButtonDisabled: {
+    opacity: 0.45,
+    backgroundColor: theme.colors.disabled,
+    borderColor: theme.colors.disabled,
   },
   actionButtonPressed: {
     opacity: 0.85,

@@ -74,14 +74,31 @@ function AppContent() {
     }
   }, [selectedClientId]);
 
-  useEffect(() => {
-    if (isAuthenticated) {
-      loadClients();
-      if (userProfile?.role === 'client' && userProfile?.linked_client_id && !selectedClientId) {
-        setSelectedClientId(userProfile.linked_client_id);
-      }
+  const loadLinkedClient = useCallback(async (linkedClientId: string) => {
+    try {
+      const client = await clientsService.getById(linkedClientId);
+      setClients([client]);
+    } catch (err) {
+      console.error('Error loading linked client:', err);
+      setClients([]);
     }
-  }, [isAuthenticated, loadClients, userProfile]);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !userProfile) {
+      return;
+    }
+
+    if (userProfile.role === 'client') {
+      if (userProfile.linked_client_id) {
+        setSelectedClientId(userProfile.linked_client_id);
+        void loadLinkedClient(userProfile.linked_client_id);
+      }
+      return;
+    }
+
+    void loadClients();
+  }, [isAuthenticated, loadClients, loadLinkedClient, userProfile]);
   const handleNavigate = (routeName: string) => {
     setNavigation({ screen: routeName as AppRoute });
     if (routeName === 'Clientes') {

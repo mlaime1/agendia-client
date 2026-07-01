@@ -6,6 +6,7 @@ type CalendarPermissions = {
   canEdit: boolean;
   canCreateRegularTrips: boolean;
   canCreateSpecialTrips: boolean;
+  canCreateAnyTrip: boolean;
   canSetPrice: boolean;
   canDeleteTrips: boolean;
   showClientSelector: boolean;
@@ -13,7 +14,7 @@ type CalendarPermissions = {
 };
 
 export const useCalendarPermissions = (
-  clients: { id: string; name: string }[],
+  _clients: { id: string; name: string }[],
   selectedClientId?: string,
 ): CalendarPermissions => {
   const { userProfile } = useAuth();
@@ -24,16 +25,21 @@ export const useCalendarPermissions = (
     const isDriver = role === 'driver' || role === 'admin';
     const isClient = role === 'client';
 
+    const canCreateRegularTrips = isDriver;
+    const canCreateSpecialTrips = isDriver || isClient;
+    const canCreateAnyTrip = canCreateRegularTrips || canCreateSpecialTrips;
+
     const resolvedClientId = isDriver
       ? selectedClientId
       : isClient
         ? linkedClientId || undefined
-        : selectedClientId;
+        : undefined;
 
     return {
       canEdit: isDriver,
-      canCreateRegularTrips: isDriver,
-      canCreateSpecialTrips: true,
+      canCreateRegularTrips,
+      canCreateSpecialTrips,
+      canCreateAnyTrip,
       canSetPrice: isDriver,
       canDeleteTrips: isDriver,
       showClientSelector: isDriver,

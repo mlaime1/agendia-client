@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Modal,
   Pressable,
@@ -18,12 +18,6 @@ type TripTypeOption = {
   label: string;
 };
 
-const tripTypeOptions: TripTypeOption[] = [
-  { mode: 'outbound', label: 'Ida' },
-  { mode: 'roundTrip', label: 'Ida y vuelta' },
-  { mode: 'special', label: 'Especial' },
-];
-
 type AddTripPanelProps = {
   isOpen: boolean;
   selectedMode: TripMode;
@@ -31,6 +25,8 @@ type AddTripPanelProps = {
   routeId: string;
   routes: Route[];
   onSelectRoute: (routeId: string) => void;
+  canCreateRegularTrips?: boolean;
+  canCreateSpecialTrips?: boolean;
 };
 
 export function AddTripPanel({
@@ -40,7 +36,30 @@ export function AddTripPanel({
   routeId,
   routes,
   onSelectRoute,
+  canCreateRegularTrips = true,
+  canCreateSpecialTrips = true,
 }: AddTripPanelProps) {
+  const allTripTypeOptions: TripTypeOption[] = [
+    { mode: 'outbound', label: 'Ida' },
+    { mode: 'roundTrip', label: 'Ida y vuelta' },
+    { mode: 'special', label: 'Especial' },
+  ];
+
+  const tripTypeOptions = useMemo(() => {
+    return allTripTypeOptions.filter((option) => {
+      if (option.mode === 'special') {
+        return canCreateSpecialTrips;
+      }
+      return canCreateRegularTrips;
+    });
+  }, [canCreateRegularTrips, canCreateSpecialTrips]);
+
+  useEffect(() => {
+    const isSelectedAvailable = tripTypeOptions.some((option) => option.mode === selectedMode);
+    if (!isSelectedAvailable && tripTypeOptions.length > 0) {
+      onSelectMode(tripTypeOptions[0].mode);
+    }
+  }, [tripTypeOptions, selectedMode, onSelectMode]);
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [routeModalVisible, setRouteModalVisible] = useState(false);
