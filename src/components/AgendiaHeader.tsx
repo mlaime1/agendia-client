@@ -318,6 +318,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   bottomSlot: {
     marginTop: 14,
+    alignItems: 'center',
   },
   expandedSlot: {
     marginTop: 14,

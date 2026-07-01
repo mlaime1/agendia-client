@@ -132,10 +132,12 @@ export function CalendarGrid({
   );
 }
 
-const createStyles = (theme: Theme) =>
+  const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
-      gap: 8,
+      flex: 1,
+      gap: 10,
+      paddingTop: 8,
     },
     weekHeader: {
       flexDirection: 'row',
@@ -144,15 +146,17 @@ const createStyles = (theme: Theme) =>
     weekday: {
       flex: 1,
       color: theme.colors.textSubtle,
-      fontSize: 11,
+      fontSize: 12,
       fontWeight: '700',
       letterSpacing: 0,
       textAlign: 'center',
     },
     rows: {
-      gap: 2,
+      flex: 1,
+      gap: 4,
     },
     row: {
+      flex: 1,
       flexDirection: 'row',
       alignItems: 'stretch',
     },
@@ -160,7 +164,7 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       justifyContent: 'center',
       gap: 16,
-      marginTop: 8,
+      marginTop: 12,
       paddingTop: 12,
       borderTopWidth: 1,
       borderTopColor: theme.colors.border,

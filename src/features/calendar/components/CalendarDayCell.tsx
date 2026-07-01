@@ -1,8 +1,9 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { CalendarDay, Trip, TripMode } from '../types';
-import { Theme, useTheme, useThemedStyles } from '../../../theme';
+import { CalendarDay, Trip } from '../types';
+import { TripDots } from './TripDots';
+import { Theme, useThemedStyles } from '../../../theme';
 
 type CalendarDayCellProps = {
   day: CalendarDay;
@@ -13,34 +14,14 @@ type CalendarDayCellProps = {
   onLongPress: (dateKey: string) => void;
 };
 
-const tripModePriority: TripMode[] = ['special', 'roundTrip', 'outbound'];
-
-const getTripDotColor = (mode: TripMode, theme: Theme) => {
-  switch (mode) {
-    case 'outbound':
-      return theme.colors.trip.outbound.border;
-    case 'roundTrip':
-      return theme.colors.trip.roundTrip.border;
-    case 'special':
-      return theme.colors.trip.special.border;
-    default:
-      return theme.colors.textSubtle;
-  }
-};
-
 export function CalendarDayCell({
   day,
-  isAddModeActive = false,
   isCurrentMonth = true,
   trips,
   onPress,
   onLongPress,
 }: CalendarDayCellProps) {
-  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const primaryTrip = trips.length > 0
-    ? trips.find((trip) => tripModePriority.includes(trip.mode)) ?? trips[0]
-    : null;
 
   return (
     <Pressable
@@ -66,16 +47,9 @@ export function CalendarDayCell({
           {day.dayNumber}
         </Text>
 
-        {primaryTrip ? (
-          <View
-            style={[
-              styles.tripDot,
-              { backgroundColor: getTripDotColor(primaryTrip.mode, theme) },
-            ]}
-          />
-        ) : (
-          <View style={styles.tripDotPlaceholder} />
-        )}
+        <View style={styles.dotsContainer}>
+          {trips.length > 0 ? <TripDots trips={trips} /> : null}
+        </View>
       </View>
     </Pressable>
   );
@@ -85,10 +59,9 @@ const createStyles = (theme: Theme) =>
   StyleSheet.create({
     cell: {
       flex: 1,
-      aspectRatio: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 999,
+      borderRadius: 8,
       backgroundColor: 'transparent',
     },
     todayCell: {
@@ -96,23 +69,23 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.primary,
     },
-  outsideMonthCell: {
-    opacity: 0.45,
-  },
-  pressedCell: {
-    opacity: 0.7,
-  },
+    outsideMonthCell: {
+      opacity: 0.45,
+    },
+    pressedCell: {
+      opacity: 0.7,
+    },
     dayContent: {
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: 5,
     },
     dayNumber: {
       color: theme.colors.text,
-      fontSize: 13,
+      fontSize: 15,
       fontWeight: '600',
       letterSpacing: 0,
-      lineHeight: 16,
+      lineHeight: 18,
     },
     todayText: {
       color: theme.colors.primary,
@@ -121,13 +94,9 @@ const createStyles = (theme: Theme) =>
     outsideMonthText: {
       color: theme.colors.textSubtle,
     },
-    tripDot: {
-      width: 5,
-      height: 5,
-      borderRadius: 3,
-    },
-    tripDotPlaceholder: {
-      width: 5,
-      height: 5,
+    dotsContainer: {
+      minHeight: 8,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   });

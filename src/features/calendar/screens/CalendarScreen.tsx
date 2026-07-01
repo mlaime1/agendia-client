@@ -335,6 +335,7 @@ const createStyles = (theme: Theme) =>
       paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
     },
     content: {
+      flexGrow: 1,
       paddingHorizontal: 10,
       paddingTop: 0,
       paddingBottom: 28,
