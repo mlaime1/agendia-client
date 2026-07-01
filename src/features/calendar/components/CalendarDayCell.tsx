@@ -52,7 +52,6 @@ export function CalendarDayCell({
         styles.cell,
         !isCurrentMonth && styles.outsideMonthCell,
         day.isToday && styles.todayCell,
-        isAddModeActive && isCurrentMonth && styles.addModeCell,
         pressed && styles.pressedCell,
       ]}
     >
@@ -97,15 +96,12 @@ const createStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.primary,
     },
-    outsideMonthCell: {
-      opacity: 0.45,
-    },
-    addModeCell: {
-      backgroundColor: theme.colors.primaryLight,
-    },
-    pressedCell: {
-      opacity: 0.7,
-    },
+  outsideMonthCell: {
+    opacity: 0.45,
+  },
+  pressedCell: {
+    opacity: 0.7,
+  },
     dayContent: {
       alignItems: 'center',
       justifyContent: 'center',

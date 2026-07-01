@@ -271,11 +271,10 @@ export function CalendarScreen({
               userName={headerUserName}
               hideClientSelector={!permissions.showClientSelector}
               profileActionsSlot={profileActionsSlot}
+              bottomSlot={monthSelector}
               expandedSlot={headerExpandedPanel}
             />
           </View>
-
-          <View style={styles.monthSelectorContainer}>{monthSelector}</View>
 
           {profileError ? (
             <View style={styles.profileWarning}>
@@ -345,12 +344,6 @@ const createStyles = (theme: Theme) =>
     },
     fullBleedHeader: {
       marginHorizontal: -10,
-    },
-    monthSelectorContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 4,
     },
     profileWarning: {
       flexDirection: 'row',

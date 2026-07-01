@@ -27,6 +27,7 @@ type AgendiaHeaderProps = {
   onUserPress?: () => void;
   hideClientSelector?: boolean;
   profileActionsSlot?: React.ReactNode;
+  bottomSlot?: React.ReactNode;
   expandedSlot?: React.ReactNode;
 };
 
@@ -40,6 +41,7 @@ export function AgendiaHeader({
   onUserPress,
   hideClientSelector = false,
   profileActionsSlot,
+  bottomSlot,
   expandedSlot,
 }: AgendiaHeaderProps) {
   const { theme } = useTheme();
@@ -131,6 +133,8 @@ export function AgendiaHeader({
             <View style={styles.profileActions}>{profileActionsSlot}</View>
           ) : null}
         </View>
+
+        {bottomSlot ? <View style={styles.bottomSlot}>{bottomSlot}</View> : null}
 
         {expandedSlot ? <View style={styles.expandedSlot}>{expandedSlot}</View> : null}
       </View>
@@ -249,7 +253,6 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     gap: 12,
   },
   userPill: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -262,9 +265,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     minWidth: 0,
+    maxWidth: '78%',
   },
   userPillStatic: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -277,6 +280,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     borderWidth: 1,
     borderColor: theme.colors.border,
     minWidth: 0,
+    maxWidth: '78%',
   },
   avatar: {
     width: 32,
@@ -311,6 +315,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  bottomSlot: {
+    marginTop: 14,
   },
   expandedSlot: {
     marginTop: 14,
