@@ -33,6 +33,7 @@ export interface ClientFull {
 
 export type ClientNavigationState =
   | { screen: 'list' }
+  | { screen: 'create' }
   | { screen: 'detail'; clientId: string }
   | { screen: 'edit'; clientId: string }
   | { screen: 'editContract'; clientId: string }

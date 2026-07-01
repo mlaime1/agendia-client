@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { clientsService } from '../../../services/clients';
 import { defaultsService } from '../../../services/defaults';
+import { itinerariesService } from '../../../services/itineraries';
 import { useAuth } from '../../../state/AuthContext';
+import type { ItineraryRate, Route } from '../../../services/types';
 import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
@@ -20,6 +22,9 @@ type UseCalendarTripsResult = {
   error: string | null;
   clearError: () => void;
   clientTimezone: string;
+  routeId: string;
+  setRouteId: (routeId: string) => void;
+  availableRoutes: Route[];
 };
 
 export const useCalendarTrips = (
@@ -32,7 +37,8 @@ export const useCalendarTrips = (
   const [error, setError] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string>('');
   const [routeId, setRouteId] = useState<string>('');
-  const [rateId, setRateId] = useState<string>('');
+  const [availableRoutes, setAvailableRoutes] = useState<Route[]>([]);
+  const [availableRates, setAvailableRates] = useState<ItineraryRate[]>([]);
   const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
 
   const userId = userProfile?.id;
@@ -43,14 +49,18 @@ export const useCalendarTrips = (
     setError(message);
   };
 
-  const resolveTripContext = () => {
+  const resolveTripContext = (requiresRoute = true) => {
     const resolvedClientId = selectedClientId || clientId;
 
-    if (!resolvedClientId || !routeId) {
-      throw new Error('Seleccioná un cliente con una ruta cargada antes de crear viajes.');
+    if (!resolvedClientId) {
+      throw new Error('Seleccioná un cliente antes de crear viajes.');
     }
 
-    return { clientId: resolvedClientId, routeId, rateId: rateId || undefined };
+    if (requiresRoute && !routeId) {
+      throw new Error('Seleccioná una ruta antes de crear viajes.');
+    }
+
+    return { clientId: resolvedClientId, routeId };
   };
 
   useEffect(() => {
@@ -59,6 +69,7 @@ export const useCalendarTrips = (
     (async () => {
       if (mounted) {
         setIsLoadingTrips(true);
+        setAvailableRates([]);
       }
 
       if (!userId) {
@@ -72,31 +83,29 @@ export const useCalendarTrips = (
       try {
         const defaults = await defaultsService.getDefaults();
 
-        if (mounted && defaults.clientId && defaults.routeId) {
-          setClientId(defaults.clientId);
-          setRouteId(defaults.routeId);
-          if (defaults.rateId) {
-            setRateId(defaults.rateId);
-          }
-        }
-
+        let resolvedClientId = selectedClientId || defaults.clientId || undefined;
+        let resolvedRouteId = defaults.routeId || '';
         let resolvedTimezone = getClientTimezone();
-        if (selectedClientId) {
-          const selectedClient = await clientsService.getById(selectedClientId);
+        let resolvedRoutes: Route[] = [];
 
-          if (mounted) {
-            setClientId(selectedClient.id);
-            const activeRoute = selectedClient.routes?.find((route) => route.is_active !== false);
-            setRouteId(activeRoute?.id ?? '');
-            resolvedTimezone = getClientTimezone(selectedClient);
-            setClientTimezone(resolvedTimezone);
-          }
+        if (resolvedClientId) {
+          const clientDetail = await clientsService.getById(resolvedClientId);
+
+          resolvedRoutes = clientDetail.routes ?? [];
+          resolvedTimezone = getClientTimezone(clientDetail);
+
+          const activeRoute = resolvedRoutes.find((route) => route.is_active !== false);
+          resolvedRouteId = resolvedRouteId || activeRoute?.id || '';
         }
 
-        const list = await tripRepository.listCalendarTrips(
-          selectedClientId || defaults.clientId || undefined,
-          resolvedTimezone,
-        );
+        if (mounted) {
+          setClientId(resolvedClientId || '');
+          setRouteId(resolvedRouteId);
+          setAvailableRoutes(resolvedRoutes);
+          setClientTimezone(resolvedTimezone);
+        }
+
+        const list = await tripRepository.listCalendarTrips(resolvedClientId, resolvedTimezone);
         if (mounted) {
           setTrips(list);
         }
@@ -116,6 +125,43 @@ export const useCalendarTrips = (
       mounted = false;
     };
   }, [selectedClientId, userId]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    (async () => {
+      if (!routeId) {
+        if (mounted) {
+          setAvailableRates([]);
+        }
+        return;
+      }
+
+      try {
+        const rates = await itinerariesService.getRates(routeId);
+        if (mounted) {
+          setAvailableRates(rates);
+        }
+      } catch {
+        if (mounted) {
+          setAvailableRates([]);
+        }
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [routeId]);
+
+  const resolveRateId = (mode: TripMode): string | null => {
+    if (mode === 'special') {
+      return null;
+    }
+
+    const tripType = mode === 'roundTrip' ? 'ida_y_vuelta' : 'ida';
+    return availableRates.find((rate) => rate.trip_type === tripType)?.id ?? null;
+  };
 
   const tripsByDate = useMemo(
     () =>
@@ -137,6 +183,12 @@ export const useCalendarTrips = (
     });
   };
 
+  const warnIfZeroPrice = (trip: Trip) => {
+    if (trip.finalPrice === 0) {
+      setError('El viaje se registró con precio $0. Verificá que la tarifa esté configurada.');
+    }
+  };
+
   const addTrip = userId && !readOnly
     ? (dateKey: string, mode: TripMode) => {
         let tripContext;
@@ -148,19 +200,29 @@ export const useCalendarTrips = (
           return;
         }
 
+        const rateId = resolveRateId(mode);
+
+        if (!rateId) {
+          setError('No hay tarifa configurada para este tipo de viaje.');
+          return;
+        }
+
+        const payload = toCreateTripPayloads({ dateKey, mode, rateId, ...tripContext });
+
         (async () => {
           try {
             const createdTrip = await tripRepository.createTrips(
-              toCreateTripPayloads({ dateKey, mode, ...tripContext }),
+              payload,
               userId,
               clientTimezone,
             );
             mergeTripIntoState(createdTrip);
+            warnIfZeroPrice(createdTrip);
           } catch (err: any) {
             if (isNetworkError(err)) {
               try {
                 const fallback = tripRepository.createLocalTrips(
-                  toCreateTripPayloads({ dateKey, mode, ...tripContext }),
+                  payload,
                   userId,
                   clientTimezone,
                 );
@@ -189,39 +251,35 @@ export const useCalendarTrips = (
         let tripContext;
 
         try {
-          tripContext = resolveTripContext();
+          tripContext = resolveTripContext(false);
         } catch (contextError) {
-          setError(contextError instanceof Error ? contextError.message : 'Seleccioná un cliente con una ruta cargada antes de crear viajes.');
+          setError(contextError instanceof Error ? contextError.message : 'Seleccioná un cliente antes de crear viajes.');
           return;
         }
+
+        const payload = toCreateTripPayloads({
+          dateKey,
+          mode: 'special',
+          specialType,
+          note,
+          price,
+          clientId: tripContext.clientId,
+        });
 
         (async () => {
           try {
             const createdTrip = await tripRepository.createTrips(
-              toCreateTripPayloads({
-                dateKey,
-                mode: 'special',
-                specialType,
-                note,
-                price,
-                ...tripContext,
-              }),
+              payload,
               userId,
               clientTimezone,
             );
             mergeTripIntoState(createdTrip);
+            warnIfZeroPrice(createdTrip);
           } catch (err: any) {
             if (isNetworkError(err)) {
               try {
                 const fallback = tripRepository.createLocalTrips(
-                  toCreateTripPayloads({
-                    dateKey,
-                    mode: 'special',
-                    specialType,
-                    note,
-                    price,
-                    ...tripContext,
-                  }),
+                  payload,
                   userId,
                   clientTimezone,
                 );
@@ -297,5 +355,8 @@ export const useCalendarTrips = (
     error,
     clearError,
     clientTimezone,
+    routeId,
+    setRouteId,
+    availableRoutes,
   };
 };

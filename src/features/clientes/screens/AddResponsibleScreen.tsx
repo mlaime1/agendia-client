@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '../../../components/AppIcon';
+import { FormActions } from '../../../components/FormActions';
+import { FormSection } from '../../../components/FormSection';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { Theme } from '../../../theme';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
-import { MOCK_CLIENTS } from '../mockData';
+import { useFeedback } from '../../../state/FeedbackContext';
+import { useClientDetail, useCreateInvitation } from '../hooks';
+import { formatClientDate, getClientTimezone } from '../../../utils/dateTime';
 
 type AddResponsibleScreenProps = {
   clientId: string;
@@ -29,54 +27,64 @@ const RELATIONSHIP_OPTIONS = [
   'Otro',
 ];
 
-function generateCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = 'AG-';
-  for (let i = 0; i < 4; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
-
 export function AddResponsibleScreen({ clientId, onBack }: AddResponsibleScreenProps) {
+  const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
-  const client = MOCK_CLIENTS.find((c) => c.id === clientId);
+  const { showFeedback } = useFeedback();
+  const { client, loading, error } = useClientDetail(clientId);
+  const { result, loading: generating, createInvitation } = useCreateInvitation();
 
   const [name, setName] = useState('');
   const [relationshipIndex, setRelationshipIndex] = useState(-1);
   const [showRelationshipOptions, setShowRelationshipOptions] = useState(false);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const clientName = client?.nombre || 'el cliente';
+  const clientTimezone = getClientTimezone(client);
 
-  const handleGenerate = () => {
-    if (!name.trim()) return;
-    const code = generateCode();
-    setGeneratedCode(code);
-    setCopied(false);
-  };
+  const handleGenerate = useCallback(async () => {
+    if (!name.trim()) {
+      showFeedback({ type: 'error', message: 'Ingresá el nombre del responsable.' });
+      return;
+    }
 
-  const handleCopy = async () => {
-    if (!generatedCode) return;
-    await Clipboard.setStringAsync(generatedCode);
+    const data = await createInvitation(clientId);
+    if (data) {
+      showFeedback({ type: 'success', message: 'Código de invitación generado.' });
+    }
+  }, [name, clientId, createInvitation, showFeedback]);
+
+  const handleCopy = useCallback(async () => {
+    if (!result?.code) return;
+    await Clipboard.setStringAsync(result.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
+  }, [result?.code]);
 
-  const handleRegenerate = () => {
-    const code = generateCode();
-    setGeneratedCode(code);
-    setCopied(false);
-  };
+  const handleRegenerate = useCallback(async () => {
+    await handleGenerate();
+  }, [handleGenerate]);
 
   const relationshipLabel = relationshipIndex >= 0 ? RELATIONSHIP_OPTIONS[relationshipIndex] : '';
+  const expiresAtLabel = result?.expires_at
+    ? `Expira el ${formatClientDate(result.expires_at, clientTimezone)}`
+    : 'Expira en 7 días';
 
-  if (!client) {
+  if (loading) {
     return (
       <ScreenWrapper title="Agregar responsable" onBackPress={onBack}>
         <View style={styles.centered}>
-          <Text style={styles.errorText}>Cliente no encontrado</Text>
+          <ActivityIndicator size="large" color={styles.loadingColor.color} />
+          <Text style={styles.loadingText}>Cargando cliente...</Text>
+        </View>
+      </ScreenWrapper>
+    );
+  }
+
+  if (error || !client) {
+    return (
+      <ScreenWrapper title="Agregar responsable" onBackPress={onBack}>
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error || 'Cliente no encontrado'}</Text>
         </View>
       </ScreenWrapper>
     );
@@ -86,20 +94,19 @@ export function AddResponsibleScreen({ clientId, onBack }: AddResponsibleScreenP
     <ScreenWrapper title="Agregar responsable" onBackPress={onBack}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Datos del responsable</Text>
-
+        <FormSection title="Datos del responsable">
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>Nombre completo</Text>
             <TextInput
-              style={[styles.input, !name.trim() && generatedCode === null ? null : null]}
+              style={styles.input}
               value={name}
               onChangeText={setName}
               placeholder="Ej: María Gómez"
               placeholderTextColor={styles.placeholderColor.color}
+              autoCapitalize="words"
             />
           </View>
 
@@ -130,7 +137,12 @@ export function AddResponsibleScreen({ clientId, onBack }: AddResponsibleScreenP
                       setShowRelationshipOptions(false);
                     }}
                   >
-                    <Text style={[styles.optionText, relationshipIndex === index && styles.optionTextSelected]}>
+                    <Text
+                      style={[
+                        styles.optionText,
+                        relationshipIndex === index && styles.optionTextSelected,
+                      ]}
+                    >
                       {option}
                     </Text>
                   </Pressable>
@@ -138,22 +150,22 @@ export function AddResponsibleScreen({ clientId, onBack }: AddResponsibleScreenP
               </View>
             )}
           </View>
-        </View>
+        </FormSection>
 
         <View style={styles.infoBox}>
           <AppIcon name="info" size={18} color={styles.infoIconColor.color} />
           <Text style={styles.infoText}>
             Se generará un <Text style={styles.infoBold}>código de invitación</Text> que el
             responsable debe usar al registrarse en Agendia. Una vez registrado, quedará vinculado
-            automáticamente a <Text style={styles.infoBold}>{clientName}</Text>.
+            automáticamente a <Text style={styles.infoBold}>{client.nombre}</Text>.
           </Text>
         </View>
 
-        {generatedCode && (
+        {result?.code && (
           <View style={styles.codeBlock}>
             <Text style={styles.codeLabel}>Código de invitación</Text>
             <View style={styles.codeDisplay}>
-              <Text style={styles.codeValue}>{generatedCode}</Text>
+              <Text style={styles.codeValue}>{result.code}</Text>
               <Pressable
                 style={({ pressed }) => [styles.copyButton, pressed && styles.copyButtonPressed]}
                 onPress={copied ? undefined : handleCopy}
@@ -171,33 +183,18 @@ export function AddResponsibleScreen({ clientId, onBack }: AddResponsibleScreenP
             </Text>
             <View style={styles.codeExpiry}>
               <AppIcon name="clock" size={13} color={styles.expiryColor.color} />
-              <Text style={styles.expiryText}>Expira en 7 días · 15/06/2026</Text>
+              <Text style={styles.expiryText}>{expiresAtLabel}</Text>
             </View>
           </View>
         )}
 
-        <View style={styles.actions}>
-          <Pressable
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
-            onPress={generatedCode ? handleRegenerate : handleGenerate}
-          >
-            <AppIcon
-              name={generatedCode ? 'refresh' : 'send'}
-              size={18}
-              color={styles.primaryButtonText.color}
-            />
-            <Text style={styles.primaryButtonText}>
-              {generatedCode ? 'Regenerar código' : 'Generar invitación'}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [styles.outlineButton, pressed && styles.outlineButtonPressed]}
-            onPress={onBack}
-          >
-            <Text style={styles.outlineButtonText}>Cancelar</Text>
-          </Pressable>
-        </View>
+        <FormActions
+          primaryLabel={result?.code ? 'Regenerar código' : 'Generar invitación'}
+          onPrimary={result?.code ? handleRegenerate : handleGenerate}
+          secondaryLabel="Cancelar"
+          onSecondary={onBack}
+          primaryLoading={generating}
+        />
       </ScrollView>
     </ScreenWrapper>
   );
@@ -217,26 +214,20 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
+      paddingVertical: 48,
+      gap: 12,
+    },
+    loadingColor: {
+      color: theme.colors.primary,
+    },
+    loadingText: {
+      fontSize: theme.typography.size.md,
+      color: theme.colors.textSubtle,
+      fontWeight: theme.typography.weight.medium,
     },
     errorText: {
       color: theme.colors.danger,
-      fontSize: 14,
-    },
-    section: {
-      backgroundColor: theme.colors.surface,
-      borderRadius: 20,
-      marginHorizontal: 16,
-      overflow: 'hidden',
-    },
-    sectionTitle: {
-      fontSize: 11,
-      fontWeight: '700',
-      color: theme.colors.textSubtle,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
-      paddingHorizontal: 18,
-      paddingTop: 14,
-      paddingBottom: 4,
+      fontSize: theme.typography.size.md,
     },
     field: {
       paddingHorizontal: 18,
@@ -245,8 +236,8 @@ const createStyles = (theme: Theme) =>
       borderTopColor: theme.colors.border,
     },
     fieldLabel: {
-      fontSize: 11,
-      fontWeight: '700',
+      fontSize: theme.typography.size.xs,
+      fontWeight: theme.typography.weight.bold,
       color: theme.colors.textSubtle,
       marginBottom: 6,
       letterSpacing: 0.3,
@@ -255,10 +246,10 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
       borderWidth: 0.5,
       borderColor: theme.colors.border,
-      borderRadius: 10,
+      borderRadius: theme.radii.small,
       paddingHorizontal: 13,
       paddingVertical: 10,
-      fontSize: 14,
+      fontSize: theme.typography.size.md,
       color: theme.colors.text,
     },
     placeholderColor: {
@@ -271,12 +262,12 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
       borderWidth: 0.5,
       borderColor: theme.colors.border,
-      borderRadius: 10,
+      borderRadius: theme.radii.small,
       paddingHorizontal: 13,
       paddingVertical: 10,
     },
     selectText: {
-      fontSize: 14,
+      fontSize: theme.typography.size.md,
       color: theme.colors.text,
     },
     selectPlaceholder: {
@@ -290,7 +281,7 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.surface,
       borderWidth: 0.5,
       borderColor: theme.colors.border,
-      borderRadius: 10,
+      borderRadius: theme.radii.small,
       overflow: 'hidden',
     },
     optionItem: {
@@ -306,21 +297,22 @@ const createStyles = (theme: Theme) =>
       backgroundColor: theme.colors.background,
     },
     optionText: {
-      fontSize: 14,
+      fontSize: theme.typography.size.md,
       color: theme.colors.text,
+      fontWeight: theme.typography.weight.medium,
     },
     optionTextSelected: {
       color: theme.colors.primary,
-      fontWeight: '600',
+      fontWeight: theme.typography.weight.bold,
     },
     infoBox: {
       flexDirection: 'row',
       gap: 12,
       alignItems: 'flex-start',
       marginHorizontal: 16,
-      marginTop: 12,
+      marginTop: 4,
       backgroundColor: theme.colors.primaryLight,
-      borderRadius: 14,
+      borderRadius: theme.radii.medium,
       padding: 14,
       borderWidth: 0.5,
       borderColor: theme.colors.border,
@@ -330,27 +322,27 @@ const createStyles = (theme: Theme) =>
     },
     infoText: {
       flex: 1,
-      fontSize: 12,
+      fontSize: theme.typography.size.sm,
       color: theme.colors.primary,
       lineHeight: 18,
-      fontWeight: '500',
+      fontWeight: theme.typography.weight.medium,
     },
     infoBold: {
-      fontWeight: '700',
+      fontWeight: theme.typography.weight.bold,
       color: theme.colors.primaryDark,
     },
     codeBlock: {
       marginHorizontal: 16,
       marginTop: 12,
       backgroundColor: theme.colors.surface,
-      borderRadius: 16,
+      borderRadius: theme.radii.medium,
       padding: 16,
       borderWidth: 0.5,
       borderColor: theme.colors.border,
     },
     codeLabel: {
-      fontSize: 11,
-      fontWeight: '700',
+      fontSize: theme.typography.size.xs,
+      fontWeight: theme.typography.weight.bold,
       color: theme.colors.textSubtle,
       textTransform: 'uppercase',
       letterSpacing: 0.5,
@@ -361,13 +353,13 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'space-between',
       backgroundColor: theme.colors.background,
-      borderRadius: 10,
+      borderRadius: theme.radii.small,
       paddingVertical: 12,
       paddingHorizontal: 16,
     },
     codeValue: {
       fontSize: 22,
-      fontWeight: '700',
+      fontWeight: theme.typography.weight.bold,
       color: theme.colors.primary,
       letterSpacing: 4,
       fontFamily: 'monospace',
@@ -377,7 +369,7 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       gap: 5,
       backgroundColor: theme.colors.primary,
-      borderRadius: 8,
+      borderRadius: theme.radii.small,
       paddingVertical: 7,
       paddingHorizontal: 12,
     },
@@ -385,12 +377,12 @@ const createStyles = (theme: Theme) =>
       opacity: 0.85,
     },
     copyButtonText: {
-      color: theme.colors.primaryLight,
-      fontSize: 12,
-      fontWeight: '600',
+      color: theme.colors.textInverse,
+      fontSize: theme.typography.size.sm,
+      fontWeight: theme.typography.weight.semibold,
     },
     codeHint: {
-      fontSize: 11,
+      fontSize: theme.typography.size.xs,
       color: theme.colors.textSubtle,
       marginTop: 8,
       lineHeight: 16,
@@ -405,46 +397,8 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.disabled,
     },
     expiryText: {
-      fontSize: 11,
+      fontSize: theme.typography.size.xs,
       color: theme.colors.disabled,
-      fontWeight: '500',
-    },
-    actions: {
-      padding: 16,
-      gap: 8,
-    },
-    primaryButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      backgroundColor: theme.colors.primary,
-      borderRadius: 12,
-      paddingVertical: 13,
-    },
-    primaryButtonPressed: {
-      opacity: 0.9,
-    },
-    primaryButtonText: {
-      color: theme.colors.primaryLight,
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    outlineButton: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: 'transparent',
-      borderRadius: 12,
-      paddingVertical: 13,
-      borderWidth: 1.5,
-      borderColor: theme.colors.border,
-    },
-    outlineButtonPressed: {
-      opacity: 0.85,
-    },
-    outlineButtonText: {
-      color: theme.colors.primary,
-      fontSize: 14,
-      fontWeight: '600',
+      fontWeight: theme.typography.weight.medium,
     },
   });

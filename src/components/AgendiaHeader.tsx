@@ -9,7 +9,8 @@ import {
   View,
 } from 'react-native';
 
-import { Theme, useThemedStyles } from '../theme';
+import { AppIcon } from './AppIcon';
+import { Theme, useTheme, useThemedStyles } from '../theme';
 
 type ClientOption = {
   id: string;
@@ -27,6 +28,8 @@ type AgendiaHeaderProps = {
   onUserPress?: () => void;
   rightSlot?: React.ReactNode;
   hideClientSelector?: boolean;
+  actionButtonsSlot?: React.ReactNode;
+  expandedSlot?: React.ReactNode;
 };
 
 export function AgendiaHeader({
@@ -40,7 +43,10 @@ export function AgendiaHeader({
   onUserPress,
   rightSlot,
   hideClientSelector = false,
+  actionButtonsSlot,
+  expandedSlot,
 }: AgendiaHeaderProps) {
+  const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const selectedClient = useMemo(
@@ -61,7 +67,7 @@ export function AgendiaHeader({
   };
 
   return (
-    <>
+    <React.Fragment>
       <View style={styles.header}>
         <View style={styles.topRow}>
           <TouchableOpacity
@@ -122,7 +128,7 @@ export function AgendiaHeader({
                 </Text>
               </View>
 
-              <Text style={styles.caret}>⌄</Text>
+              <AppIcon name="chevronDown" size={14} color={theme.colors.primary} style={styles.caret} />
             </TouchableOpacity>
           )}
 
@@ -133,6 +139,12 @@ export function AgendiaHeader({
             </View>
           )}
         </View>
+
+        {actionButtonsSlot ? (
+          <View style={styles.actionButtonsSlot}>{actionButtonsSlot}</View>
+        ) : null}
+
+        {expandedSlot ? <View style={styles.expandedSlot}>{expandedSlot}</View> : null}
       </View>
 
       <Modal
@@ -183,7 +195,7 @@ export function AgendiaHeader({
           </View>
         </View>
       </Modal>
-    </>
+    </React.Fragment>
   );
 }
 
@@ -300,9 +312,13 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     color: theme.colors.primary,
   },
   caret: {
-    color: theme.colors.primary,
-    fontSize: 14,
     marginLeft: 2,
+  },
+  actionButtonsSlot: {
+    marginTop: 12,
+  },
+  expandedSlot: {
+    marginTop: 0,
   },
   badge: {
     backgroundColor: theme.colors.primary,

@@ -1,6 +1,7 @@
 import { toCalendarTrip } from './tripMappers';
 import { CreateTripPayload, Trip, TripRecord, TripUpdates } from '../types';
 import { tripsService } from '../../../services';
+import { itinerariesService } from '../../../services/itineraries';
 import type { Trip as ServiceTrip } from '../../../services/types';
 import { getClientDateKey, formatClientTime } from '../../../utils/dateTime';
 
@@ -39,7 +40,7 @@ const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecor
   id: createTripId(),
   user_id: userId,
   client_id: payload.client_id,
-  route_id: payload.route_id,
+  route_id: payload.route_id ?? '',
   rate_id: payload.rate_id ?? null,
   summary_id: null,
   trip_date: normalizeLocalTripDate(payload.trip_date),
@@ -58,23 +59,27 @@ const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecor
   created_at: new Date().toISOString(),
 });
 
-const mapServiceTripToRecord = (s: ServiceTrip, clientTimezone?: string): TripRecord => ({
-  id: s.id,
-  user_id: s.user_id,
-  client_id: s.client_id,
-  route_id: s.route_id,
-  rate_id: s.rate_id,
-  summary_id: s.summary_id ?? null,
-  trip_date: normalizeServiceTripDate(s.trip_date, clientTimezone),
-  trip_time: formatClientTime(s.trip_date, clientTimezone),
-  trip_type: normalizeServiceTripType(s.trip_type),
-  final_price: Number(s.final_price) || 0,
-  has_surcharge: s.has_surcharge,
-  surcharge_reason: s.surcharge_reason ?? null,
-  special_type: s.special_type ?? null,
-  notes: s.notes ?? null,
-  created_at: s.created_at,
-});
+const mapServiceTripToRecord = (s: ServiceTrip, clientTimezone?: string): TripRecord => {
+  const safeTripDate = s.trip_date || new Date().toISOString();
+
+  return {
+    id: s.id ?? '',
+    user_id: s.user_id ?? '',
+    client_id: s.client_id ?? '',
+    route_id: s.route_id ?? '',
+    rate_id: s.rate_id ?? null,
+    summary_id: s.summary_id ?? null,
+    trip_date: normalizeServiceTripDate(safeTripDate, clientTimezone),
+    trip_time: formatClientTime(safeTripDate, clientTimezone),
+    trip_type: normalizeServiceTripType(s.trip_type),
+    final_price: Number(s.final_price) || 0,
+    has_surcharge: s.has_surcharge ?? false,
+    surcharge_reason: s.surcharge_reason ?? null,
+    special_type: s.special_type ?? null,
+    notes: s.notes ?? null,
+    created_at: s.created_at || new Date().toISOString(),
+  };
+};
 
 const groupRecordsForCalendar = (records: TripRecord[], clientTimezone?: string) => {
   const trips: Trip[] = [];
@@ -138,11 +143,12 @@ export const tripRepository = {
         const body: any = {
           user_id: userId,
           client_id: p.client_id,
-          route_id: p.route_id,
           trip_date: p.trip_date,
           trip_type: p.trip_type,
         };
 
+        if (p.route_id) body.route_id = p.route_id;
+        if (p.rate_id) body.rate_id = p.rate_id;
         if (p.trip_time) body.trip_time = p.trip_time;
         if (p.special_type) body.special_type = p.special_type;
         if (p.notes) body.notes = p.notes;
@@ -153,8 +159,6 @@ export const tripRepository = {
             body.final_price = manualPrice;
           }
         }
-
-        console.log('[tripRepository] creating trip body:', JSON.stringify(body, null, 2));
 
         return tripsService.create(body);
       }),
@@ -172,6 +176,25 @@ export const tripRepository = {
   },
 
   updateCalendarTrip: async (trip: Trip, updates: TripUpdates, clientTimezone?: string): Promise<void> => {
+    const record = tripRecords.find((r) => r.id === trip.recordIds[0]);
+    const currentRouteId = record?.route_id || updates.routeId || '';
+
+    let rateId: string | null = null;
+
+    if (updates.mode && updates.mode !== 'special') {
+      if (!currentRouteId) {
+        throw new Error('Falta la ruta para cambiar el viaje a regular.');
+      }
+
+      const tripType = updates.mode === 'roundTrip' ? 'ida_y_vuelta' : 'ida';
+      const rates = await itinerariesService.getRates(currentRouteId);
+      rateId = rates.find((rate) => rate.trip_type === tripType)?.id ?? null;
+
+      if (!rateId) {
+        throw new Error('No hay tarifa configurada para este tipo de viaje.');
+      }
+    }
+
     await Promise.all(
       trip.recordIds.map((id) => {
         const body: any = {};
@@ -183,10 +206,18 @@ export const tripRepository = {
         if (updates.mode === 'special') {
           body.trip_type = 'especial';
           body.special_type = updates.specialType?.trim() || 'Ruta especial';
+          body.route_id = null;
+          body.rate_id = null;
         } else if (updates.mode === 'roundTrip') {
           body.trip_type = 'ida y vuelta';
+          body.special_type = null;
+          body.route_id = currentRouteId;
+          if (rateId) body.rate_id = rateId;
         } else if (updates.mode === 'outbound') {
           body.trip_type = 'ida';
+          body.special_type = null;
+          body.route_id = currentRouteId;
+          if (rateId) body.rate_id = rateId;
         }
 
         return tripsService.update(id, body);

@@ -63,10 +63,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         };
 
         console.log('[AuthContext] profile loaded from backend:', {
+          authId: supabaseUser.id,
           id: profile.id,
           email: profile.email,
           roleRaw: backendProfile.role,
           roleNormalized: profile.role,
+          linkedClientId: profile.linked_client_id,
         });
       } catch (backendError) {
         profile = {
@@ -80,11 +82,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
         };
 
         console.log('[AuthContext] profile loaded from supabase fallback:', {
+          authId: supabaseUser.id,
           id: profile.id,
           email: profile.email,
           backendError: backendError instanceof Error ? backendError.message : String(backendError),
           roleRaw: supabaseUser.user_metadata?.role,
           roleNormalized: profile.role,
+          linkedClientId: profile.linked_client_id,
         });
       }
 
@@ -139,7 +143,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       }
 
       console.log('[AuthContext] login response:', {
-        userId: data.session?.user?.id,
+        authId: data.session?.user?.id,
         email: data.session?.user?.email,
         roleRaw: data.session?.user?.user_metadata?.role,
         roleNormalized: normalizeRole(data.session?.user?.user_metadata?.role),

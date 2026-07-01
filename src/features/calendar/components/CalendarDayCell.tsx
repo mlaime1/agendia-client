@@ -7,6 +7,7 @@ import { Theme, useThemedStyles } from '../../../theme';
 
 type CalendarDayCellProps = {
   day: CalendarDay;
+  isAddModeActive?: boolean;
   isCurrentMonth?: boolean;
   trips: Trip[];
   onPress: (dateKey: string) => void;
@@ -17,6 +18,7 @@ const visibleStampCount = 3;
 
 export function CalendarDayCell({
   day,
+  isAddModeActive = false,
   isCurrentMonth = true,
   trips,
   onPress,
@@ -37,6 +39,7 @@ export function CalendarDayCell({
         !isCurrentMonth && styles.outsideMonthCell,
         day.isToday && styles.todayCell,
         trips.length > 0 && styles.hasTripsCell,
+        isAddModeActive && isCurrentMonth && styles.addModeCell,
         pressed && styles.pressedCell,
       ]}
     >
@@ -84,6 +87,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   outsideMonthCell: {
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surfaceMuted,
+  },
+  addModeCell: {
+    backgroundColor: theme.colors.primaryLight,
+    borderColor: theme.colors.primary,
   },
   pressedCell: {
     transform: [{ scale: 0.97 }],
