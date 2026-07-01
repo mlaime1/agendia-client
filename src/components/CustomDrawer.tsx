@@ -200,9 +200,9 @@ export function CustomDrawer({
           {/* Menu items */}
           <View style={styles.menuContainer}>
             {menuItems.map((item) => {
-              // Filter out driver-only sections for non-driver/admin users
+              // Recorridos is driver-only; Resumenes is available for clients too
               if (
-                (item.route === 'Recorridos' || item.route === 'Resumenes') &&
+                item.route === 'Recorridos' &&
                 user.role !== 'driver' &&
                 user.role !== 'admin'
               ) {

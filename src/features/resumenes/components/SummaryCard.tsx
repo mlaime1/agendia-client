@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../../theme';
 import type { Summary } from '../../../services/types';
+import type { UserRole } from '../../../features/auth/types/user';
 import { formatClientPeriod } from '../../../utils/dateTime';
 import { SummaryStatusBadge } from './SummaryStatusBadge';
 import { getCycleLabel } from '../utils/summaryCycle';
@@ -13,6 +14,7 @@ import { getNextSummaryStatus } from '../utils/summaryStatus';
 type SummaryCardProps = {
   summary: Summary;
   clientTimezone?: string;
+  role?: UserRole;
   onPress: (summaryId: string) => void;
   onDownload: (summaryId: string) => void;
   onStatusChange: (summary: Summary) => void;
@@ -22,11 +24,13 @@ type SummaryCardProps = {
 export function SummaryCard({
   summary,
   clientTimezone,
+  role = 'driver',
   onPress,
   onDownload,
   onStatusChange,
   onDelete,
 }: SummaryCardProps) {
+  const isClientView = role === 'client';
   const styles = useStyles();
   const period = formatClientPeriod(summary.period_start, summary.period_end, clientTimezone);
   const clientName = summary.clients?.nombre || 'Cliente';
@@ -54,7 +58,7 @@ export function SummaryCard({
           <ActionButton icon="eye-outline" onPress={() => onPress(summary.id)} />
           <ActionButton icon="download-outline" onPress={() => onDownload(summary.id)} />
 
-          {nextStatus && (
+          {!isClientView && nextStatus && (
             <ActionButton
               icon={
                 nextStatus === 'sent'
@@ -67,7 +71,7 @@ export function SummaryCard({
             />
           )}
 
-          {summary.status === 'draft' && (
+          {!isClientView && summary.status === 'draft' && (
             <ActionButton icon="trash-outline" danger onPress={() => onDelete(summary)} />
           )}
 

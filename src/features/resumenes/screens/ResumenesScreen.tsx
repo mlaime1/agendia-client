@@ -14,6 +14,7 @@ import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { useTheme } from '../../../theme';
 import { clientsService } from '../../../services/clients';
 import type { Summary, SummaryStatus } from '../../../services/types';
+import type { UserRole } from '../../../features/auth/types/user';
 import { getClientTimezone, toClientDate } from '../../../utils/dateTime';
 import { confirmAction } from '../../../utils/confirmAction';
 import { useSummaries } from '../hooks/useSummaries';
@@ -29,25 +30,19 @@ type SummaryFilter = 'all' | SummaryStatus;
 type ResumenesScreenProps = {
   selectedClientId: string;
   driverId: string;
+  role?: UserRole;
   onMenuPress: () => void;
   onOpenDetail: (summaryId: string) => void;
 };
 
-const SUMMARY_FILTER_OPTIONS: Array<{ value: SummaryFilter; label: string }> = [
-  { value: 'all', label: 'Todos' },
-  { value: 'draft', label: 'Borrador' },
-  { value: 'sent', label: 'Enviado' },
-  { value: 'partial', label: 'Parcial' },
-  { value: 'paid', label: 'Abonado' },
-  { value: 'archived', label: 'Archivado' },
-];
-
 export function ResumenesScreen({
   selectedClientId,
   driverId,
+  role = 'driver',
   onMenuPress,
   onOpenDetail,
 }: ResumenesScreenProps) {
+  const isClientView = role === 'client';
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
@@ -56,6 +51,24 @@ export function ResumenesScreen({
 
   const { summaries, loading, error, refetch } = useSummaries(selectedClientId || null);
   const { updating, updateStatus, deleteSummary } = useSummaryActions();
+
+  const filterOptions = useMemo(
+    () => {
+      const all: Array<{ value: SummaryFilter; label: string }> = [
+        { value: 'all', label: 'Todos' },
+        { value: 'draft', label: 'Borrador' },
+        { value: 'sent', label: 'Enviado' },
+        { value: 'partial', label: 'Parcial' },
+        { value: 'paid', label: 'Abonado' },
+        { value: 'archived', label: 'Archivado' },
+      ];
+      if (isClientView) {
+        return all.filter((option) => option.value !== 'draft');
+      }
+      return all;
+    },
+    [isClientView],
+  );
 
   useEffect(() => {
     if (!selectedClientId) return;
@@ -85,7 +98,10 @@ export function ResumenesScreen({
   }, [summaries, summaryFilter]);
 
   const { pendingCount, pendingAmount, thisMonthAmount, thisMonthCount } = useMemo(() => {
-    const pending = summaries.filter((s) => s.status === 'draft' || s.status === 'sent' || s.status === 'partial');
+    const pendingStatuses = isClientView
+      ? (['sent', 'partial'] as SummaryStatus[])
+      : (['draft', 'sent', 'partial'] as SummaryStatus[]);
+    const pending = summaries.filter((s) => pendingStatuses.includes(s.status));
     const pendingAmount = pending.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
 
     const today = new Date();
@@ -102,7 +118,7 @@ export function ResumenesScreen({
       thisMonthAmount,
       thisMonthCount: thisMonth.length,
     };
-  }, [summaries, clientTimezone]);
+  }, [summaries, clientTimezone, isClientView]);
 
   const handleStatusChange = useCallback(
     (summary: Summary) => {
@@ -186,6 +202,7 @@ export function ResumenesScreen({
           <SummaryCard
             key={summary.id}
             summary={summary}
+            role={role}
             clientTimezone={clientTimezone}
             onPress={onOpenDetail}
             onDownload={handleDownload}
@@ -219,7 +236,7 @@ export function ResumenesScreen({
         <View style={styles.filterSection}>
           <Text style={styles.sectionLabel}>FILTROS</Text>
           <View style={styles.filterPills}>
-            {SUMMARY_FILTER_OPTIONS.map((option) => {
+            {filterOptions.map((option) => {
               const isActive = summaryFilter === option.value;
               return (
                 <Pressable
@@ -239,26 +256,30 @@ export function ResumenesScreen({
         {renderContent()}
       </ScrollView>
 
-      <View style={[styles.fabContainer, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable
-          style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
-          onPress={() => setModalVisible(true)}
-        >
-          <Text style={styles.fabText}>+ Nuevo resumen</Text>
-        </Pressable>
-      </View>
+      {!isClientView && (
+        <>
+          <View style={[styles.fabContainer, { paddingBottom: insets.bottom + 12 }]}>
+            <Pressable
+              style={({ pressed }) => [styles.fab, pressed && styles.fabPressed]}
+              onPress={() => setModalVisible(true)}
+            >
+              <Text style={styles.fabText}>+ Nuevo resumen</Text>
+            </Pressable>
+          </View>
 
-      <CreateSummaryModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        selectedClientId={selectedClientId}
-        driverId={driverId}
-        clientTimezone={clientTimezone}
-        onSuccess={() => {
-          setModalVisible(false);
-          refetch();
-        }}
-      />
+          <CreateSummaryModal
+            visible={modalVisible}
+            onClose={() => setModalVisible(false)}
+            selectedClientId={selectedClientId}
+            driverId={driverId}
+            clientTimezone={clientTimezone}
+            onSuccess={() => {
+              setModalVisible(false);
+              refetch();
+            }}
+          />
+        </>
+      )}
     </ScreenWrapper>
   );
 }

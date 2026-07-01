@@ -14,7 +14,6 @@ import {
 import { AppIcon } from '../../../components/AppIcon';
 import type { Route } from '../../../services/types';
 import { Trip, TripMode, TripUpdates } from '../types';
-import { TripStamp } from './TripStamp';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
 type DayDetailsModalProps = {
@@ -207,13 +206,12 @@ export function DayDetailsModal({
                   <View style={styles.tripHeader}>
                     <View style={styles.tripTitleGroup}>
                       <Text style={styles.tripTitle}>{getRouteLabel(trip)}</Text>
-                      <View style={styles.tripMetaRow}>
-                        <TripStamp mode={trip.mode} />
-                        <Text style={styles.tripTime}>{trip.time}</Text>
-                      </View>
+                      <Text style={styles.tripType}>{tripLabels[trip.mode]}</Text>
                     </View>
 
-                    {!readOnly && (
+                    {readOnly ? (
+                      <Text style={styles.tripTime}>{trip.time}</Text>
+                    ) : (
                       <View style={styles.timeField}>
                         <Text style={styles.inputLabel}>Hora</Text>
                         <TextInput
@@ -425,23 +423,24 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   tripTitleGroup: {
     flex: 1,
-    gap: 6,
+    gap: 4,
   },
   tripTitle: {
     color: theme.colors.text,
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '800',
     letterSpacing: 0,
   },
-  tripMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  tripType: {
+    color: theme.colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0,
   },
   tripTime: {
-    color: theme.colors.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
+    color: theme.colors.primary,
+    fontSize: 14,
+    fontWeight: '700',
     letterSpacing: 0,
   },
   timeField: {

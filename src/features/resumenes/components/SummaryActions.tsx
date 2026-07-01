@@ -18,6 +18,7 @@ type SummaryActionsProps = {
   summary: Summary;
   updating: boolean;
   deleting: boolean;
+  readOnly?: boolean;
   onUpdateStatus: (summaryId: string, status: SummaryStatus) => Promise<unknown>;
   onDelete: (summaryId: string) => Promise<unknown>;
 };
@@ -26,6 +27,7 @@ export function SummaryActions({
   summary,
   updating,
   deleting,
+  readOnly = false,
   onUpdateStatus,
   onDelete,
 }: SummaryActionsProps) {
