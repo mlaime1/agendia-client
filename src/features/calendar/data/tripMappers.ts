@@ -10,33 +10,47 @@ export const toCreateTripPayloads = ({
   price,
   clientId,
   routeId,
-}: CreateCalendarTripInput & { clientId: string; routeId: string }): CreateTripPayload[] => {
-  if (!clientId || !routeId) {
-    throw new Error('Faltan cliente o ruta para crear el viaje.');
+  rateId,
+}: CreateCalendarTripInput & { clientId: string; routeId?: string | null; rateId?: string | null }): CreateTripPayload[] => {
+  if (!clientId) {
+    throw new Error('Falta el cliente para crear el viaje.');
+  }
+
+  const tripTime = getCurrentTime();
+  const tripDate = `${dateKey}T${tripTime}:00`;
+
+  if (mode === 'special') {
+    return [
+      {
+        client_id: clientId,
+        trip_date: tripDate,
+        trip_time: tripTime,
+        trip_type: 'especial',
+        special_type: specialType?.trim() || 'Ruta especial',
+        notes: note?.trim() || null,
+        price,
+      },
+    ];
+  }
+
+  if (!routeId) {
+    throw new Error('Falta la ruta para crear el viaje.');
   }
 
   const basePayload = {
     client_id: clientId,
     route_id: routeId,
-    trip_time: getCurrentTime(),
+    rate_id: rateId,
+    trip_date: tripDate,
+    trip_time: tripTime,
     notes: note?.trim() || null,
   };
 
-  const tripDate = `${dateKey}T${basePayload.trip_time}:00`;
-
   if (mode === 'roundTrip') {
-    return [{ ...basePayload, trip_date: tripDate, trip_type: 'ida y vuelta', special_type: null }];
+    return [{ ...basePayload, trip_type: 'ida y vuelta', special_type: null }];
   }
 
-  return [
-    {
-      ...basePayload,
-      trip_date: tripDate,
-      trip_type: mode === 'special' ? 'especial' : 'ida',
-      special_type: mode === 'special' ? specialType?.trim() || 'Ruta especial' : null,
-      price: mode === 'special' ? price : undefined,
-    },
-  ];
+  return [{ ...basePayload, trip_type: 'ida', special_type: null }];
 };
 
 export const toCalendarTrip = (records: TripRecord[], _clientTimezone?: string): Trip => {
@@ -57,5 +71,6 @@ export const toCalendarTrip = (records: TripRecord[], _clientTimezone?: string):
     mode: isRoundTrip || isSingleRoundTrip ? 'roundTrip' : isSpecial ? 'special' : 'outbound',
     specialType,
     note: firstRecord.notes ?? undefined,
+    finalPrice: firstRecord.final_price,
   };
 };

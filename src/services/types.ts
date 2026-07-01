@@ -47,6 +47,7 @@ export interface Rate {
   surcharge_price?: string | null;
   start_date?: string | null;
   end_date?: string | null;
+  trip_type?: 'ida' | 'ida y vuelta' | 'especial';
 }
 
 export interface Payment {

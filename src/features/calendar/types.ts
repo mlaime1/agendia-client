@@ -21,7 +21,7 @@ export type TripRecord = {
 
 export type CreateTripPayload = {
   client_id: string;
-  route_id: string;
+  route_id?: string | null;
   rate_id?: string | null;
   trip_date: string;
   trip_time: string;
@@ -47,9 +47,12 @@ export type Trip = {
   mode: TripMode;
   specialType?: string;
   note?: string;
+  finalPrice?: number;
 };
 
-export type TripUpdates = Partial<Pick<Trip, 'time' | 'mode' | 'note' | 'specialType'>>;
+export type TripUpdates = Partial<Pick<Trip, 'time' | 'mode' | 'note' | 'specialType'>> & {
+  routeId?: string;
+};
 
 export type CalendarDay = {
   date: Date;
