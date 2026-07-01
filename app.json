@@ -19,6 +19,7 @@
     },
     "android": {
       "package": "com.maurolaime.agendia",
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon/icon.png",
         "backgroundColor": "#F7FAF7"

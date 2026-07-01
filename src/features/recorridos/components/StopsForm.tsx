@@ -1,5 +1,12 @@
-import React from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import {
+  Keyboard,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { Theme, useThemedStyles } from '../../../theme';
@@ -11,6 +18,10 @@ export interface FormStop {
   type: 'origin' | 'destination' | 'stop';
 }
 
+export type StopsFormRef = {
+  focusFirst: () => void;
+};
+
 type StopsFormProps = {
   stops: FormStop[];
   onUpdateStop: (id: string, name: string, address: string) => void;
@@ -18,74 +29,107 @@ type StopsFormProps = {
   onAddStop: () => void;
 };
 
-export function StopsForm({ stops, onUpdateStop, onRemoveStop, onAddStop }: StopsFormProps) {
-  const styles = useThemedStyles(createStyles);
+export const StopsForm = forwardRef<StopsFormRef, StopsFormProps>(
+  function StopsForm({ stops, onUpdateStop, onRemoveStop, onAddStop }, ref) {
+    const styles = useThemedStyles(createStyles);
+    const nameRefs = useRef<(TextInput | null)[]>([]);
+    const addressRefs = useRef<(TextInput | null)[]>([]);
 
-  const getStopLabel = (type: FormStop['type'], index: number) => {
-    if (type === 'origin') return 'Origen';
-    if (type === 'destination') return 'Destino';
-    return `Parada ${index}`;
-  };
+    useImperativeHandle(ref, () => ({
+      focusFirst: () => {
+        nameRefs.current[0]?.focus();
+      },
+    }));
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.stopsList}>
-        {stops.map((stop, idx) => {
-          const isFirst = stop.type === 'origin';
-          const isLast = stop.type === 'destination';
-          const isMid = !isFirst && !isLast;
+    const getStopLabel = (type: FormStop['type'], index: number) => {
+      if (type === 'origin') return 'Origen';
+      if (type === 'destination') return 'Destino';
+      return `Parada ${index}`;
+    };
 
-          return (
-            <View key={stop.id} style={styles.stopItem}>
-              <View style={styles.stopAside}>
-                {isFirst || isLast ? (
-                  <View style={styles.stopDot} />
-                ) : (
-                  <View style={styles.stopDotMid} />
-                )}
-                {!isLast && <View style={styles.stopLine} />}
-              </View>
-              <View style={styles.stopFields}>
-                <View style={styles.stopHeader}>
-                  <Text style={styles.stopLabel}>{getStopLabel(stop.type, idx)}</Text>
-                  {isMid && (
-                    <Pressable
-                      style={styles.stopRemove}
-                      onPress={() => onRemoveStop(stop.id)}
-                    >
-                      <AppIcon name="close" size={13} color={styles.removeIcon.color} />
-                    </Pressable>
+    const focusAddress = (index: number) => {
+      addressRefs.current[index]?.focus();
+    };
+
+    const focusNextName = (index: number) => {
+      const nextName = nameRefs.current[index + 1];
+      if (nextName) {
+        nextName.focus();
+      } else {
+        Keyboard.dismiss();
+      }
+    };
+
+    return (
+      <View style={styles.container}>
+        <View style={styles.stopsList}>
+          {stops.map((stop, idx) => {
+            const isFirst = stop.type === 'origin';
+            const isLast = stop.type === 'destination';
+            const isMid = !isFirst && !isLast;
+
+            return (
+              <View key={stop.id} style={styles.stopItem}>
+                <View style={styles.stopAside}>
+                  {isFirst || isLast ? (
+                    <View style={styles.stopDot} />
+                  ) : (
+                    <View style={styles.stopDotMid} />
                   )}
+                  {!isLast && <View style={styles.stopLine} />}
                 </View>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Nombre del lugar"
-                  placeholderTextColor={styles.placeholder.color}
-                  value={stop.name}
-                  onChangeText={(text) => onUpdateStop(stop.id, text, stop.address)}
-                />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Dirección"
-                  placeholderTextColor={styles.placeholder.color}
-                  value={stop.address}
-                  onChangeText={(text) => onUpdateStop(stop.id, stop.name, text)}
-                />
+                <View style={styles.stopFields}>
+                  <View style={styles.stopHeader}>
+                    <Text style={styles.stopLabel}>{getStopLabel(stop.type, idx)}</Text>
+                    {isMid && (
+                      <Pressable
+                        style={styles.stopRemove}
+                        onPress={() => onRemoveStop(stop.id)}
+                      >
+                        <AppIcon name="close" size={13} color={styles.removeIcon.color} />
+                      </Pressable>
+                    )}
+                  </View>
+                  <TextInput
+                    ref={(el) => {
+                      nameRefs.current[idx] = el;
+                    }}
+                    style={styles.input}
+                    placeholder="Nombre del lugar"
+                    placeholderTextColor={styles.placeholder.color}
+                    value={stop.name}
+                    onChangeText={(text) => onUpdateStop(stop.id, text, stop.address)}
+                    returnKeyType="next"
+                    onSubmitEditing={() => focusAddress(idx)}
+                  />
+                  <TextInput
+                    ref={(el) => {
+                      addressRefs.current[idx] = el;
+                    }}
+                    style={styles.input}
+                    placeholder="Dirección"
+                    placeholderTextColor={styles.placeholder.color}
+                    value={stop.address}
+                    onChangeText={(text) => onUpdateStop(stop.id, stop.name, text)}
+                    returnKeyType={isLast ? 'done' : 'next'}
+                    onSubmitEditing={() => focusNextName(idx)}
+                  />
+                </View>
               </View>
-            </View>
-          );
-        })}
-      </View>
-
-      <Pressable style={styles.addStop} onPress={onAddStop}>
-        <View style={styles.addIcon}>
-          <AppIcon name="plus" size={14} color={styles.addIconColor.color} />
+            );
+          })}
         </View>
-        <Text style={styles.addLabel}>Agregar parada intermedia</Text>
-      </Pressable>
-    </View>
-  );
-}
+
+        <Pressable style={styles.addStop} onPress={onAddStop}>
+          <View style={styles.addIcon}>
+            <AppIcon name="plus" size={14} color={styles.addIconColor.color} />
+          </View>
+          <Text style={styles.addLabel}>Agregar parada intermedia</Text>
+        </Pressable>
+      </View>
+    );
+  }
+);
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({
