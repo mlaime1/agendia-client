@@ -214,11 +214,10 @@ export const useCalendarTrips = ({
         const rateId = resolveRateId(mode);
 
         if (!rateId) {
-          setError('No hay tarifa configurada para este tipo de viaje.');
-          return;
+          console.warn('[useCalendarTrips] No rate found for mode:', mode, '- creating trip without rate_id');
         }
 
-        const payload = toCreateTripPayloads({ dateKey, mode, rateId, ...tripContext });
+        const payload = toCreateTripPayloads({ dateKey, mode, rateId: rateId ?? null, ...tripContext });
 
         (async () => {
           try {
