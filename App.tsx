@@ -170,6 +170,7 @@ function AppContent() {
         return (
           <ResumenDetailScreen
             summaryId={navigation.summaryId}
+            role={userProfile?.role ?? 'driver'}
             onBack={handleBackFromDetail}
           />
         );
@@ -192,8 +193,13 @@ function AppContent() {
       case 'Resumenes':
         return (
           <ResumenesScreen
-            selectedClientId={selectedClientId}
+            selectedClientId={
+              userProfile?.role === 'client'
+                ? userProfile?.linked_client_id || selectedClientId
+                : selectedClientId
+            }
             driverId={driverId}
+            role={userProfile?.role ?? 'driver'}
             onMenuPress={() => setDrawerVisible(true)}
             onOpenDetail={handleOpenDetail}
           />

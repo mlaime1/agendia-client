@@ -11,6 +11,7 @@ import type { SummaryStatus } from '../../../services/types';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { useTheme } from '../../../theme';
 import { formatClientPeriod, getClientDateKey, getClientTimezone } from '../../../utils/dateTime';
+import type { UserRole } from '../../../features/auth/types/user';
 import { useSummary } from '../hooks/useSummary';
 import { useSummaryActions } from '../hooks/useSummaryActions';
 import { SummaryStatusBadge } from '../components/SummaryStatusBadge';
@@ -20,10 +21,12 @@ import { formatCurrency } from '../utils/formatCurrency';
 
 type ResumenDetailScreenProps = {
   summaryId: string;
+  role?: UserRole;
   onBack: () => void;
 };
 
-export function ResumenDetailScreen({ summaryId, onBack }: ResumenDetailScreenProps) {
+export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: ResumenDetailScreenProps) {
+  const isClientView = role === 'client';
   const styles = useStyles();
   const { summary, loading, error, refetch } = useSummary(summaryId);
   const { updating, deleting, updateStatus, deleteSummary } = useSummaryActions();
@@ -140,6 +143,7 @@ export function ResumenDetailScreen({ summaryId, onBack }: ResumenDetailScreenPr
           summary={summary}
           updating={updating}
           deleting={deleting}
+          readOnly={isClientView}
           onUpdateStatus={handleUpdateStatus}
           onDelete={handleDelete}
         />

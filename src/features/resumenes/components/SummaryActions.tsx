@@ -64,6 +64,24 @@ export function SummaryActions({
     );
   };
 
+  if (readOnly) {
+    return (
+      <View style={[styles.container, { paddingBottom: insets.bottom + 12 }]}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.downloadButton,
+            styles.downloadButtonFull,
+            pressed && styles.downloadButtonPressed,
+          ]}
+          onPress={handleDownloadPdf}
+        >
+          <Ionicons name="download-outline" size={18} color={styles.downloadText.color} />
+          <Text style={styles.downloadText}>Descargar PDF</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + 12 }]}>
       <View style={styles.actionBar}>
@@ -156,6 +174,10 @@ const useStyles = () => {
         },
         downloadButtonPressed: {
           backgroundColor: theme.colors.surfaceMuted,
+        },
+        downloadButtonFull: {
+          flex: 0,
+          width: '100%',
         },
         downloadText: {
           color: theme.colors.text,
