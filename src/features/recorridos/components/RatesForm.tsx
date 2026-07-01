@@ -1,5 +1,11 @@
-import React from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { forwardRef, useImperativeHandle, useRef } from 'react';
+import {
+  Keyboard,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { Theme, useThemedStyles } from '../../../theme';
 
@@ -7,6 +13,10 @@ export interface FormRate {
   type: 'ida' | 'ida y vuelta' | 'especial';
   price: string;
 }
+
+export type RatesFormRef = {
+  focusFirst: () => void;
+};
 
 type RatesFormProps = {
   rates: FormRate[];
@@ -25,49 +35,70 @@ const RATE_TEXT_COLORS: Record<FormRate['type'], string> = {
   'especial': '#9A5F00',
 };
 
-export function RatesForm({ rates, onUpdateRate }: RatesFormProps) {
-  const styles = useThemedStyles(createStyles);
+export const RatesForm = forwardRef<RatesFormRef, RatesFormProps>(
+  function RatesForm({ rates, onUpdateRate }, ref) {
+    const styles = useThemedStyles(createStyles);
+    const inputRefs = useRef<(TextInput | null)[]>([]);
 
-  return (
-    <View style={styles.ratesGrid}>
-      {rates.map((rate) => {
-        const config = RATE_LABELS[rate.type];
-        const isOptional = rate.type === 'especial';
+    useImperativeHandle(ref, () => ({
+      focusFirst: () => {
+        inputRefs.current[0]?.focus();
+      },
+    }));
 
-        return (
-          <View key={rate.type} style={styles.rateRow}>
-            <View style={styles.rateTag}>
-              <View
-                style={[
-                  styles.ratePill,
-                  { backgroundColor: config.color },
-                ]}
-              >
-                <Text style={[styles.ratePillText, { color: RATE_TEXT_COLORS[rate.type] }]}>
-                  {config.label}
-                </Text>
+    return (
+      <View style={styles.ratesGrid}>
+        {rates.map((rate, index) => {
+          const config = RATE_LABELS[rate.type];
+          const isOptional = rate.type === 'especial';
+          const isLast = index === rates.length - 1;
+
+          return (
+            <View key={rate.type} style={styles.rateRow}>
+              <View style={styles.rateTag}>
+                <View
+                  style={[
+                    styles.ratePill,
+                    { backgroundColor: config.color },
+                  ]}
+                >
+                  <Text style={[styles.ratePillText, { color: RATE_TEXT_COLORS[rate.type] }]}>
+                    {config.label}
+                  </Text>
+                </View>
+                {isOptional && (
+                  <Text style={styles.rateOptional}>Opcional</Text>
+                )}
               </View>
-              {isOptional && (
-                <Text style={styles.rateOptional}>Opcional</Text>
-              )}
+              <View style={styles.rateInputWrap}>
+                <Text style={styles.ratePrefix}>$</Text>
+                <TextInput
+                  ref={(el) => {
+                    inputRefs.current[index] = el;
+                  }}
+                  style={styles.rateInput}
+                  placeholder={isOptional ? '—' : '0'}
+                  placeholderTextColor={styles.placeholder.color}
+                  value={rate.price}
+                  onChangeText={(text) => onUpdateRate(rate.type, text)}
+                  keyboardType="number-pad"
+                  returnKeyType={isLast ? 'done' : 'next'}
+                  onSubmitEditing={() => {
+                    if (isLast) {
+                      Keyboard.dismiss();
+                    } else {
+                      inputRefs.current[index + 1]?.focus();
+                    }
+                  }}
+                />
+              </View>
             </View>
-            <View style={styles.rateInputWrap}>
-              <Text style={styles.ratePrefix}>$</Text>
-              <TextInput
-                style={styles.rateInput}
-                placeholder={isOptional ? '—' : '0'}
-                placeholderTextColor={styles.placeholder.color}
-                value={rate.price}
-                onChangeText={(text) => onUpdateRate(rate.type, text)}
-                keyboardType="number-pad"
-              />
-            </View>
-          </View>
-        );
-      })}
-    </View>
-  );
-}
+          );
+        })}
+      </View>
+    );
+  }
+);
 
 const createStyles = (theme: Theme) =>
   StyleSheet.create({

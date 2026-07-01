@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -7,12 +9,13 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '../../../components/AppIcon';
-import { Theme, useThemedStyles } from '../../../theme';
+import { Theme, useTheme, useThemedStyles } from '../../../theme';
 import { CollapsibleSection } from '../components/CollapsibleSection';
-import { StopsForm, type FormStop } from '../components/StopsForm';
-import { RatesForm, type FormRate } from '../components/RatesForm';
+import { StopsForm, type FormStop, type StopsFormRef } from '../components/StopsForm';
+import { RatesForm, type FormRate, type RatesFormRef } from '../components/RatesForm';
 import { useCreateItinerary } from '../hooks/useCreateItinerary';
 
 type CreateRecorridoScreenProps = {
@@ -27,7 +30,13 @@ export function CreateRecorridoScreen({
   clientId,
 }: CreateRecorridoScreenProps) {
   const styles = useThemedStyles(createStyles);
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { creating, error, create } = useCreateItinerary();
+
+  const nameInputRef = useRef<TextInput>(null);
+  const stopsFormRef = useRef<StopsFormRef>(null);
+  const ratesFormRef = useRef<RatesFormRef>(null);
 
   const [routeName, setRouteName] = useState('');
   const [stops, setStops] = useState<FormStop[]>([
@@ -134,101 +143,124 @@ export function CreateRecorridoScreen({
         <Text style={styles.headerTitle}>Nuevo recorrido</Text>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardView}
       >
-        {error && (
-          <View style={styles.errorBanner}>
-            <AppIcon name="alert" size={16} color={styles.errorIcon.color} />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+        <View style={styles.content}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
+            {error && (
+              <View style={styles.errorBanner}>
+                <AppIcon name="alert" size={16} color={styles.errorIcon.color} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            )}
 
-        <CollapsibleSection
-          isDone={isNameFilled}
-          title="Nombre"
-          subtitle={isNameFilled ? routeName : undefined}
-          isOpen={expandedSections.name}
-          onToggle={() =>
-            setExpandedSections((prev) => ({ ...prev, name: !prev.name }))
-          }
-        >
-          <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Nombre del recorrido</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ej: Casa → Escuela"
-              placeholderTextColor={styles.placeholder.color}
-              value={routeName}
-              onChangeText={setRouteName}
-            />
-          </View>
-        </CollapsibleSection>
+            <CollapsibleSection
+              isDone={isNameFilled}
+              title="Nombre"
+              subtitle={isNameFilled ? routeName : undefined}
+              isOpen={expandedSections.name}
+              onToggle={() =>
+                setExpandedSections((prev) => ({ ...prev, name: !prev.name }))
+              }
+            >
+              <View style={styles.field}>
+                <Text style={styles.fieldLabel}>Nombre del recorrido</Text>
+                <TextInput
+                  ref={nameInputRef}
+                  style={styles.input}
+                  placeholder="Ej: Casa → Escuela"
+                  placeholderTextColor={styles.placeholder.color}
+                  value={routeName}
+                  onChangeText={setRouteName}
+                  returnKeyType="next"
+                  blurOnSubmit={false}
+                  onSubmitEditing={() => stopsFormRef.current?.focusFirst()}
+                />
+              </View>
+            </CollapsibleSection>
 
-        <CollapsibleSection
-          number={2}
-          title="Paradas"
-          subtitle="Origen, intermedias y destino"
-          isOpen={expandedSections.stops}
-          onToggle={() =>
-            setExpandedSections((prev) => ({ ...prev, stops: !prev.stops }))
-          }
-        >
-          <StopsForm
-            stops={stops}
-            onUpdateStop={handleUpdateStop}
-            onRemoveStop={handleRemoveStop}
-            onAddStop={handleAddStop}
-          />
-        </CollapsibleSection>
-
-        <CollapsibleSection
-          number={3}
-          title="Tarifas"
-          subtitle="Precio por tipo de viaje"
-          isOpen={expandedSections.rates}
-          onToggle={() =>
-            setExpandedSections((prev) => ({ ...prev, rates: !prev.rates }))
-          }
-        >
-          <RatesForm rates={rates} onUpdateRate={handleUpdateRate} />
-        </CollapsibleSection>
-      </ScrollView>
-
-      <View style={styles.ctaContainer}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.createButton,
-            (!canCreate || creating) && styles.createButtonDisabled,
-            pressed && styles.createButtonPressed,
-          ]}
-          onPress={handleCreate}
-          disabled={!canCreate || creating}
-        >
-          {creating ? (
-            <Text style={[styles.createButtonText, styles.createButtonTextDisabled]}>
-              Creando...
-            </Text>
-          ) : (
-            <>
-              <AppIcon
-                name="check"
-                size={20}
-                color={canCreate ? styles.createButtonIcon.color : styles.createButtonIconDisabled.color}
+            <CollapsibleSection
+              number={2}
+              title="Paradas"
+              subtitle="Origen, intermedias y destino"
+              isOpen={expandedSections.stops}
+              onToggle={() =>
+                setExpandedSections((prev) => ({ ...prev, stops: !prev.stops }))
+              }
+            >
+              <StopsForm
+                ref={stopsFormRef}
+                stops={stops}
+                onUpdateStop={handleUpdateStop}
+                onRemoveStop={handleRemoveStop}
+                onAddStop={handleAddStop}
               />
-              <Text
-                style={[
-                  styles.createButtonText,
-                  !canCreate && styles.createButtonTextDisabled,
-                ]}
-              >
-                Crear recorrido
-              </Text>
-            </>
-          )}
-        </Pressable>
-      </View>
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              number={3}
+              title="Tarifas"
+              subtitle="Precio por tipo de viaje"
+              isOpen={expandedSections.rates}
+              onToggle={() =>
+                setExpandedSections((prev) => ({ ...prev, rates: !prev.rates }))
+              }
+            >
+              <RatesForm
+                ref={ratesFormRef}
+                rates={rates}
+                onUpdateRate={handleUpdateRate}
+              />
+            </CollapsibleSection>
+          </ScrollView>
+
+          <View
+            style={[
+              styles.ctaContainer,
+              { paddingBottom: insets.bottom + theme.spacing.md },
+            ]}
+          >
+            <Pressable
+              style={({ pressed }) => [
+                styles.createButton,
+                (!canCreate || creating) && styles.createButtonDisabled,
+                pressed && styles.createButtonPressed,
+              ]}
+              onPress={handleCreate}
+              disabled={!canCreate || creating}
+            >
+              {creating ? (
+                <Text style={[styles.createButtonText, styles.createButtonTextDisabled]}>
+                  Creando...
+                </Text>
+              ) : (
+                <>
+                  <AppIcon
+                    name="check"
+                    size={20}
+                    color={canCreate ? styles.createButtonIcon.color : styles.createButtonIconDisabled.color}
+                  />
+                  <Text
+                    style={[
+                      styles.createButtonText,
+                      !canCreate && styles.createButtonTextDisabled,
+                    ]}
+                  >
+                    Crear recorrido
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -268,11 +300,17 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.primary,
       flex: 1,
     },
+    keyboardView: {
+      flex: 1,
+    },
+    content: {
+      flex: 1,
+    },
     scrollContent: {
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.md,
       gap: theme.spacing.md,
-      paddingBottom: 120,
+      paddingBottom: theme.spacing.xl,
     },
     errorBanner: {
       flexDirection: 'row',
@@ -321,10 +359,6 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textSubtle,
     },
     ctaContainer: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
       paddingHorizontal: theme.spacing.md,
       paddingVertical: theme.spacing.md,
       backgroundColor: theme.colors.surface,
