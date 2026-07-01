@@ -149,11 +149,14 @@ export const useCalendarTrips = ({
       }
 
       try {
+        console.log('[useCalendarTrips] fetching rates for routeId:', routeId, 'clientId:', selectedClientId);
         const rates = await itinerariesService.getRates(routeId);
+        console.log('[useCalendarTrips] rates response:', rates);
         if (mounted) {
           setAvailableRates(rates);
         }
-      } catch {
+      } catch (error) {
+        console.log('[useCalendarTrips] rates error:', error);
         if (mounted) {
           setAvailableRates([]);
         }
