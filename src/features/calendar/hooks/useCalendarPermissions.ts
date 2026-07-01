@@ -25,7 +25,7 @@ export const useCalendarPermissions = (
     const isDriver = role === 'driver' || role === 'admin';
     const isClient = role === 'client';
 
-    const canCreateRegularTrips = isDriver;
+    const canCreateRegularTrips = isDriver || isClient;
     const canCreateSpecialTrips = isDriver || isClient;
     const canCreateAnyTrip = canCreateRegularTrips || canCreateSpecialTrips;
 
