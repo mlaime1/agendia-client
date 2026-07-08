@@ -1,21 +1,19 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   FlatList,
   Modal,
   PanResponder,
   Pressable,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon, AppIconName } from './AppIcon';
 import { Theme, useTheme, useThemedStyles } from '../theme';
-
-const DRAWER_WIDTH = Dimensions.get('window').width * 0.82;
 
 type User = {
   name: string;
@@ -65,10 +63,12 @@ export function CustomDrawer({
   activeRoute,
   onSelectClient,
   onNavigate,
-  onClose,
   onLogout,
+  onClose,
 }: CustomDrawerProps) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const DRAWER_WIDTH = Math.min(width * 0.75, 320);
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [clientModalVisible, setClientModalVisible] = useState(false);
@@ -148,7 +148,7 @@ export function CustomDrawer({
           }).start();
         },
       }),
-    [onClose, translateX],
+    [DRAWER_WIDTH, onClose, translateX],
   );
 
   return (
@@ -157,16 +157,17 @@ export function CustomDrawer({
       transparent
       visible={visible}
       onRequestClose={onClose}
+      statusBarTranslucent
     >
       <View style={styles.overlay}>
         <Pressable style={styles.backdrop} onPress={onClose} />
-        
+
         <Animated.View
-          style={[styles.drawer, { paddingTop: insets.top, transform: [{ translateX }] }]}
+          style={[styles.drawer, { width: DRAWER_WIDTH, transform: [{ translateX }] }]}
           {...panResponder.panHandlers}
         >
           {/* Header - Blue section */}
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 24 }]}>
             <View style={styles.userInfo}>
               <View style={styles.avatarContainer}>
                 <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
@@ -329,8 +330,10 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     backgroundColor: theme.colors.overlay,
   },
   drawer: {
-    width: DRAWER_WIDTH,
-    flex: 1,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
     backgroundColor: theme.colors.surface,
     borderTopRightRadius: 24,
     borderBottomRightRadius: 24,
@@ -411,7 +414,7 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
   },
   menuContainer: {
-    flex: 1,
+    flexGrow: 1,
     paddingTop: theme.spacing.sm,
     paddingHorizontal: theme.spacing.md,
   },

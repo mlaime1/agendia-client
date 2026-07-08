@@ -8,8 +8,10 @@ import {
   StatusBar,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { AgendiaHeader } from '../../../components/AgendiaHeader';
@@ -48,7 +50,19 @@ export function CalendarScreen({
   const { profileError, refreshProfile, userProfile, isLoading } = useAuth();
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+  const [headerHeight, setHeaderHeight] = useState(0);
   const permissions = useCalendarPermissions(clients, selectedClientId);
+
+  const topOffset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
+  );
+  const availableGridHeight = Math.max(
+    windowHeight - topOffset - insets.bottom - headerHeight,
+    200,
+  );
   const [monthDate, setMonthDate] = useState(() => new Date());
   const {
     addSpecialTrip,
@@ -260,7 +274,10 @@ export function CalendarScreen({
     <SafeAreaView style={styles.safeArea}>
       <ErrorBanner message={error} onDismiss={clearError} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.header}>
+        <View
+          style={styles.header}
+          onLayout={(event) => setHeaderHeight(event.nativeEvent.layout.height)}
+        >
           <View style={styles.fullBleedHeader}>
             <AgendiaHeader
               onMenuPress={handleOpenMenu}
@@ -296,6 +313,7 @@ export function CalendarScreen({
           </View>
         ) : (
           <CalendarGrid
+            availableHeight={availableGridHeight}
             days={days}
             leadingEmptyCells={leadingEmptyCells}
             onDayLongPress={setDetailDateKey}
@@ -339,7 +357,7 @@ const createStyles = (theme: Theme) =>
       flexGrow: 1,
       paddingHorizontal: 10,
       paddingTop: 0,
-      paddingBottom: 28,
+      paddingBottom: 0,
     },
     header: {
       gap: 10,

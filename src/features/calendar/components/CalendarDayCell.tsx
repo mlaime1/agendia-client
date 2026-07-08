@@ -6,6 +6,7 @@ import { TripDots } from './TripDots';
 import { Theme, useThemedStyles } from '../../../theme';
 
 type CalendarDayCellProps = {
+  cellHeight: number;
   day: CalendarDay;
   isAddModeActive?: boolean;
   isCurrentMonth?: boolean;
@@ -15,6 +16,7 @@ type CalendarDayCellProps = {
 };
 
 export function CalendarDayCell({
+  cellHeight,
   day,
   isCurrentMonth = true,
   trips,
@@ -31,6 +33,7 @@ export function CalendarDayCell({
       onPress={() => onPress(day.dateKey)}
       style={({ pressed }) => [
         styles.cell,
+        { height: cellHeight },
         !isCurrentMonth && styles.outsideMonthCell,
         day.isToday && styles.todayCell,
         pressed && styles.pressedCell,

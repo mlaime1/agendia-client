@@ -1,5 +1,6 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarDay, Trip, TripMode } from '../types';
 import { isSameDay, toDateKey } from '../utils/date';
@@ -22,6 +23,7 @@ type CalendarCell = {
 };
 
 type CalendarGridProps = {
+  availableHeight: number;
   days: CalendarDay[];
   leadingEmptyCells: number;
   tripsByDate: Record<string, Trip[]>;
@@ -31,7 +33,16 @@ type CalendarGridProps = {
   isAddModeActive?: boolean;
 };
 
+const GRID_HORIZONTAL_PADDING = 10;
+const WEEK_HEADER_HEIGHT = 28;
+const LEGEND_BASE_HEIGHT = 44;
+const CONTAINER_GAP = 10;
+const ROW_GAP = 4;
+const MAX_CELL_RATIO = 0.9;
+const MIN_CELL_RATIO = 0.6;
+
 export function CalendarGrid({
+  availableHeight,
   days,
   leadingEmptyCells,
   tripsByDate,
@@ -87,6 +98,21 @@ export function CalendarGrid({
     cells.slice(index * 7, index * 7 + 7),
   );
 
+  const { width: windowWidth } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const gridWidth = windowWidth - GRID_HORIZONTAL_PADDING * 2;
+  const cellWidth = gridWidth / 7;
+  const numRows = rows.length;
+  const legendHeight = LEGEND_BASE_HEIGHT + insets.bottom;
+  const availableRowsHeight =
+    availableHeight - WEEK_HEADER_HEIGHT - legendHeight - CONTAINER_GAP - (numRows - 1) * ROW_GAP;
+  const maxCellHeight = cellWidth * MAX_CELL_RATIO;
+  const minCellHeight = cellWidth * MIN_CELL_RATIO;
+  const cellHeight = Math.min(
+    maxCellHeight,
+    Math.max(minCellHeight, availableRowsHeight / numRows),
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.weekHeader}>
@@ -102,6 +128,7 @@ export function CalendarGrid({
           <View key={`row-${rowIndex}`} style={styles.row}>
             {row.map((cell) => (
               <CalendarDayCell
+                cellHeight={cellHeight}
                 day={cell.day}
                 isAddModeActive={isAddModeActive}
                 isCurrentMonth={cell.isCurrentMonth}
@@ -115,7 +142,7 @@ export function CalendarGrid({
         ))}
       </View>
 
-      <View style={styles.legend}>
+      <View style={[styles.legend, { paddingBottom: insets.bottom + 12 }]}>
         {legendItems.map((item) => (
           <View key={item.mode} style={styles.legendItem}>
             <View
@@ -135,8 +162,7 @@ export function CalendarGrid({
   const createStyles = (theme: Theme) =>
   StyleSheet.create({
     container: {
-      flex: 1,
-      gap: 10,
+      gap: CONTAINER_GAP,
       paddingTop: 8,
     },
     weekHeader: {
@@ -152,11 +178,9 @@ export function CalendarGrid({
       textAlign: 'center',
     },
     rows: {
-      flex: 1,
-      gap: 4,
+      gap: ROW_GAP,
     },
     row: {
-      flex: 1,
       flexDirection: 'row',
       alignItems: 'stretch',
     },
