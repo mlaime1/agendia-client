@@ -1,6 +1,9 @@
 // src/services/summaries.ts
 
-import { api, getBackendApiBaseUrl } from './backendApi';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+
+import { api, getBackendApiBaseUrl, getAccessToken } from './backendApi';
 import type {
   CreateSummaryAutoDto,
   Summary,
@@ -38,10 +41,34 @@ export const summariesService = {
 
   /**
    * GET /summaries/:id/pdf
-   * Devuelve la URL lista para abrir con Linking.openURL() o WebBrowser
+   * Devuelve la URL pública (requiere token; preferir sharePdf en la app).
    */
   getPdfUrl(id: string): string {
     return `${getBackendApiBaseUrl()}/summaries/${id}/pdf`;
+  },
+
+  /**
+   * Descarga el PDF autenticado y lo comparte con el visor/sistema nativo.
+   */
+  async sharePdf(id: string): Promise<void> {
+    const token = await getAccessToken();
+    if (!token) {
+      throw new Error('No hay sesión activa');
+    }
+
+    const url = this.getPdfUrl(id);
+    const file = new FileSystem.File(FileSystem.Paths.cache, `summary-${id}.pdf`);
+
+    const downloadedFile = await FileSystem.File.downloadFileAsync(url, file, {
+      headers: { Authorization: `Bearer ${token}` },
+      idempotent: true,
+    });
+
+    await Sharing.shareAsync(downloadedFile.uri, {
+      mimeType: 'application/pdf',
+      UTI: 'com.adobe.pdf',
+      dialogTitle: 'Compartir resumen',
+    });
   },
 
   /** PATCH /summaries/:id/status */

@@ -7,9 +7,10 @@ import { getSummaryStatusConfig } from '../utils/summaryStatus';
 
 type SummaryStatusBadgeProps = {
   status: SummaryStatus;
+  label?: string;
 };
 
-export function SummaryStatusBadge({ status }: SummaryStatusBadgeProps) {
+export function SummaryStatusBadge({ status, label }: SummaryStatusBadgeProps) {
   const { theme } = useTheme();
   const styles = useStyles();
   const config = getSummaryStatusConfig(status, theme);
@@ -17,7 +18,7 @@ export function SummaryStatusBadge({ status }: SummaryStatusBadgeProps) {
   return (
     <View style={[styles.badge, { backgroundColor: config.bg }]}>
       <View style={[styles.dot, { backgroundColor: config.text }]} />
-      <Text style={[styles.label, { color: config.text }]}>{config.label}</Text>
+      <Text style={[styles.label, { color: config.text }]}>{label ?? config.label}</Text>
     </View>
   );
 }

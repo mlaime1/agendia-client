@@ -16,6 +16,7 @@ export interface Client {
   billing_day?: number | null;
   billing_start_date?: string | null;
   timezone?: string | null;
+  alias?: string | null;
   routes?: Route[];
   summaries?: Summary[];
 }

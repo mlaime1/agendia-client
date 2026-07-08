@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,13 +12,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { useTheme } from '../../../theme';
 import { clientsService } from '../../../services/clients';
-import type { Summary, SummaryStatus } from '../../../services/types';
+import type { Client, Summary, SummaryStatus } from '../../../services/types';
 import type { UserRole } from '../../../features/auth/types/user';
 import { getClientTimezone, toClientDate } from '../../../utils/dateTime';
 import { confirmAction } from '../../../utils/confirmAction';
 import { useSummaries } from '../hooks/useSummaries';
 import { useSummaryActions } from '../hooks/useSummaryActions';
+import { useFeedback } from '../../../state/FeedbackContext';
 import { SummaryCard } from '../components/SummaryCard';
+import { ClientSummaryList } from '../components/ClientSummaryList';
+import { SummaryFilterChips } from '../components/SummaryFilterChips';
+import { ClientPendingSummary } from '../components/ClientPendingSummary';
 import { CreateSummaryModal } from '../components/CreateSummaryModal';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getNextSummaryStatus, getNextStatusActionLabel } from '../utils/summaryStatus';
@@ -48,16 +51,18 @@ export function ResumenesScreen({
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [modalVisible, setModalVisible] = useState(false);
   const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
+  const [clientInfo, setClientInfo] = useState<Client | null>(null);
 
   const { summaries, loading, error, refetch } = useSummaries(selectedClientId || null);
   const { updating, updateStatus, deleteSummary } = useSummaryActions();
+  const { showFeedback } = useFeedback();
 
   const filterOptions = useMemo(
     () => {
       const all: Array<{ value: SummaryFilter; label: string }> = [
         { value: 'all', label: 'Todos' },
         { value: 'draft', label: 'Borrador' },
-        { value: 'sent', label: 'Enviado' },
+        { value: 'sent', label: isClientView ? 'Pendiente' : 'Enviado' },
         { value: 'partial', label: 'Parcial' },
         { value: 'paid', label: 'Abonado' },
         { value: 'archived', label: 'Archivado' },
@@ -79,11 +84,12 @@ export function ResumenesScreen({
       try {
         const client = await clientsService.getById(selectedClientId);
         if (controller.signal.aborted) return;
+        setClientInfo(client);
         setClientTimezone(getClientTimezone(client));
       } catch (err) {
         if (controller.signal.aborted) return;
-        // No bloqueamos la pantalla por error de timezone
-        console.warn('Error loading client timezone:', err);
+        // No bloqueamos la pantalla por error de cliente
+        console.warn('Error loading client:', err);
       }
     };
 
@@ -92,20 +98,49 @@ export function ResumenesScreen({
     return () => controller.abort();
   }, [selectedClientId]);
 
+  const visibleSummaries = useMemo(() => {
+    if (isClientView) {
+      return summaries.filter((s) => s.status !== 'draft');
+    }
+    return summaries;
+  }, [summaries, isClientView]);
+
+  const sortedVisibleSummaries = useMemo(() => {
+    if (!isClientView) return visibleSummaries;
+
+    const pendingStatuses = new Set<SummaryStatus>(['sent', 'partial']);
+    const pending = visibleSummaries
+      .filter((s) => pendingStatuses.has(s.status))
+      .sort((a, b) => new Date(a.period_start).getTime() - new Date(b.period_start).getTime());
+    const others = visibleSummaries
+      .filter((s) => !pendingStatuses.has(s.status))
+      .sort((a, b) => new Date(a.period_start).getTime() - new Date(b.period_start).getTime());
+
+    return [...pending, ...others];
+  }, [visibleSummaries, isClientView]);
+
   const filteredSummaries = useMemo(() => {
-    if (summaryFilter === 'all') return summaries;
-    return summaries.filter((summary) => summary.status === summaryFilter);
-  }, [summaries, summaryFilter]);
+    if (summaryFilter === 'all') return sortedVisibleSummaries;
+    return sortedVisibleSummaries.filter((summary) => summary.status === summaryFilter);
+  }, [sortedVisibleSummaries, summaryFilter]);
+
+  const pendingSummaries = useMemo(
+    () =>
+      sortedVisibleSummaries.filter(
+        (s) => s.status === 'sent' || s.status === 'partial',
+      ),
+    [sortedVisibleSummaries],
+  );
 
   const { pendingCount, pendingAmount, thisMonthAmount, thisMonthCount } = useMemo(() => {
     const pendingStatuses = isClientView
       ? (['sent', 'partial'] as SummaryStatus[])
       : (['draft', 'sent', 'partial'] as SummaryStatus[]);
-    const pending = summaries.filter((s) => pendingStatuses.includes(s.status));
+    const pending = visibleSummaries.filter((s) => pendingStatuses.includes(s.status));
     const pendingAmount = pending.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
 
     const today = new Date();
-    const thisMonth = summaries.filter((s) => {
+    const thisMonth = visibleSummaries.filter((s) => {
       if (!s.paid_at) return false;
       const paidDate = toClientDate(s.paid_at, clientTimezone);
       return paidDate.getMonth() === today.getMonth() && paidDate.getFullYear() === today.getFullYear();
@@ -156,15 +191,36 @@ export function ResumenesScreen({
     [deleteSummary, refetch],
   );
 
-  const handleDownload = useCallback(async (id: string) => {
-    try {
-      const url = summariesService.getPdfUrl(id);
-      await Linking.openURL(url);
-    } catch (err) {
-      // Error manejado por el sistema
-      console.error('Error opening PDF:', err);
-    }
-  }, []);
+  const handleDownload = useCallback(
+    async (id: string) => {
+      try {
+        await summariesService.sharePdf(id);
+      } catch (err) {
+        showFeedback({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Error al descargar el PDF',
+        });
+      }
+    },
+    [showFeedback],
+  );
+
+  const handlePayAll = useCallback(() => {
+    showFeedback({
+      type: 'info',
+      message: 'El pago combinado estará disponible próximamente',
+    });
+  }, [showFeedback]);
+
+  const handlePaySummary = useCallback(
+    (id: string) => {
+      showFeedback({
+        type: 'info',
+        message: `El pago del resumen estará disponible próximamente`,
+      });
+    },
+    [showFeedback],
+  );
 
   const renderContent = () => {
     if (loading) {
@@ -196,6 +252,18 @@ export function ResumenesScreen({
       );
     }
 
+    if (isClientView) {
+      return (
+        <ClientSummaryList
+          summaries={filteredSummaries}
+          clientTimezone={clientTimezone}
+          onPress={onOpenDetail}
+          onDownload={handleDownload}
+          onPay={handlePaySummary}
+        />
+      );
+    }
+
     return (
       <View style={styles.list}>
         {filteredSummaries.map((summary) => (
@@ -220,37 +288,56 @@ export function ResumenesScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Pendientes</Text>
-            <Text style={styles.statValue}>${formatCurrency(pendingAmount)}</Text>
-            <Text style={styles.statSubtitle}>{pendingCount} resúmenes</Text>
+        {!isClientView && (
+          <View style={styles.statsRow}>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Pendientes</Text>
+              <Text style={styles.statValue}>${formatCurrency(pendingAmount)}</Text>
+              <Text style={styles.statSubtitle}>{pendingCount} resúmenes</Text>
+            </View>
+            <View style={styles.statCard}>
+              <Text style={styles.statLabel}>Este mes</Text>
+              <Text style={styles.statValue}>${formatCurrency(thisMonthAmount)}</Text>
+              <Text style={styles.statSubtitle}>{thisMonthCount} cobrados</Text>
+            </View>
           </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statLabel}>Este mes</Text>
-            <Text style={styles.statValue}>${formatCurrency(thisMonthAmount)}</Text>
-            <Text style={styles.statSubtitle}>{thisMonthCount} cobrados</Text>
-          </View>
-        </View>
+        )}
+
+        {isClientView && (
+          <ClientPendingSummary
+            pendingSummaries={pendingSummaries}
+            clientTimezone={clientTimezone}
+            paymentAlias={clientInfo?.alias}
+            onPayAll={handlePayAll}
+          />
+        )}
 
         <View style={styles.filterSection}>
           <Text style={styles.sectionLabel}>FILTROS</Text>
-          <View style={styles.filterPills}>
-            {filterOptions.map((option) => {
-              const isActive = summaryFilter === option.value;
-              return (
-                <Pressable
-                  key={option.value}
-                  style={[styles.filterPill, isActive && styles.filterPillActive]}
-                  onPress={() => setSummaryFilter(option.value)}
-                >
-                  <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
-                    {option.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {isClientView ? (
+            <SummaryFilterChips
+              options={filterOptions}
+              activeFilter={summaryFilter}
+              onSelect={setSummaryFilter}
+            />
+          ) : (
+            <View style={styles.filterPills}>
+              {filterOptions.map((option) => {
+                const isActive = summaryFilter === option.value;
+                return (
+                  <Pressable
+                    key={option.value}
+                    style={[styles.filterPill, isActive && styles.filterPillActive]}
+                    onPress={() => setSummaryFilter(option.value)}
+                  >
+                    <Text style={[styles.filterPillText, isActive && styles.filterPillTextActive]}>
+                      {option.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {renderContent()}

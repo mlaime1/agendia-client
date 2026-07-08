@@ -1,9 +1,10 @@
 import React from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../../theme';
+import { useFeedback } from '../../../state/FeedbackContext';
 import type { Summary, SummaryStatus } from '../../../services/types';
 import { confirmAction } from '../../../utils/confirmAction';
 import {
@@ -33,15 +34,18 @@ export function SummaryActions({
 }: SummaryActionsProps) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const { showFeedback } = useFeedback();
   const nextStatus = getNextSummaryStatus(summary.status);
   const actionLabel = getNextStatusActionLabel(summary.status);
 
   const handleDownloadPdf = async () => {
-    const url = summariesService.getPdfUrl(summary.id);
     try {
-      await Linking.openURL(url);
+      await summariesService.sharePdf(summary.id);
     } catch (err) {
-      console.error('Error opening PDF:', err);
+      showFeedback({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Error al descargar el PDF',
+      });
     }
   };
 
