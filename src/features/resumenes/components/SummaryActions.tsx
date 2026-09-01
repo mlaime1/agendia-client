@@ -45,11 +45,23 @@ export function SummaryActions({
 
   const handleDownloadPdf = async () => {
     try {
-      await summariesService.sharePdf(summary.id);
+      await summariesService.downloadPdf(summary);
+       showFeedback({ type: 'success', message: 'PDF guardado en la carpeta Descargas de Android' });
     } catch (err) {
       showFeedback({
         type: 'error',
         message: getErrorMessage(err, 'Error al descargar el PDF'),
+      });
+    }
+  };
+
+  const handleSharePdf = async () => {
+    try {
+      await summariesService.sharePdf(summary);
+    } catch (err) {
+      showFeedback({
+        type: 'error',
+        message: getErrorMessage(err, 'Error al compartir el PDF'),
       });
     }
   };
@@ -87,6 +99,17 @@ export function SummaryActions({
           <Ionicons name="download-outline" size={18} color={styles.downloadText.color} />
           <Text style={styles.downloadText}>Descargar PDF</Text>
         </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.downloadButton,
+            styles.downloadButtonFull,
+            pressed && styles.downloadButtonPressed,
+          ]}
+          onPress={handleSharePdf}
+        >
+          <Ionicons name="share-outline" size={18} color={styles.downloadText.color} />
+          <Text style={styles.downloadText}>Compartir</Text>
+        </Pressable>
       </View>
     );
   }
@@ -100,6 +123,14 @@ export function SummaryActions({
         >
           <Ionicons name="download-outline" size={18} color={styles.downloadText.color} />
           <Text style={styles.downloadText}>Descargar PDF</Text>
+        </Pressable>
+
+        <Pressable
+          style={({ pressed }) => [styles.downloadButton, pressed && styles.downloadButtonPressed]}
+          onPress={handleSharePdf}
+        >
+          <Ionicons name="share-outline" size={18} color={styles.downloadText.color} />
+          <Text style={styles.downloadText}>Compartir</Text>
         </Pressable>
 
         {nextStatus ? (

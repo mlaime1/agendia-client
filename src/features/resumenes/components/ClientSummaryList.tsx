@@ -8,7 +8,8 @@ type ClientSummaryListProps = {
   summaries: Summary[];
   clientTimezone?: string;
   onPress: (summaryId: string) => void;
-  onDownload: (summaryId: string) => void;
+  onDownload: (summary: Summary) => void;
+  onShare: (summary: Summary) => void;
   onPay?: (summaryId: string) => void;
 };
 
@@ -17,6 +18,7 @@ export function ClientSummaryList({
   clientTimezone,
   onPress,
   onDownload,
+  onShare,
   onPay,
 }: ClientSummaryListProps) {
   return (
@@ -30,6 +32,7 @@ export function ClientSummaryList({
           isLast={index === summaries.length - 1}
           onPress={onPress}
           onDownload={onDownload}
+          onShare={onShare}
           onPay={onPay}
         />
       ))}

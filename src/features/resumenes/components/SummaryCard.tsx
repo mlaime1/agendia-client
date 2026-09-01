@@ -18,7 +18,8 @@ type SummaryCardProps = {
   clientTimezone?: string;
   role?: UserRole;
   onPress: (summaryId: string) => void;
-  onDownload: (summaryId: string) => void;
+  onDownload: (summary: Summary) => void;
+  onShare: (summary: Summary) => void;
   onStatusChange: (summary: Summary) => void;
   onDelete: (summary: Summary) => void;
 };
@@ -29,6 +30,7 @@ export function SummaryCard({
   role = 'driver',
   onPress,
   onDownload,
+  onShare,
   onStatusChange,
   onDelete,
 }: SummaryCardProps) {
@@ -62,7 +64,8 @@ export function SummaryCard({
       <View style={styles.bottomRow}>
         <View style={styles.actionButtons}>
           <ActionButton icon="eye-outline" onPress={() => onPress(summary.id)} />
-          <ActionButton icon="download-outline" onPress={() => onDownload(summary.id)} />
+          <ActionButton icon="download-outline" onPress={() => onDownload(summary)} />
+          <ActionButton icon="arrow-redo-outline" onPress={() => onShare(summary)} />
 
           {!isClientView && nextStatus && (
             <ActionButton

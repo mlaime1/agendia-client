@@ -182,13 +182,28 @@ export function ResumenesScreen({
   );
 
   const handleDownload = useCallback(
-    async (id: string) => {
+    async (summary: Summary) => {
       try {
-        await summariesService.sharePdf(id);
+        await summariesService.downloadPdf(summary);
+        showFeedback({ type: 'success', message: 'El resumen se descargó correctamente en tu teléfono.' });
       } catch (err) {
         showFeedback({
           type: 'error',
           message: getErrorMessage(err, 'Error al descargar el PDF'),
+        });
+      }
+    },
+    [showFeedback],
+  );
+
+  const handleShare = useCallback(
+    async (summary: Summary) => {
+      try {
+        await summariesService.sharePdf(summary);
+      } catch (err) {
+        showFeedback({
+          type: 'error',
+          message: getErrorMessage(err, 'Error al compartir el PDF'),
         });
       }
     },
@@ -232,6 +247,7 @@ export function ResumenesScreen({
           clientTimezone={clientTimezone}
           onPress={onOpenDetail}
           onDownload={handleDownload}
+          onShare={handleShare}
         />
       );
     }
@@ -246,6 +262,7 @@ export function ResumenesScreen({
             clientTimezone={clientTimezone}
             onPress={onOpenDetail}
             onDownload={handleDownload}
+            onShare={handleShare}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
           />

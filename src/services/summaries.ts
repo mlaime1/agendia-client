@@ -1,7 +1,10 @@
 // src/services/summaries.ts
 
 import * as FileSystem from 'expo-file-system';
+import * as LegacyFileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 import { api, fetchAuthenticated, getBackendApiBaseUrl, getAccessToken } from './backendApi';
 import type {
@@ -39,29 +42,38 @@ export const summariesService = {
     return api.get<Summary>(`/summaries/${id}`);
   },
 
-  /**
-   * GET /summaries/:id/pdf
-   * Devuelve la URL pública (requiere token; preferir sharePdf en la app).
-   */
+  /** GET /summaries/:id/pdf */
   getPdfUrl(id: string): string {
     return `${getBackendApiBaseUrl()}/summaries/${id}/pdf`;
   },
 
-  /**
-   * Descarga el PDF autenticado y lo comparte con el visor/sistema nativo.
-   */
-  async sharePdf(id: string): Promise<void> {
-    const token = await getAccessToken();
-    if (!token) {
-      throw new Error('No hay sesión activa');
+  /** Downloads the authenticated PDF to Android's public Downloads directory. */
+  async downloadPdf(summary: Pick<Summary, 'id' | 'period_start' | 'period_end'>): Promise<string> {
+    if (Platform.OS !== 'android') {
+      throw new Error('La descarga directa en almacenamiento público solo está disponible en Android.');
     }
 
-    const file = new FileSystem.File(FileSystem.Paths.cache, `summary-${id}.pdf`);
+    const fileName = getPdfFileName(summary);
+    const response = await fetchAuthenticated(`/summaries/${summary.id}/pdf`);
+    const pdfBase64 = bytesToBase64(new Uint8Array(await response.arrayBuffer()));
+    const directory = await getDownloadsDirectoryUri();
 
-    const response = await fetchAuthenticated(`/summaries/${id}/pdf`);
-    file.write(new Uint8Array(await response.arrayBuffer()));
+    try {
+      return await writeSafPdf(directory.uri, fileName, pdfBase64);
+    } catch (error) {
+      // A persisted SAF grant can be revoked. Retry once with a fresh grant in
+      // the same action, but never loop if the replacement directory fails.
+      if (!directory.fromStoredGrant) throw error;
+      await AsyncStorage.removeItem(DOWNLOADS_URI_KEY);
+      const replacementUri = await requestDownloadsDirectoryUri();
+      return writeSafPdf(replacementUri, fileName, pdfBase64);
+    }
+  },
 
-    await Sharing.shareAsync(file.uri, {
+  /** Downloads the authenticated PDF and opens the native share sheet. */
+  async sharePdf(summary: Pick<Summary, 'id' | 'period_start' | 'period_end'>): Promise<void> {
+    const uri = await writePdf(summary, FileSystem.Paths.cache);
+    await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
       UTI: 'com.adobe.pdf',
       dialogTitle: 'Compartir resumen',
@@ -78,3 +90,90 @@ export const summariesService = {
     return api.delete<void>(`/summaries/${id}`);
   },
 };
+
+async function writePdf(
+  summary: Pick<Summary, 'id' | 'period_start' | 'period_end'>,
+  directory: FileSystem.Directory,
+): Promise<string> {
+  const token = await getAccessToken();
+  if (!token) {
+    throw new Error('No hay sesión activa');
+  }
+
+  const fileName = getPdfFileName(summary);
+  const file = new FileSystem.File(directory, fileName);
+
+  const response = await fetchAuthenticated(`/summaries/${summary.id}/pdf`);
+  file.write(new Uint8Array(await response.arrayBuffer()));
+
+  return file.uri;
+}
+
+const DOWNLOADS_URI_KEY = '@agendia/android-downloads-uri';
+
+async function getDownloadsDirectoryUri(): Promise<{ uri: string; fromStoredGrant: boolean }> {
+  const storedUri = await AsyncStorage.getItem(DOWNLOADS_URI_KEY);
+  if (storedUri) {
+    try {
+      await LegacyFileSystem.StorageAccessFramework.readDirectoryAsync(storedUri);
+      return { uri: storedUri, fromStoredGrant: true };
+    } catch {
+      await AsyncStorage.removeItem(DOWNLOADS_URI_KEY);
+    }
+  }
+
+  return { uri: await requestDownloadsDirectoryUri(), fromStoredGrant: false };
+}
+
+async function requestDownloadsDirectoryUri(): Promise<string> {
+  const initialUri = LegacyFileSystem.StorageAccessFramework.getUriForDirectoryInRoot('Download');
+  const permission = await LegacyFileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(initialUri);
+
+  if (!permission.granted) {
+    throw new Error('No se otorgó permiso para guardar el PDF en la carpeta Descargas de Android.');
+  }
+
+  await AsyncStorage.setItem(DOWNLOADS_URI_KEY, permission.directoryUri);
+  return permission.directoryUri;
+}
+
+async function writeSafPdf(directoryUri: string, fileName: string, pdfBase64: string): Promise<string> {
+  const fileUri = await LegacyFileSystem.StorageAccessFramework.createFileAsync(
+    directoryUri,
+    fileName,
+    'application/pdf',
+  );
+  await LegacyFileSystem.StorageAccessFramework.writeAsStringAsync(fileUri, pdfBase64, {
+    encoding: LegacyFileSystem.EncodingType.Base64,
+  });
+  return fileUri;
+}
+
+function getPdfFileName(summary: Pick<Summary, 'id' | 'period_start' | 'period_end'>): string {
+  return [
+    'resumen',
+    sanitizeFilenameDate(summary.period_start),
+    'al',
+    sanitizeFilenameDate(summary.period_end),
+    sanitizeFilenamePart(summary.id),
+  ].join('-') + '.pdf';
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+  }
+  return btoa(binary);
+}
+
+function sanitizeFilenameDate(value: string): string {
+  const isoDate = value.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? value;
+  return sanitizeFilenamePart(isoDate, 'sin-fecha');
+}
+
+function sanitizeFilenamePart(value: string, fallback = 'sin-dato'): string {
+  const sanitized = value.replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  return sanitized || fallback;
+}

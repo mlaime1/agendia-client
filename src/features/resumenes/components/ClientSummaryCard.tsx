@@ -7,7 +7,6 @@ import type { Summary } from '../../../services/types';
 import { formatClientPeriod } from '../../../utils/dateTime';
 import { SummaryStatusBadge } from './SummaryStatusBadge';
 import { getSummaryStatusConfig } from '../utils/summaryStatus';
-import { getCycleLabel } from '../utils/summaryCycle';
 import { formatCurrency } from '../utils/formatCurrency';
 import { useAuth } from '../../../state/AuthContext';
 import { usePermissions } from '../../../permissions';
@@ -18,7 +17,8 @@ type ClientSummaryCardProps = {
   isFirst?: boolean;
   isLast?: boolean;
   onPress: (summaryId: string) => void;
-  onDownload: (summaryId: string) => void;
+  onDownload: (summary: Summary) => void;
+  onShare: (summary: Summary) => void;
   onPay?: (summaryId: string) => void;
 };
 
@@ -36,6 +36,7 @@ export function ClientSummaryCard({
   isLast = false,
   onPress,
   onDownload,
+  onShare,
   onPay,
 }: ClientSummaryCardProps) {
   const styles = useStyles();
@@ -45,7 +46,6 @@ export function ClientSummaryCard({
   const period = formatClientPeriod(summary.period_start, summary.period_end, clientTimezone);
   const clientName = summary.clients?.nombre || 'Tus viajes';
   const statusConfig = getSummaryStatusConfig(summary.status, theme);
-  const cycleLabel = getCycleLabel(summary.period_type);
   const isPending = summary.status === 'sent' || summary.status === 'partial';
 
   return (
@@ -95,13 +95,13 @@ export function ClientSummaryCard({
             {clientName} <Text style={styles.metaSeparator}>·</Text> {summary.total_trips}{' '}
             {summary.total_trips === 1 ? 'viaje' : 'viajes'}
           </Text>
-          {cycleLabel ? <Text style={styles.cycleLabel}>{cycleLabel}</Text> : null}
         </View>
 
         <View style={styles.footer}>
           <View style={styles.actions}>
             <ActionButton icon="eye-outline" onPress={() => onPress(summary.id)} />
-            <ActionButton icon="download-outline" onPress={() => onDownload(summary.id)} />
+            <ActionButton icon="download-outline" onPress={() => onDownload(summary)} />
+            <ActionButton icon="arrow-redo-outline" onPress={() => onShare(summary)} />
           </View>
           {permissions.can.payments && (
             <Text style={styles.amount}>${formatCurrency(summary.total_amount)}</Text>
@@ -211,15 +211,6 @@ const useStyles = () => {
         },
         metaSeparator: {
           color: theme.colors.textMuted,
-        },
-        cycleLabel: {
-          color: theme.colors.textMuted,
-          fontSize: theme.typography.size.xs,
-          fontWeight: theme.typography.weight.semibold,
-          backgroundColor: theme.colors.surfaceMuted,
-          borderRadius: theme.radii.pill,
-          paddingHorizontal: 8,
-          paddingVertical: 2,
         },
         footer: {
           flexDirection: 'row',
