@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { clientsService } from '../../../services/clients';
 import type { Client } from '../../../services/types';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 interface UseClientDetailReturn {
   client: Client | null;
@@ -12,6 +14,8 @@ interface UseClientDetailReturn {
 }
 
 export function useClientDetail(clientId: string | null): UseClientDetailReturn {
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -19,6 +23,13 @@ export function useClientDetail(clientId: string | null): UseClientDetailReturn 
   const fetchClient = useCallback(async () => {
     if (!clientId) {
       setClient(null);
+      setLoading(false);
+      return;
+    }
+
+    if (!permissions.canAccessClient(clientId)) {
+      setClient(null);
+      setError('No tienes permiso para acceder a este cliente.');
       setLoading(false);
       return;
     }
@@ -33,7 +44,7 @@ export function useClientDetail(clientId: string | null): UseClientDetailReturn 
     } finally {
       setLoading(false);
     }
-  }, [clientId]);
+  }, [clientId, permissions]);
 
   useEffect(() => {
     fetchClient();
@@ -41,6 +52,9 @@ export function useClientDetail(clientId: string | null): UseClientDetailReturn 
 
   const updateClient = async (data: Parameters<typeof clientsService.update>[1]) => {
     if (!clientId) throw new Error('No hay cliente seleccionado');
+    if (!permissions.can.clientEditing || !permissions.canAccessClient(clientId)) {
+      throw new Error('No tienes permiso para editar este cliente.');
+    }
     const updated = await clientsService.update(clientId, data);
     setClient(updated);
     return updated;
@@ -48,6 +62,9 @@ export function useClientDetail(clientId: string | null): UseClientDetailReturn 
 
   const updateBilling = async (data: Parameters<typeof clientsService.updateBilling>[1]) => {
     if (!clientId) throw new Error('No hay cliente seleccionado');
+    if (!permissions.can.clientEditing || !permissions.canAccessClient(clientId)) {
+      throw new Error('No tienes permiso para editar este cliente.');
+    }
     const updated = await clientsService.updateBilling(clientId, data);
     setClient(updated);
     return updated;

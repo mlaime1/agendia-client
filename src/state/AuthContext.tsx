@@ -1,50 +1,83 @@
 import { Session } from '@supabase/supabase-js';
-import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, PropsWithChildren, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 import { api } from '../services/backendApi';
+import { usersService } from '../services/users';
+import type { UpdateUserDto } from '../services/types';
 import { supabase } from '../lib/supabase';
 import { UserProfile } from '../features/auth/types/user';
 
 type AuthContextValue = {
   isLoading: boolean;
+  isProfileLoading: boolean;
   isAuthenticated: boolean;
   session: Session | null;
   userProfile: UserProfile | null;
   profileError: string | null;
+  connectionError: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
   registerWithCode: (input: { email: string; password: string; name: string; invitation_code: string; phone?: string }) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (input: UpdateUserDto) => Promise<UserProfile>;
+  changePassword: (newPassword: string) => Promise<void>;
   refreshProfile: () => Promise<void>;
+  retryConnection: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const SESSION_RESTORE_TIMEOUT_MS = 8_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, context: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error(`Tiempo de espera agotado al ${context}. Verificá tu conexión.`));
+      }, ms);
+    }),
+  ]);
+}
+
 const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Ocurrio un error inesperado');
-const normalizeRole = (role: unknown): 'driver' | 'admin' | 'client' => {
+const normalizeRole = (role: unknown): 'driver' | 'admin' | 'client' | 'unknown' => {
   const normalizedRole = String(role ?? '').trim().toLowerCase();
 
   if (normalizedRole === 'admin') {
     return 'admin';
   }
 
-  if (normalizedRole === 'client') {
+  if (normalizedRole === 'driver') {
+    return 'driver';
+  }
+
+  if (normalizedRole === 'client' || normalizedRole === 'passenger') {
     return 'client';
   }
 
-  return 'driver';
+  return 'unknown';
 };
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const profileRequestId = useRef(0);
 
   const loadProfile = useCallback(async (currentSession: Session | null) => {
+    const requestId = profileRequestId.current + 1;
+    profileRequestId.current = requestId;
+    const hasSessionUser = Boolean(currentSession?.user?.id);
+    setIsProfileLoading(hasSessionUser);
+
     if (!currentSession?.user?.id) {
       setUserProfile(null);
       setProfileError(null);
+      setIsProfileLoading(false);
       return;
     }
 
@@ -79,6 +112,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           role: normalizeRole(supabaseUser.user_metadata?.role),
           linked_client_id: supabaseUser.user_metadata?.linked_client_id ?? null,
           timezone: supabaseUser.user_metadata?.timezone ?? null,
+          phone: supabaseUser.phone ?? supabaseUser.user_metadata?.phone ?? null,
         };
 
         console.log('[AuthContext] profile loaded from supabase fallback:', {
@@ -92,30 +126,53 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
       }
 
-      setUserProfile(profile);
+     if (requestId === profileRequestId.current) {
+       setUserProfile(profile);
+       setIsProfileLoading(false);
+     }
     } catch (error) {
       console.error('[AuthContext] Failed to load profile:', error);
-      setUserProfile(null);
-      setProfileError(getErrorMessage(error));
+      if (requestId === profileRequestId.current) {
+        setUserProfile(null);
+        setProfileError(getErrorMessage(error));
+        setIsProfileLoading(false);
+      }
     }
   }, []);
 
   const restoreSession = useCallback(async () => {
     setIsLoading(true);
+    setConnectionError(null);
 
-    const { data, error } = await supabase.auth.getSession();
+    try {
+      const { data, error } = await withTimeout(
+        supabase.auth.getSession(),
+        SESSION_RESTORE_TIMEOUT_MS,
+        'recuperar la sesión',
+      );
 
-    if (error) {
+      if (error) {
+        setSession(null);
+        setUserProfile(null);
+        setProfileError(error.message);
+        setConnectionError(null);
+        setIsProfileLoading(false);
+        setIsLoading(false);
+        return;
+      }
+
+      setSession(data.session);
+      await loadProfile(data.session);
+      setConnectionError(null);
+    } catch (error) {
+      console.error('[AuthContext] restoreSession failed:', error);
       setSession(null);
       setUserProfile(null);
-      setProfileError(error.message);
+      setIsProfileLoading(false);
+      setConnectionError(getErrorMessage(error));
+    } finally {
       setIsLoading(false);
-      return;
     }
-
-    setSession(data.session);
-    await loadProfile(data.session);
-    setIsLoading(false);
   }, [loadProfile]);
 
   useEffect(() => {
@@ -125,6 +182,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
+      if (!nextSession) {
+        setUserProfile(null);
+        setProfileError(null);
+      }
       void loadProfile(nextSession);
     });
 
@@ -200,6 +261,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         throw new Error('No se pudo iniciar sesion despues del registro.');
       }
 
+      // La sesión llega del backend (creada con service_role), hay que persistirla
+      // en el cliente Supabase para que getAccessToken() la encuentre.
+      const { access_token, refresh_token } = response.session;
+      const { error: setSessionError } = await supabase.auth.setSession({ access_token, refresh_token });
+
+      if (setSessionError) {
+        throw setSessionError;
+      }
+
       setSession(response.session);
       await loadProfile(response.session);
     },
@@ -216,26 +286,62 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setSession(null);
     setUserProfile(null);
     setProfileError(null);
+    setConnectionError(null);
+    setIsProfileLoading(false);
+  }, []);
+
+  const updateProfile = useCallback(async (input: UpdateUserDto) => {
+    const updated = await usersService.updateMe(input);
+
+    setUserProfile((prev) => ({
+      id: updated.id,
+      name: updated.name,
+      email: updated.email,
+      alias: updated.alias,
+      role: normalizeRole(updated.role),
+      linked_client_id: updated.linked_client_id ?? prev?.linked_client_id ?? null,
+      timezone: updated.timezone ?? prev?.timezone ?? null,
+      phone: updated.phone !== undefined ? updated.phone : prev?.phone ?? null,
+    }));
+
+    return updated;
+  }, []);
+
+  const changePassword = useCallback(async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    if (error) {
+      throw error;
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {
     await loadProfile(session);
   }, [loadProfile, session]);
 
+  const retryConnection = useCallback(async () => {
+    await restoreSession();
+  }, [restoreSession]);
+
   const value = useMemo(
     () => ({
       isLoading,
+      isProfileLoading,
       isAuthenticated: Boolean(session),
       session,
       userProfile,
       profileError,
+      connectionError,
       login,
       register,
       registerWithCode,
       logout,
+      updateProfile,
+      changePassword,
       refreshProfile,
+      retryConnection,
     }),
-    [isLoading, login, logout, profileError, refreshProfile, register, registerWithCode, session, userProfile],
+    [changePassword, connectionError, isLoading, isProfileLoading, login, logout, profileError, refreshProfile, register, registerWithCode, retryConnection, session, updateProfile, userProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

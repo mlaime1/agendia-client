@@ -14,11 +14,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon, AppIconName } from './AppIcon';
 import { Theme, useTheme, useThemedStyles } from '../theme';
+import type { PermissionPolicy } from '../permissions';
+import type { UserRole } from '../features/auth/types/user';
 
 type User = {
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
   avatar?: string;
   linked_client_id?: string | null;
 };
@@ -33,6 +35,8 @@ type MenuItemConfig = {
   label: string;
   icon: AppIconName;
 };
+
+type DrawerRoute = 'Calendario' | 'Historial' | 'Recorridos' | 'Resumenes' | 'Clientes' | 'Perfil';
 
 const menuItems: MenuItemConfig[] = [
   { route: 'Calendario', label: 'Calendario', icon: 'calendar' },
@@ -53,6 +57,7 @@ type CustomDrawerProps = {
   onNavigate: (routeName: string) => void;
   onLogout: () => void;
   onClose: () => void;
+  permissions: PermissionPolicy;
 };
 
 export function CustomDrawer({
@@ -65,6 +70,7 @@ export function CustomDrawer({
   onNavigate,
   onLogout,
   onClose,
+  permissions,
 }: CustomDrawerProps) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -95,6 +101,19 @@ export function CustomDrawer({
   };
 
   const handleMenuPress = (route: string) => {
+    const canNavigate = {
+      Calendario: permissions.can.calendar && permissions.can.dashboard,
+      Historial: permissions.can.calendar,
+      Recorridos: permissions.can.trips,
+      Resumenes: permissions.can.summaries,
+      Clientes: permissions.can.clients,
+      Perfil: permissions.isResolved,
+    }[route as DrawerRoute];
+
+    if (!canNavigate) {
+      return;
+    }
+
     onNavigate(route);
     onClose();
   };
@@ -201,12 +220,16 @@ export function CustomDrawer({
           {/* Menu items */}
           <View style={styles.menuContainer}>
             {menuItems.map((item) => {
-              // Recorridos is driver-only; Resumenes is available for clients too
-              if (
-                item.route === 'Recorridos' &&
-                user.role !== 'driver' &&
-                user.role !== 'admin'
-              ) {
+              const canNavigate = {
+                Calendario: permissions.can.calendar && permissions.can.dashboard,
+                Historial: permissions.can.calendar,
+                Recorridos: permissions.can.trips,
+                Resumenes: permissions.can.summaries,
+                Clientes: permissions.can.clients,
+                Perfil: permissions.isResolved,
+              }[item.route as DrawerRoute];
+
+              if (!canNavigate) {
                 return null;
               }
 

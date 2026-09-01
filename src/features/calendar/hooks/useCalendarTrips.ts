@@ -55,6 +55,7 @@ export const useCalendarTrips = ({
   const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
 
   const userId = userProfile?.id;
+  const linkedClientId = userProfile?.linked_client_id;
 
   const clearError = () => setError(null);
 
@@ -100,7 +101,9 @@ export const useCalendarTrips = ({
         let resolvedRoutes: Route[] = [];
 
         if (isClient) {
-          resolvedClientId = selectedClientId;
+          resolvedClientId = linkedClientId && (!selectedClientId || selectedClientId === linkedClientId)
+            ? linkedClientId
+            : undefined;
         } else {
           const defaults = await defaultsService.getDefaults();
           resolvedClientId = selectedClientId || defaults.clientId || undefined;
@@ -115,6 +118,10 @@ export const useCalendarTrips = ({
 
           const activeRoute = resolvedRoutes.find((route) => route.is_active !== false);
           resolvedRouteId = resolvedRouteId || activeRoute?.id || '';
+        }
+
+        if (isClient && !resolvedClientId) {
+          throw new Error('No hay un cliente autorizado para cargar el calendario.');
         }
 
         if (mounted) {
@@ -143,7 +150,7 @@ export const useCalendarTrips = ({
     return () => {
       mounted = false;
     };
-  }, [selectedClientId, userId]);
+  }, [selectedClientId, userId, linkedClientId]);
 
   useEffect(() => {
     let mounted = true;
@@ -314,13 +321,13 @@ export const useCalendarTrips = ({
 
         (async () => {
           try {
-            await tripRepository.updateCalendarTrip(trip, updates, clientTimezone);
-            const list = await tripRepository.listCalendarTrips(selectedClientId, clientTimezone);
+            await tripRepository.updateCalendarTrip(trip, updates, clientId, clientTimezone);
+            const list = await tripRepository.listCalendarTrips(clientId || undefined, clientTimezone);
             setTrips(list);
           } catch (err: any) {
             if (isNetworkError(err)) {
               tripRepository.updateLocalCalendarTrip(trip, updates);
-              setTrips(tripRepository.getLocalCalendarTrips(selectedClientId, clientTimezone));
+              setTrips(tripRepository.getLocalCalendarTrips(clientId || undefined, clientTimezone));
             }
             setError(err?.message ?? 'Error actualizando viaje');
           }
@@ -343,7 +350,7 @@ export const useCalendarTrips = ({
 
         (async () => {
           try {
-            await tripRepository.deleteCalendarTrip(trip, clientTimezone);
+            await tripRepository.deleteCalendarTrip(trip, clientId, clientTimezone);
           } catch (err: any) {
             setTrips(previousTrips);
             setError(err?.message ?? 'Error eliminando viaje');

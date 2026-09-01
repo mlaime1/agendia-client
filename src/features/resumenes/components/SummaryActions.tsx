@@ -14,6 +14,8 @@ import {
   getSummaryStatusLabel,
 } from '../utils/summaryStatus';
 import { summariesService } from '../../../services/summaries';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type SummaryActionsProps = {
   summary: Summary;
@@ -35,6 +37,8 @@ export function SummaryActions({
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { showFeedback } = useFeedback();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const nextStatus = getNextSummaryStatus(summary.status);
   const actionLabel = getNextStatusActionLabel(summary.status);
 
@@ -68,7 +72,7 @@ export function SummaryActions({
     );
   };
 
-  if (readOnly) {
+  if (readOnly || !permissions.can.summaryManagement) {
     return (
       <View style={[styles.container, { paddingBottom: insets.bottom + 12 }]}>
         <Pressable

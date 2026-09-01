@@ -32,6 +32,9 @@ import { useFeedback } from '../../../state/FeedbackContext';
 import { ManualRangePicker } from './ManualRangePicker';
 import { SummaryClientSelector } from './SummaryClientSelector';
 import { getCycleLabel } from '../utils/summaryCycle';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
+import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
 
 type CreateSummaryModalProps = {
   visible: boolean;
@@ -53,6 +56,8 @@ export function CreateSummaryModal({
   const styles = useStyles();
   const insets = useSafeAreaInsets();
   const { showFeedback } = useFeedback();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const { creating, createManual, createAuto } = useCreateSummary();
 
   const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
@@ -253,6 +258,10 @@ export function CreateSummaryModal({
   const canCreate = activeTab === 'auto'
     ? Boolean(preview && preview.available_trips > 0)
     : Boolean(manualPeriodStart && manualPeriodEnd && availableTrips > 0);
+
+  if (!permissions.can.summaryManagement) {
+    return <UnauthorizedScreen />;
+  }
 
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>

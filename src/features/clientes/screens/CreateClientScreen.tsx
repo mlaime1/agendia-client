@@ -12,6 +12,9 @@ import { useThemedStyles } from '../../../theme/useThemedStyles';
 import { useFeedback } from '../../../state/FeedbackContext';
 import { clientsService } from '../../../services/clients';
 import type { BillingCycle } from '../../../services/types';
+import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 const BILLING_OPTIONS: Array<{ value: BillingCycle; label: string; description: string }> = [
   { value: 'weekly', label: 'Semanal', description: 'Corta cada semana cerrada' },
@@ -47,6 +50,8 @@ export function CreateClientScreen({ onBack, onClientCreated }: CreateClientScre
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { showFeedback } = useFeedback();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
 
   const [nombre, setNombre] = useState('');
   const [phone, setPhone] = useState('');
@@ -131,6 +136,10 @@ export function CreateClientScreen({ onBack, onClientCreated }: CreateClientScre
     if (billingCycle === 'biweekly') return 'Fecha de inicio del primer ciclo quincenal.';
     return 'Día de corte mensual.';
   }, [billingCycle]);
+
+  if (!permissions.can.clientCreation) {
+    return <UnauthorizedScreen />;
+  }
 
   return (
     <ScreenWrapper title="Nuevo cliente" onBackPress={onBack}>

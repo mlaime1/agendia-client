@@ -23,6 +23,9 @@ import { useFeedback } from '../../../state/FeedbackContext';
 import { useClientDetail, useClientSchedules } from '../hooks';
 import type { BillingCycle, CreateScheduleDto } from '../../../services/types';
 import { formatClientDate, getClientTimezone } from '../../../utils/dateTime';
+import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type EditContractScreenProps = {
   clientId: string;
@@ -78,6 +81,8 @@ export function EditContractScreen({ clientId, onBack, onSave }: EditContractScr
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { showFeedback } = useFeedback();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const { client, loading, error, updateBilling } = useClientDetail(clientId);
   const { schedules, loading: loadingSchedules, bulkReplace } = useClientSchedules(clientId);
 
@@ -224,6 +229,10 @@ export function EditContractScreen({ clientId, onBack, onSave }: EditContractScr
     if (!client?.billing_start_date) return '';
     return formatClientDate(client.billing_start_date, clientTimezone);
   }, [client, clientTimezone]);
+
+  if (!permissions.can.clientEditing || !permissions.canAccessClient(clientId)) {
+    return <UnauthorizedScreen />;
+  }
 
   if (loading) {
     return (

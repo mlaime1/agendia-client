@@ -1,4 +1,4 @@
-export type UserRole = 'driver' | 'admin' | 'client';
+export type UserRole = 'driver' | 'admin' | 'client' | 'unknown';
 
 export type UserProfile = {
   id: string;
@@ -8,4 +8,5 @@ export type UserProfile = {
   role: UserRole;
   linked_client_id?: string | null;
   timezone?: string | null;
+  phone?: string | null;
 };

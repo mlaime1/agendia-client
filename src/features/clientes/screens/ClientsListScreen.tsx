@@ -15,11 +15,15 @@ import { Theme } from '../../../theme';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
 import { useClients } from '../hooks';
 import type { Client } from '../../../services/types';
+import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type ClientsListScreenProps = {
   onMenuPress: () => void;
   onSelectClient: (clientId: string) => void;
   onNewClient: () => void;
+  onInviteClient: () => void;
 };
 
 const DAY_LABELS = ['L', 'M', 'X', 'J', 'V'];
@@ -34,8 +38,10 @@ function getInitial(name: string) {
   return name.trim().charAt(0).toUpperCase() || 'A';
 }
 
-export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient }: ClientsListScreenProps) {
+export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient, onInviteClient }: ClientsListScreenProps) {
   const styles = useThemedStyles(createStyles);
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const [search, setSearch] = useState('');
   const { clients, loading, error, refetch } = useClients();
 
@@ -51,6 +57,10 @@ export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient }: 
   }, [clients, search]);
 
   const activeCount = clients.length;
+
+  if (!permissions.can.clients) {
+    return <UnauthorizedScreen />;
+  }
 
   const renderClientCard = ({ item }: { item: Client }) => {
     const initial = getInitial(item.nombre);
@@ -135,13 +145,25 @@ export function ClientsListScreen({ onMenuPress, onSelectClient, onNewClient }: 
 
       <View style={styles.listHeader}>
         <Text style={styles.listLabel}>TODOS LOS CLIENTES</Text>
-        <Pressable
-          style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
-          onPress={onNewClient}
-        >
-          <AppIcon name="plus" size={16} color={styles.newButtonText.color} />
-          <Text style={styles.newButtonText}>Nuevo cliente</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Invitar cliente nuevo"
+            style={({ pressed }) => [styles.inviteButton, pressed && styles.newButtonPressed]}
+            onPress={onInviteClient}
+          >
+            <AppIcon name="send" size={16} color={styles.inviteButtonText.color} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Nuevo cliente"
+            style={({ pressed }) => [styles.newButton, pressed && styles.newButtonPressed]}
+            onPress={onNewClient}
+          >
+            <AppIcon name="plus" size={16} color={styles.newButtonText.color} />
+            <Text style={styles.newButtonText}>Nuevo cliente</Text>
+          </Pressable>
+        </View>
       </View>
 
       {loading ? (
@@ -230,6 +252,24 @@ const createStyles = (theme: Theme) =>
       fontWeight: '700',
       color: theme.colors.textSubtle,
       letterSpacing: 0.5,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    inviteButton: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: 32,
+      height: 32,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.primary,
+      backgroundColor: 'transparent',
+    },
+    inviteButtonText: {
+      color: theme.colors.primary,
     },
     newButton: {
       flexDirection: 'row',

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { clientsService } from '../../../services/clients';
 import type { ServiceSchedule, CreateScheduleDto, UpdateScheduleDto } from '../../../services/types';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 interface UseClientSchedulesReturn {
   schedules: ServiceSchedule[];
@@ -14,6 +16,8 @@ interface UseClientSchedulesReturn {
 }
 
 export function useClientSchedules(clientId: string | null): UseClientSchedulesReturn {
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const [schedules, setSchedules] = useState<ServiceSchedule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +25,12 @@ export function useClientSchedules(clientId: string | null): UseClientSchedulesR
   const fetchSchedules = useCallback(async () => {
     if (!clientId) {
       setSchedules([]);
+      setLoading(false);
+      return;
+    }
+    if (!permissions.canAccessClient(clientId)) {
+      setSchedules([]);
+      setError('No tienes permiso para acceder a este cliente.');
       setLoading(false);
       return;
     }
@@ -35,7 +45,7 @@ export function useClientSchedules(clientId: string | null): UseClientSchedulesR
     } finally {
       setLoading(false);
     }
-  }, [clientId]);
+  }, [clientId, permissions]);
 
   useEffect(() => {
     fetchSchedules();

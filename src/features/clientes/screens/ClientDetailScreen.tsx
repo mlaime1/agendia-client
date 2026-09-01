@@ -8,6 +8,9 @@ import { useThemedStyles } from '../../../theme/useThemedStyles';
 import { useClientDetail, useClientSchedules } from '../hooks';
 import type { ServiceSchedule } from '../../../services/types';
 import { formatClientDate, getClientTimezone } from '../../../utils/dateTime';
+import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type ClientDetailScreenProps = {
   clientId: string;
@@ -42,8 +45,14 @@ export function ClientDetailScreen({
   onAddResponsible,
 }: ClientDetailScreenProps) {
   const styles = useThemedStyles(createStyles);
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const { client, loading, error, refetch } = useClientDetail(clientId);
   const { schedules, loading: loadingSchedules } = useClientSchedules(clientId);
+
+  if (!permissions.can.clients || !permissions.canAccessClient(clientId)) {
+    return <UnauthorizedScreen />;
+  }
 
   if (loading) {
     return (
@@ -105,13 +114,13 @@ export function ClientDetailScreen({
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Datos personales</Text>
-            <Pressable
+            {permissions.can.clientEditing && <Pressable
               style={({ pressed }) => [styles.sectionAction, pressed && styles.sectionActionPressed]}
               onPress={onEditClient}
             >
               <AppIcon name="edit" size={14} color={styles.sectionActionText.color} />
               <Text style={styles.sectionActionText}>Editar</Text>
-            </Pressable>
+            </Pressable>}
           </View>
 
           <View style={styles.row}>
@@ -128,13 +137,13 @@ export function ClientDetailScreen({
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Contrato de servicio</Text>
-            <Pressable
+            {permissions.can.clientEditing && <Pressable
               style={({ pressed }) => [styles.sectionAction, pressed && styles.sectionActionPressed]}
               onPress={onEditContract}
             >
               <AppIcon name="edit" size={14} color={styles.sectionActionText.color} />
               <Text style={styles.sectionActionText}>Editar</Text>
-            </Pressable>
+            </Pressable>}
           </View>
 
           <View style={styles.row}>
@@ -173,7 +182,7 @@ export function ClientDetailScreen({
             <Text style={styles.emptyResponsiblesText}>Sin responsables vinculados</Text>
           </View>
 
-          <Pressable
+          {permissions.can.invitations && <Pressable
             style={({ pressed }) => [styles.addRow, pressed && styles.addRowPressed]}
             onPress={onAddResponsible}
           >
@@ -181,7 +190,7 @@ export function ClientDetailScreen({
               <AppIcon name="plus" size={16} color={styles.addActionText.color} />
             </View>
             <Text style={styles.addActionText}>Agregar responsable</Text>
-          </Pressable>
+          </Pressable>}
         </View>
 
         <View style={styles.spacer} />

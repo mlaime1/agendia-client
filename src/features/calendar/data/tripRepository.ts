@@ -117,20 +117,15 @@ const groupRecordsForCalendar = (records: TripRecord[], clientTimezone?: string)
 
 export const tripRepository = {
   listCalendarTrips: async (clientId?: string, clientTimezone?: string): Promise<Trip[]> => {
+    tripRecords = [];
     const serviceTrips = clientId
       ? await tripsService.getByClient(clientId)
       : await tripsService.getAll();
-    let records = serviceTrips.map((s) => mapServiceTripToRecord(s, clientTimezone));
-    tripRecords = records.length ? records : tripRecords;
-
-    if (clientId) {
-      records = records.filter((r) => r.client_id === clientId);
-    }
-
-    return groupRecordsForCalendar(
-      records.length ? records : clientId ? tripRecords.filter((r) => r.client_id === clientId) : tripRecords,
-      clientTimezone,
-    );
+    const records = serviceTrips
+      .map((s) => mapServiceTripToRecord(s, clientTimezone))
+      .filter((record) => !clientId || record.client_id === clientId);
+    tripRecords = records;
+    return groupRecordsForCalendar(records, clientTimezone);
   },
 
   getLocalCalendarTrips: (clientId?: string, clientTimezone?: string): Trip[] =>
@@ -177,7 +172,8 @@ export const tripRepository = {
     return toCalendarTrip(records, clientTimezone);
   },
 
-  updateCalendarTrip: async (trip: Trip, updates: TripUpdates, clientTimezone?: string): Promise<void> => {
+  updateCalendarTrip: async (trip: Trip, updates: TripUpdates, clientId: string, clientTimezone?: string): Promise<void> => {
+    if (!clientId) throw new Error('No hay un cliente autorizado para actualizar el viaje.');
     const record = tripRecords.find((r) => r.id === trip.recordIds[0]);
     const currentRouteId = record?.route_id || updates.routeId || '';
 
@@ -226,15 +222,20 @@ export const tripRepository = {
       }),
     );
 
-    const serviceTrips = await tripsService.getAll();
-    tripRecords = serviceTrips.map((s) => mapServiceTripToRecord(s, clientTimezone));
+    const serviceTrips = await tripsService.getByClient(clientId);
+    tripRecords = serviceTrips
+      .map((s) => mapServiceTripToRecord(s, clientTimezone))
+      .filter((record) => record.client_id === clientId);
   },
 
-  deleteCalendarTrip: async (trip: Trip, clientTimezone?: string): Promise<void> => {
+  deleteCalendarTrip: async (trip: Trip, clientId: string, clientTimezone?: string): Promise<void> => {
+    if (!clientId) throw new Error('No hay un cliente autorizado para eliminar el viaje.');
     await Promise.all(trip.recordIds.map((id) => tripsService.remove(id)));
 
-    const remainingServiceTrips = await tripsService.getAll();
-    tripRecords = remainingServiceTrips.map((s) => mapServiceTripToRecord(s, clientTimezone));
+    const remainingServiceTrips = await tripsService.getByClient(clientId);
+    tripRecords = remainingServiceTrips
+      .map((s) => mapServiceTripToRecord(s, clientTimezone))
+      .filter((record) => record.client_id === clientId);
   },
 
   updateLocalCalendarTrip: (trip: Trip, updates: TripUpdates): void => {

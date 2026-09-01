@@ -10,6 +10,9 @@ import { Theme } from '../../../theme';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
 import { useFeedback } from '../../../state/FeedbackContext';
 import { useClientDetail } from '../hooks';
+import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 const toDigits = (value: string): string => value.replace(/\D/g, '');
 
@@ -27,6 +30,8 @@ export function EditClientScreen({ clientId, onBack, onSave }: EditClientScreenP
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { showFeedback } = useFeedback();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const { client, loading, error, refetch, updateClient } = useClientDetail(clientId);
 
   const [nombre, setNombre] = useState('');
@@ -73,6 +78,10 @@ export function EditClientScreen({ clientId, onBack, onSave }: EditClientScreenP
       setSaving(false);
     }
   }, [client, saving, nombre, phone, updateClient, showFeedback, onSave]);
+
+  if (!permissions.can.clientEditing || !permissions.canAccessClient(clientId)) {
+    return <UnauthorizedScreen />;
+  }
 
   if (loading) {
     return (

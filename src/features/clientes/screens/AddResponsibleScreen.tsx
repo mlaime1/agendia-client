@@ -12,6 +12,9 @@ import { useThemedStyles } from '../../../theme/useThemedStyles';
 import { useFeedback } from '../../../state/FeedbackContext';
 import { useClientDetail, useCreateInvitation } from '../hooks';
 import { formatClientDate, getClientTimezone } from '../../../utils/dateTime';
+import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type AddResponsibleScreenProps = {
   clientId: string;
@@ -31,6 +34,8 @@ export function AddResponsibleScreen({ clientId, onBack }: AddResponsibleScreenP
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const { showFeedback } = useFeedback();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const { client, loading, error } = useClientDetail(clientId);
   const { result, loading: generating, createInvitation } = useCreateInvitation();
 
@@ -68,6 +73,10 @@ export function AddResponsibleScreen({ clientId, onBack }: AddResponsibleScreenP
   const expiresAtLabel = result?.expires_at
     ? `Expira el ${formatClientDate(result.expires_at, clientTimezone)}`
     : 'Expira en 7 días';
+
+  if (!permissions.can.invitations || !permissions.canAccessClient(clientId)) {
+    return <UnauthorizedScreen />;
+  }
 
   if (loading) {
     return (
