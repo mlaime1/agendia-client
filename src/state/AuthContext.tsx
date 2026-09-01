@@ -59,6 +59,41 @@ const normalizeRole = (role: unknown): 'driver' | 'admin' | 'client' | 'unknown'
   return 'unknown';
 };
 
+type BackendProfile = Omit<UserProfile, 'role' | 'linked_client_id'> & {
+  role?: unknown;
+  type?: unknown;
+  linked_client_id?: unknown;
+  linkedClientId?: unknown;
+  clients?: ReadonlyArray<{ id?: unknown }> | null;
+};
+
+const normalizeClientId = (clientId: unknown): string | null => {
+  if (typeof clientId !== 'string') {
+    return null;
+  }
+
+  const normalizedClientId = clientId.trim();
+  return normalizedClientId || null;
+};
+
+function normalizeBackendProfile(backendProfile: BackendProfile): UserProfile {
+  const roleFromRole = normalizeRole(backendProfile.role);
+  const role = roleFromRole === 'unknown' ? normalizeRole(backendProfile.type) : roleFromRole;
+  const explicitLinkedClientId = normalizeClientId(backendProfile.linked_client_id)
+    ?? normalizeClientId(backendProfile.linkedClientId);
+  const linkedClientId = explicitLinkedClientId
+    ?? (role === 'client'
+      ? normalizeClientId(backendProfile.clients?.[0]?.id)
+      : null);
+
+  return {
+    ...backendProfile,
+    role,
+    linked_client_id: linkedClientId,
+    timezone: backendProfile.timezone ?? null,
+  };
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [isProfileLoading, setIsProfileLoading] = useState(false);
@@ -87,13 +122,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
       let profile: UserProfile;
 
       try {
-        const backendProfile = await api.get<UserProfile>('/users/me');
-        profile = {
-          ...backendProfile,
-          role: normalizeRole(backendProfile.role),
-          linked_client_id: backendProfile.linked_client_id ?? null,
-          timezone: backendProfile.timezone ?? null,
-        };
+        const backendProfile = await api.get<BackendProfile>('/users/me');
+        profile = normalizeBackendProfile(backendProfile);
 
         console.log('[AuthContext] profile loaded from backend:', {
           authId: supabaseUser.id,
