@@ -10,6 +10,8 @@ import { SummaryStatusBadge } from './SummaryStatusBadge';
 import { getCycleLabel } from '../utils/summaryCycle';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getNextSummaryStatus } from '../utils/summaryStatus';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type SummaryCardProps = {
   summary: Summary;
@@ -32,6 +34,8 @@ export function SummaryCard({
 }: SummaryCardProps) {
   const isClientView = role === 'client';
   const styles = useStyles();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const period = formatClientPeriod(summary.period_start, summary.period_end, clientTimezone);
   const clientName = summary.clients?.nombre || 'Cliente';
   const cycleLabel = getCycleLabel(summary.period_type);
@@ -48,7 +52,9 @@ export function SummaryCard({
           <Text style={styles.clientText}>{clientName}</Text>
         </View>
         <View style={styles.rightCol}>
-          <Text style={styles.amountText}>${formatCurrency(summary.total_amount)}</Text>
+          {permissions.can.payments && (
+            <Text style={styles.amountText}>${formatCurrency(summary.total_amount)}</Text>
+          )}
           <Text style={styles.tripsText}>{summary.total_trips} viajes</Text>
         </View>
       </View>

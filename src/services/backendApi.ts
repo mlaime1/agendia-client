@@ -6,21 +6,103 @@ if (!apiUrl) {
   throw new Error('Missing EXPO_PUBLIC_API_URL');
 }
 
+const API_REQUEST_TIMEOUT_MS = 15_000;
+
 type ApiResponse<T> = { success: true; data: T } | { success: false; message: string };
+
+export type ApiErrorCode =
+  | 'UNAUTHORIZED'
+  | 'FORBIDDEN'
+  | 'NOT_FOUND'
+  | 'SERVER_ERROR'
+  | 'HTTP_ERROR';
+
+const getApiErrorCode = (status: number): ApiErrorCode => {
+  if (status === 401) return 'UNAUTHORIZED';
+  if (status === 403) return 'FORBIDDEN';
+  if (status === 404) return 'NOT_FOUND';
+  if (status >= 500) return 'SERVER_ERROR';
+  return 'HTTP_ERROR';
+};
+
+const getApiErrorMessage = (status: number): string => {
+  switch (status) {
+    case 401:
+      return 'Tu sesión ya no es válida. Volvé a iniciar sesión.';
+    case 403:
+      return 'No tenés permiso para realizar esta acción.';
+    case 404:
+      return 'No se encontró el recurso solicitado.';
+    default:
+      return status >= 500 ? 'El servidor no pudo completar la solicitud.' : `HTTP ${status}`;
+  }
+};
 
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string,
+    message = getApiErrorMessage(status),
+    public code: ApiErrorCode = getApiErrorCode(status),
   ) {
     super(message);
     this.name = 'ApiError';
   }
 }
 
+const parseApiResponse = <T>(text: string): ApiResponse<T> | null => {
+  if (!text) return null;
+
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!parsed || typeof parsed !== 'object' || !('success' in parsed)) return null;
+
+    const response = parsed as { success?: unknown; data?: T; message?: unknown };
+    if (response.success === true) return { success: true, data: response.data as T };
+    if (response.success === false && typeof response.message === 'string') {
+      return { success: false, message: response.message };
+    }
+  } catch {
+    // Non-JSON responses are handled through the HTTP status below.
+  }
+
+  return null;
+};
+
+const parseResponse = async <T>(response: Response): Promise<T> => {
+  const json = parseApiResponse<T>(await response.text());
+
+  if (!response.ok) {
+    throw new ApiError(response.status, getApiErrorMessage(response.status));
+  }
+
+  if (!json) return undefined as T;
+  if (!json.success) throw new ApiError(response.status, json.message);
+  return json.data;
+};
+
 export const getBackendApiBaseUrl = () => apiUrl.replace(/\/$/, '');
 
 const buildUrl = (path: string) => `${getBackendApiBaseUrl()}${path}`;
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, ms = API_REQUEST_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Tiempo de espera agotado al conectar con el servidor (${ms / 1000}s).`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 export async function getAccessToken(): Promise<string | null> {
   const { data } = await supabase.auth.getSession();
@@ -51,55 +133,57 @@ async function request<T>(
       Object.assign(headers, extra);
     }
 
-    return fetch(buildUrl(path), {
+    return fetchWithTimeout(buildUrl(path), {
       ...options,
       headers,
     });
   };
 
-  const res = await makeRequest(token);
+  let res = await makeRequest(token);
 
   if (res.status === 401 && token) {
-    const { data: refreshedSession } = await supabase.auth.refreshSession();
-    const refreshedToken = refreshedSession.session?.access_token;
+    try {
+      const { data: refreshedSession } = await supabase.auth.refreshSession();
+      const refreshedToken = refreshedSession.session?.access_token;
 
-    if (refreshedToken && refreshedToken !== token) {
-      const retryRes = await makeRequest(refreshedToken);
-
-      if (retryRes.ok) {
-        const retryText = await retryRes.text();
-        const retryJson = retryText ? (JSON.parse(retryText) as ApiResponse<T>) : null;
-
-        if (!retryJson) {
-          return undefined as T;
-        }
-
-        if (!retryJson.success) {
-          throw new ApiError(retryRes.status, retryJson.message);
-        }
-
-        return retryJson.data;
+      if (refreshedToken && refreshedToken !== token) {
+        res = await makeRequest(refreshedToken);
       }
+    } catch {
+      // The original 401 remains the authoritative response.
     }
   }
 
-  const responseText = await res.text();
-  const json = responseText ? (JSON.parse(responseText) as ApiResponse<T>) : null;
-
-  if (!res.ok) {
-    const message = json && !json.success ? json.message : `HTTP ${res.status}`;
-    throw new ApiError(res.status, message);
+  if (res.status === 401) {
+    await supabase.auth.signOut().catch(() => undefined);
   }
 
-  if (!json) {
-    return undefined as T;
+  return parseResponse<T>(res);
+}
+
+export async function fetchAuthenticated(path: string, options: RequestInit = {}): Promise<Response> {
+  const token = await getAccessToken();
+  const makeRequest = (authToken: string | null) => {
+    const headers = new Headers(options.headers);
+    headers.set('Content-Type', 'application/json');
+    if (authToken) headers.set('Authorization', `Bearer ${authToken}`);
+    return fetchWithTimeout(buildUrl(path), { ...options, headers });
+  };
+
+  let response = await makeRequest(token);
+  if (response.status === 401 && token) {
+    try {
+      const { data } = await supabase.auth.refreshSession();
+      const refreshedToken = data.session?.access_token;
+      if (refreshedToken && refreshedToken !== token) response = await makeRequest(refreshedToken);
+    } catch {
+      // The original 401 remains the authoritative response.
+    }
   }
 
-  if (!json.success) {
-    throw new ApiError(res.status, json.message);
-  }
-
-  return json.data;
+  if (response.status === 401) await supabase.auth.signOut().catch(() => undefined);
+  if (!response.ok) throw new ApiError(response.status);
+  return response;
 }
 
 export const api = {

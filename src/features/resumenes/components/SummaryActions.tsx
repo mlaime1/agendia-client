@@ -16,6 +16,7 @@ import {
 import { summariesService } from '../../../services/summaries';
 import { useAuth } from '../../../state/AuthContext';
 import { usePermissions } from '../../../permissions';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 type SummaryActionsProps = {
   summary: Summary;
@@ -48,7 +49,7 @@ export function SummaryActions({
     } catch (err) {
       showFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Error al descargar el PDF',
+        message: getErrorMessage(err, 'Error al descargar el PDF'),
       });
     }
   };

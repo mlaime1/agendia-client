@@ -8,6 +8,8 @@ import {
   getClientDateKey,
 } from '../../../utils/dateTime';
 import { formatCurrency } from '../utils/formatCurrency';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type TripGroup = {
   label: string;
@@ -71,6 +73,8 @@ function groupTrips(trips: Trip[], clientTimezone?: string): DayGroup[] {
 
 export function SummaryTripList({ trips, clientTimezone }: SummaryTripListProps) {
   const styles = useStyles();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const groupedTrips = React.useMemo(
     () => groupTrips(trips, clientTimezone),
     [trips, clientTimezone],
@@ -93,9 +97,11 @@ export function SummaryTripList({ trips, clientTimezone }: SummaryTripListProps)
               <Text style={styles.dayTitle}>
                 {formatClientDayHeader(item.dateKey, clientTimezone)}
               </Text>
-              <Text style={styles.daySubtotal}>
-                Subtotal: ${formatCurrency(item.subtotal)}
-              </Text>
+              {permissions.can.payments && (
+                <Text style={styles.daySubtotal}>
+                  Subtotal: ${formatCurrency(item.subtotal)}
+                </Text>
+              )}
             </View>
 
             {item.groups.map((group, index) => (
@@ -107,7 +113,9 @@ export function SummaryTripList({ trips, clientTimezone }: SummaryTripListProps)
                       {group.totalTrips} {group.totalTrips === 1 ? 'viaje' : 'viajes'}
                     </Text>
                   </View>
-                  <Text style={styles.tripPrice}>${formatCurrency(group.totalAmount)}</Text>
+                  {permissions.can.payments && (
+                    <Text style={styles.tripPrice}>${formatCurrency(group.totalAmount)}</Text>
+                  )}
                 </View>
                 {index < item.groups.length - 1 && <View style={styles.tripSeparator} />}
               </View>

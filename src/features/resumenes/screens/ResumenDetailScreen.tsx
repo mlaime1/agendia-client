@@ -18,6 +18,8 @@ import { SummaryStatusBadge } from '../components/SummaryStatusBadge';
 import { SummaryTripList } from '../components/SummaryTripList';
 import { SummaryActions } from '../components/SummaryActions';
 import { formatCurrency } from '../utils/formatCurrency';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type ResumenDetailScreenProps = {
   summaryId: string;
@@ -27,6 +29,8 @@ type ResumenDetailScreenProps = {
 
 export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: ResumenDetailScreenProps) {
   const isClientView = role === 'client';
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const styles = useStyles();
   const { summary, loading, error, refetch } = useSummary(summaryId);
   const { updating, deleting, updateStatus, deleteSummary } = useSummaryActions();
@@ -111,15 +115,17 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
               <Text style={styles.statLabel}>Días</Text>
             </View>
             <View style={styles.statDivider} />
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, styles.statValuePrimary]}>
-                ${formatCurrency(totalAmount)}
-              </Text>
-              <Text style={styles.statLabel}>Total</Text>
-            </View>
+            {permissions.can.payments && (
+              <View style={styles.statItem}>
+                <Text style={[styles.statValue, styles.statValuePrimary]}>
+                  ${formatCurrency(totalAmount)}
+                </Text>
+                <Text style={styles.statLabel}>Total</Text>
+              </View>
+            )}
           </View>
 
-          {paidAmount > 0 && (
+          {permissions.can.payments && paidAmount > 0 && (
             <View style={styles.paymentRow}>
               <View style={styles.paymentItem}>
                 <Text style={styles.paymentLabel}>Abonado</Text>

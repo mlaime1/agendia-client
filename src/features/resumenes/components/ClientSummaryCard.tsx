@@ -9,6 +9,8 @@ import { SummaryStatusBadge } from './SummaryStatusBadge';
 import { getSummaryStatusConfig } from '../utils/summaryStatus';
 import { getCycleLabel } from '../utils/summaryCycle';
 import { formatCurrency } from '../utils/formatCurrency';
+import { useAuth } from '../../../state/AuthContext';
+import { usePermissions } from '../../../permissions';
 
 type ClientSummaryCardProps = {
   summary: Summary;
@@ -38,6 +40,8 @@ export function ClientSummaryCard({
 }: ClientSummaryCardProps) {
   const styles = useStyles();
   const { theme } = useTheme();
+  const { userProfile } = useAuth();
+  const permissions = usePermissions(userProfile);
   const period = formatClientPeriod(summary.period_start, summary.period_end, clientTimezone);
   const clientName = summary.clients?.nombre || 'Tus viajes';
   const statusConfig = getSummaryStatusConfig(summary.status, theme);
@@ -99,10 +103,12 @@ export function ClientSummaryCard({
             <ActionButton icon="eye-outline" onPress={() => onPress(summary.id)} />
             <ActionButton icon="download-outline" onPress={() => onDownload(summary.id)} />
           </View>
-          <Text style={styles.amount}>${formatCurrency(summary.total_amount)}</Text>
+          {permissions.can.payments && (
+            <Text style={styles.amount}>${formatCurrency(summary.total_amount)}</Text>
+          )}
         </View>
 
-        {isPending && onPay && (
+        {permissions.can.payments && isPending && onPay && (
           <Pressable
             style={({ pressed }) => [styles.mpButton, pressed && styles.mpButtonPressed]}
             onPress={() => onPay(summary.id)}

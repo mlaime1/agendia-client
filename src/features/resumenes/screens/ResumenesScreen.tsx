@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { useTheme } from '../../../theme';
 import { clientsService } from '../../../services/clients';
-import type { Client, Summary, SummaryStatus } from '../../../services/types';
+import type { Summary, SummaryStatus } from '../../../services/types';
 import type { UserRole } from '../../../features/auth/types/user';
 import { getClientTimezone, toClientDate } from '../../../utils/dateTime';
 import { confirmAction } from '../../../utils/confirmAction';
@@ -22,11 +22,11 @@ import { useFeedback } from '../../../state/FeedbackContext';
 import { SummaryCard } from '../components/SummaryCard';
 import { ClientSummaryList } from '../components/ClientSummaryList';
 import { SummaryFilterChips } from '../components/SummaryFilterChips';
-import { ClientPendingSummary } from '../components/ClientPendingSummary';
 import { CreateSummaryModal } from '../components/CreateSummaryModal';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getNextSummaryStatus, getNextStatusActionLabel } from '../utils/summaryStatus';
 import { summariesService } from '../../../services/summaries';
+import { getErrorMessage } from '../../../utils/errorMessage';
 
 type SummaryFilter = 'all' | SummaryStatus;
 
@@ -51,7 +51,6 @@ export function ResumenesScreen({
   const [summaryFilter, setSummaryFilter] = useState<SummaryFilter>('all');
   const [modalVisible, setModalVisible] = useState(false);
   const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
-  const [clientInfo, setClientInfo] = useState<Client | null>(null);
 
   const { summaries, loading, error, refetch } = useSummaries(selectedClientId || null);
   const { updating, updateStatus, deleteSummary } = useSummaryActions();
@@ -84,7 +83,6 @@ export function ResumenesScreen({
       try {
         const client = await clientsService.getById(selectedClientId);
         if (controller.signal.aborted) return;
-        setClientInfo(client);
         setClientTimezone(getClientTimezone(client));
       } catch (err) {
         if (controller.signal.aborted) return;
@@ -124,20 +122,12 @@ export function ResumenesScreen({
     return sortedVisibleSummaries.filter((summary) => summary.status === summaryFilter);
   }, [sortedVisibleSummaries, summaryFilter]);
 
-  const pendingSummaries = useMemo(
-    () =>
-      sortedVisibleSummaries.filter(
-        (s) => s.status === 'sent' || s.status === 'partial',
-      ),
-    [sortedVisibleSummaries],
-  );
-
   const { pendingCount, pendingAmount, thisMonthAmount, thisMonthCount } = useMemo(() => {
     const pendingStatuses = isClientView
       ? (['sent', 'partial'] as SummaryStatus[])
       : (['draft', 'sent', 'partial'] as SummaryStatus[]);
     const pending = visibleSummaries.filter((s) => pendingStatuses.includes(s.status));
-    const pendingAmount = pending.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
+    const pendingAmount = isClientView ? 0 : pending.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
 
     const today = new Date();
     const thisMonth = visibleSummaries.filter((s) => {
@@ -145,7 +135,7 @@ export function ResumenesScreen({
       const paidDate = toClientDate(s.paid_at, clientTimezone);
       return paidDate.getMonth() === today.getMonth() && paidDate.getFullYear() === today.getFullYear();
     });
-    const thisMonthAmount = thisMonth.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
+    const thisMonthAmount = isClientView ? 0 : thisMonth.reduce((acc, s) => acc + parseFloat(s.total_amount), 0);
 
     return {
       pendingCount: pending.length,
@@ -198,26 +188,9 @@ export function ResumenesScreen({
       } catch (err) {
         showFeedback({
           type: 'error',
-          message: err instanceof Error ? err.message : 'Error al descargar el PDF',
+          message: getErrorMessage(err, 'Error al descargar el PDF'),
         });
       }
-    },
-    [showFeedback],
-  );
-
-  const handlePayAll = useCallback(() => {
-    showFeedback({
-      type: 'info',
-      message: 'El pago combinado estará disponible próximamente',
-    });
-  }, [showFeedback]);
-
-  const handlePaySummary = useCallback(
-    (id: string) => {
-      showFeedback({
-        type: 'info',
-        message: `El pago del resumen estará disponible próximamente`,
-      });
     },
     [showFeedback],
   );
@@ -259,7 +232,6 @@ export function ResumenesScreen({
           clientTimezone={clientTimezone}
           onPress={onOpenDetail}
           onDownload={handleDownload}
-          onPay={handlePaySummary}
         />
       );
     }
@@ -301,15 +273,6 @@ export function ResumenesScreen({
               <Text style={styles.statSubtitle}>{thisMonthCount} cobrados</Text>
             </View>
           </View>
-        )}
-
-        {isClientView && (
-          <ClientPendingSummary
-            pendingSummaries={pendingSummaries}
-            clientTimezone={clientTimezone}
-            paymentAlias={clientInfo?.alias}
-            onPayAll={handlePayAll}
-          />
         )}
 
         <View style={styles.filterSection}>

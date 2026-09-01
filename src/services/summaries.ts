@@ -3,7 +3,7 @@
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
-import { api, getBackendApiBaseUrl, getAccessToken } from './backendApi';
+import { api, fetchAuthenticated, getBackendApiBaseUrl, getAccessToken } from './backendApi';
 import type {
   CreateSummaryAutoDto,
   Summary,
@@ -56,15 +56,12 @@ export const summariesService = {
       throw new Error('No hay sesión activa');
     }
 
-    const url = this.getPdfUrl(id);
     const file = new FileSystem.File(FileSystem.Paths.cache, `summary-${id}.pdf`);
 
-    const downloadedFile = await FileSystem.File.downloadFileAsync(url, file, {
-      headers: { Authorization: `Bearer ${token}` },
-      idempotent: true,
-    });
+    const response = await fetchAuthenticated(`/summaries/${id}/pdf`);
+    file.write(new Uint8Array(await response.arrayBuffer()));
 
-    await Sharing.shareAsync(downloadedFile.uri, {
+    await Sharing.shareAsync(file.uri, {
       mimeType: 'application/pdf',
       UTI: 'com.adobe.pdf',
       dialogTitle: 'Compartir resumen',
