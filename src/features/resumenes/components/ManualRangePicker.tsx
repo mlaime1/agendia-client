@@ -19,6 +19,7 @@ type ManualRangePickerProps = {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onClear: () => void;
+  isDateClosed?: (dateKey: string) => boolean;
 };
 
 export function ManualRangePicker({
@@ -30,6 +31,7 @@ export function ManualRangePicker({
   onPrevMonth,
   onNextMonth,
   onClear,
+  isDateClosed,
 }: ManualRangePickerProps) {
   const styles = useStyles();
   const days = getMonthDays(monthDate, clientTimezone);
@@ -81,6 +83,7 @@ export function ManualRangePicker({
             const isStart = startDate ? isSameDay(day.date, startDate, clientTimezone) : false;
             const isEnd = endDate ? isSameDay(day.date, endDate, clientTimezone) : false;
             const isInRange = startDate && endDate ? isDateInRange(day.date, startDate, endDate) : false;
+            const isClosed = isDateClosed?.(day.dateKey) ?? false;
 
             return (
               <Pressable
@@ -90,9 +93,13 @@ export function ManualRangePicker({
                   isInRange && styles.cellInRange,
                   (isStart || isEnd) && styles.cellSelected,
                   day.isToday && styles.cellToday,
+                  isClosed && styles.cellClosed,
                   pressed && styles.cellPressed,
                 ]}
                 onPress={() => onSelectDate(day.date)}
+                disabled={isClosed}
+                accessibilityState={{ disabled: isClosed }}
+                accessibilityLabel={`${day.dayNumber}${isClosed ? ', período cerrado' : ''}`}
               >
                 <Text
                   style={[
@@ -247,6 +254,12 @@ const useStyles = () => {
         cellToday: {
           borderWidth: 1,
           borderColor: theme.colors.semantic.success.border,
+        },
+        cellClosed: {
+          backgroundColor: theme.colors.surfaceMuted,
+          borderWidth: 1,
+          borderColor: theme.colors.semantic.warning.border,
+          opacity: 0.7,
         },
         cellInRange: {
           backgroundColor: theme.colors.primaryLight,

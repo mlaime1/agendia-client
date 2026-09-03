@@ -9,6 +9,7 @@ type CalendarDayCellProps = {
   cellHeight: number;
   day: CalendarDay;
   isAddModeActive?: boolean;
+  isClosed?: boolean;
   isCurrentMonth?: boolean;
   trips: Trip[];
   onPress: (dateKey: string) => void;
@@ -18,7 +19,9 @@ type CalendarDayCellProps = {
 export function CalendarDayCell({
   cellHeight,
   day,
+  isAddModeActive = false,
   isCurrentMonth = true,
+  isClosed = false,
   trips,
   onPress,
   onLongPress,
@@ -27,8 +30,9 @@ export function CalendarDayCell({
 
   return (
     <Pressable
-      accessibilityLabel={`Día ${day.dayNumber}`}
-      disabled={!isCurrentMonth}
+      accessibilityLabel={`Día ${day.dayNumber}${isClosed ? ', período cerrado' : ''}`}
+      accessibilityState={{ disabled: !isCurrentMonth || (isAddModeActive === true && isClosed) }}
+      disabled={!isCurrentMonth || (isAddModeActive === true && isClosed)}
       onLongPress={() => onLongPress(day.dateKey)}
       onPress={() => onPress(day.dateKey)}
       style={({ pressed }) => [
@@ -36,6 +40,7 @@ export function CalendarDayCell({
         { height: cellHeight },
         !isCurrentMonth && styles.outsideMonthCell,
         day.isToday && styles.todayCell,
+        isClosed && isAddModeActive && styles.closedCell,
         pressed && styles.pressedCell,
       ]}
     >
@@ -93,6 +98,11 @@ const createStyles = (theme: Theme) =>
     todayText: {
       color: theme.colors.primary,
       fontWeight: '800',
+    },
+    closedCell: {
+      backgroundColor: theme.colors.surfaceMuted,
+      borderWidth: 1,
+      borderColor: theme.colors.semantic.warning.border,
     },
     outsideMonthText: {
       color: theme.colors.textSubtle,

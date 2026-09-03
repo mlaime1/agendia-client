@@ -28,6 +28,8 @@ import { useAuth } from '../../../state/AuthContext';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
 import { getClientToday } from '../../../utils/dateTime';
 import { formatInTimeZone } from 'date-fns-tz';
+import { useClosedSummaryPeriods } from '../../../hooks/useClosedSummaryPeriods';
+import { useFeedback } from '../../../state/FeedbackContext';
 
 type ClientOption = {
   id: string;
@@ -54,6 +56,7 @@ export function CalendarScreen({
   const { height: windowHeight } = useWindowDimensions();
   const [headerHeight, setHeaderHeight] = useState(0);
   const permissions = useCalendarPermissions(clients, selectedClientId);
+  const { showFeedback } = useFeedback();
 
   const topOffset = Math.max(
     insets.top,
@@ -85,6 +88,22 @@ export function CalendarScreen({
     canEdit: permissions.canEdit,
     canDeleteTrips: permissions.canDeleteTrips,
   });
+  const {
+    periods: closedPeriods,
+    loading: closedPeriodsLoading,
+    error: closedPeriodsError,
+    isDateClosed,
+  } = useClosedSummaryPeriods(permissions.resolvedClientId, clientTimezone);
+  const closedDateKeys = useMemo(
+    () => new Set(closedPeriods.flatMap((period) => {
+      const keys: string[] = [];
+      for (let date = new Date(`${period.start}T12:00:00`); date <= new Date(`${period.end}T12:00:00`); date.setDate(date.getDate() + 1)) {
+        keys.push(formatInTimeZone(date, clientTimezone, 'yyyy-MM-dd'));
+      }
+      return keys;
+    })),
+    [closedPeriods, clientTimezone],
+  );
   const days = useMemo(() => getMonthDays(monthDate, clientTimezone), [monthDate, clientTimezone]);
   const leadingEmptyCells = useMemo(
     () => getLeadingEmptyCells(monthDate, clientTimezone),
@@ -157,6 +176,16 @@ export function CalendarScreen({
       return;
     }
 
+    if (closedPeriodsLoading || closedPeriodsError) {
+      showFeedback({ type: 'error', message: 'No se puede confirmar si esta fecha está disponible. Intentá nuevamente.' });
+      return;
+    }
+
+    if (isDateClosed(dateKey)) {
+      showFeedback({ type: 'error', message: 'No podés agregar viajes en esta fecha porque el período ya fue abonado.' });
+      return;
+    }
+
     if (selectedMode === 'special') {
       setSpecialDateKey(dateKey);
       return;
@@ -171,6 +200,18 @@ export function CalendarScreen({
 
   const handleSpecialConfirm = (specialType: string, note: string, price?: string) => {
     if (!specialDateKey) {
+      return;
+    }
+
+    if (closedPeriodsLoading || closedPeriodsError) {
+      showFeedback({ type: 'error', message: 'No se pudo verificar si esta fecha está disponible. Intentá nuevamente.' });
+      setSpecialDateKey(null);
+      return;
+    }
+
+    if (isDateClosed(specialDateKey)) {
+      showFeedback({ type: 'error', message: 'No podés agregar viajes en esta fecha porque el período ya fue abonado.' });
+      setSpecialDateKey(null);
       return;
     }
 
@@ -320,7 +361,8 @@ export function CalendarScreen({
             onDayPress={handleDayPress}
             tripsByDate={tripsByDate}
             clientTimezone={clientTimezone}
-            isAddModeActive={isAddPanelOpen}
+             isAddModeActive={isAddPanelOpen}
+             closedDateKeys={closedDateKeys}
           />
         )}
       </ScrollView>

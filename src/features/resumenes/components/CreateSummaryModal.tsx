@@ -35,6 +35,8 @@ import { getCycleLabel } from '../utils/summaryCycle';
 import { useAuth } from '../../../state/AuthContext';
 import { usePermissions } from '../../../permissions';
 import { UnauthorizedScreen } from '../../../components/UnauthorizedScreen';
+import { useClosedSummaryPeriods } from '../../../hooks/useClosedSummaryPeriods';
+import { rangeIntersectsClosedSummary } from '../../../utils/summaryPeriods';
 
 type CreateSummaryModalProps = {
   visible: boolean;
@@ -79,6 +81,13 @@ export function CreateSummaryModal({
     () => clientTimezone ?? getClientTimezone(clients.find((c) => c.id === selectedClient)),
     [clientTimezone, clients, selectedClient],
   );
+
+  const {
+    periods: closedPeriods,
+    loading: closedPeriodsLoading,
+    error: closedPeriodsError,
+    isDateClosed,
+  } = useClosedSummaryPeriods(activeTab === 'manual' ? selectedClient : null, effectiveTimezone);
 
   const manualPeriodStart = useMemo(
     () => (manualStartDate ? toDateKey(manualStartDate, effectiveTimezone) : null),
@@ -183,6 +192,12 @@ export function CreateSummaryModal({
   };
 
   const selectManualDate = (date: Date) => {
+    const dateKey = toDateKey(date, effectiveTimezone);
+    if (isDateClosed(dateKey)) {
+      showFeedback({ type: 'error', message: 'Esta fecha ya pertenece a un período cerrado y no se puede seleccionar.' });
+      return;
+    }
+
     if (!manualStartDate || (manualStartDate && manualEndDate)) {
       setManualStartDate(date);
       setManualEndDate(null);
@@ -195,8 +210,19 @@ export function CreateSummaryModal({
     }
 
     if (date.getTime() < manualStartDate.getTime()) {
+      const startKey = dateKey;
+      const endKey = toDateKey(manualStartDate, effectiveTimezone);
+      if (rangeIntersectsClosedSummary(startKey, endKey, closedPeriods)) {
+        showFeedback({ type: 'error', message: 'El rango incluye fechas de un período cerrado y no se puede seleccionar.' });
+        return;
+      }
       setManualEndDate(manualStartDate);
       setManualStartDate(date);
+      return;
+    }
+
+    if (rangeIntersectsClosedSummary(toDateKey(manualStartDate, effectiveTimezone), dateKey, closedPeriods)) {
+      showFeedback({ type: 'error', message: 'El rango incluye fechas de un período cerrado y no se puede seleccionar.' });
       return;
     }
 
@@ -224,6 +250,16 @@ export function CreateSummaryModal({
 
         if (manualPeriodStart > manualPeriodEnd) {
           showFeedback({ type: 'error', message: 'La fecha desde no puede ser mayor que la fecha hasta' });
+          return;
+        }
+
+        if (closedPeriodsLoading || closedPeriodsError || rangeIntersectsClosedSummary(manualPeriodStart, manualPeriodEnd, closedPeriods)) {
+          showFeedback({
+            type: 'error',
+            message: closedPeriodsError || closedPeriodsLoading
+              ? 'No se pudo verificar si las fechas están disponibles. Intentá nuevamente.'
+              : 'El rango incluye fechas de un período cerrado y no se puede seleccionar.',
+          });
           return;
         }
 
@@ -302,27 +338,38 @@ export function CreateSummaryModal({
             </Pressable>
 
             {activeTab === 'manual' && (
-              <ManualRangePicker
-                monthDate={manualMonthDate}
-                startDate={manualStartDate}
-                endDate={manualEndDate}
-                clientTimezone={effectiveTimezone}
-                onSelectDate={selectManualDate}
-                onPrevMonth={() =>
-                  setManualMonthDate(
-                    (current) => new Date(current.getFullYear(), current.getMonth() - 1, 1),
-                  )
-                }
-                onNextMonth={() =>
-                  setManualMonthDate(
-                    (current) => new Date(current.getFullYear(), current.getMonth() + 1, 1),
-                  )
-                }
-                onClear={() => {
-                  setManualStartDate(null);
-                  setManualEndDate(null);
-                }}
-              />
+              <>
+                <ManualRangePicker
+                  monthDate={manualMonthDate}
+                  startDate={manualStartDate}
+                  endDate={manualEndDate}
+                  clientTimezone={effectiveTimezone}
+                  onSelectDate={selectManualDate}
+                  isDateClosed={isDateClosed}
+                  onPrevMonth={() =>
+                    setManualMonthDate(
+                      (current) => new Date(current.getFullYear(), current.getMonth() - 1, 1),
+                    )
+                  }
+                  onNextMonth={() =>
+                    setManualMonthDate(
+                      (current) => new Date(current.getFullYear(), current.getMonth() + 1, 1),
+                    )
+                  }
+                  onClear={() => {
+                    setManualStartDate(null);
+                    setManualEndDate(null);
+                  }}
+                />
+                {closedPeriods.length > 0 && (
+                  <View style={styles.previewWarning}>
+                    <Ionicons name="lock-closed-outline" size={16} color={styles.warningColor.color} />
+                    <Text style={[styles.previewWarningText, { color: styles.warningColor.color }]}>
+                      Las fechas de períodos abonados o archivados no se pueden seleccionar.
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
 
             <View style={styles.notesSection}>

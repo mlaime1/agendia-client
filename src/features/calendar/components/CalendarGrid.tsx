@@ -31,6 +31,7 @@ type CalendarGridProps = {
   onDayLongPress: (dateKey: string) => void;
   clientTimezone?: string;
   isAddModeActive?: boolean;
+  closedDateKeys?: Set<string>;
 };
 
 const GRID_HORIZONTAL_PADDING = 10;
@@ -50,6 +51,7 @@ export function CalendarGrid({
   onDayLongPress,
   clientTimezone,
   isAddModeActive,
+  closedDateKeys,
 }: CalendarGridProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -131,6 +133,7 @@ export function CalendarGrid({
                 cellHeight={cellHeight}
                 day={cell.day}
                 isAddModeActive={isAddModeActive}
+                isClosed={closedDateKeys?.has(cell.day.dateKey)}
                 isCurrentMonth={cell.isCurrentMonth}
                 key={cell.id}
                 onLongPress={onDayLongPress}
@@ -154,6 +157,12 @@ export function CalendarGrid({
             <Text style={styles.legendLabel}>{item.label}</Text>
           </View>
         ))}
+        {closedDateKeys && closedDateKeys.size > 0 && (
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, styles.closedLegendDot]} />
+            <Text style={styles.legendLabel}>Período cerrado</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -202,6 +211,9 @@ export function CalendarGrid({
       width: 6,
       height: 6,
       borderRadius: 3,
+    },
+    closedLegendDot: {
+      backgroundColor: theme.colors.semantic.warning.border,
     },
     legendLabel: {
       color: theme.colors.textMuted,
