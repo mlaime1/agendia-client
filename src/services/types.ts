@@ -3,7 +3,7 @@
 
 export type BillingCycle = 'weekly' | 'biweekly' | 'monthly';
 export type TripType = 'ida' | 'vuelta' | 'ida y vuelta' | 'especial';
-export type SummaryStatus = 'draft' | 'sent' | 'partial' | 'paid' | 'archived';
+export type SummaryStatus = 'draft' | 'sent' | 'payment_reported' | 'partial' | 'paid' | 'archived';
 export type PaymentStatus = 'pending' | 'partial' | 'paid';
 export type PaymentMethod = 'cash' | 'transfer' | 'debit' | 'credit' | 'other';
 
@@ -165,6 +165,12 @@ export interface CreateSummaryManualDto {
 
 export interface UpdateSummaryStatusDto {
   status: SummaryStatus;
+}
+
+export interface RegisterPaymentDto {
+  amount: number;
+  method: PaymentMethod;
+  notes?: string;
 }
 
 export interface CreateSummaryAutoDto {

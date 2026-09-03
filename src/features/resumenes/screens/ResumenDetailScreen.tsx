@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import type { SummaryStatus } from '../../../services/types';
+import type { Summary, SummaryStatus } from '../../../services/types';
 
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { useTheme } from '../../../theme';
@@ -34,7 +34,16 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
   const permissions = usePermissions(userProfile);
   const styles = useStyles();
   const { summary, loading, error, refetch } = useSummary(summaryId);
-  const { updating, deleting, reportingPayment, updateStatus, deleteSummary, reportPayment } = useSummaryActions();
+  const {
+    updating,
+    deleting,
+    reportingPayment,
+    paying,
+    updateStatus,
+    deleteSummary,
+    reportPayment,
+    markAsPaid,
+  } = useSummaryActions();
 
   const handleUpdateStatus = useCallback(
     async (id: string, status: SummaryStatus) => {
@@ -61,6 +70,14 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
       return reported;
     },
     [refetch, reportPayment],
+  );
+
+  const handleMarkPaid = useCallback(
+    async (currentSummary: Summary): Promise<void> => {
+      await markAsPaid(currentSummary);
+      refetch();
+    },
+    [markAsPaid, refetch],
   );
 
   const renderStatusBadge = () => {
@@ -176,10 +193,12 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
           updating={updating}
           deleting={deleting}
           reportingPayment={reportingPayment}
+          paying={paying}
           readOnly={isClientView}
           onUpdateStatus={handleUpdateStatus}
           onDelete={handleDelete}
           onReportPayment={isClientView ? handleReportPayment : undefined}
+          onMarkPaid={!isClientView ? handleMarkPaid : undefined}
         />
       </View>
     </ScreenWrapper>

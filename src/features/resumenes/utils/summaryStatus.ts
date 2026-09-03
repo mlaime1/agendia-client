@@ -5,6 +5,7 @@ export function getSummaryStatusLabel(status: SummaryStatus): string {
   const labels: Record<SummaryStatus, string> = {
     draft: 'Borrador',
     sent: 'Enviado',
+    payment_reported: 'Pago informado',
     partial: 'Pago parcial',
     paid: 'Abonado',
     archived: 'Archivado',
@@ -31,19 +32,19 @@ export function getSummaryStatusConfig(status: SummaryStatus, theme: Theme) {
   };
 }
 
-export function getNextSummaryStatus(status: SummaryStatus): SummaryStatus | null {
+export function getNextSummaryStatus(status: SummaryStatus): SummaryStatus | undefined {
+  // El PATCH genérico de estado queda reservado para flujos generales:
+  // los estados financieros (payment_reported, partial, paid) deben
+  // alcanzarse mediante las acciones específicas del flujo de pagos.
   if (status === 'draft') return 'sent';
-  if (status === 'sent') return 'paid';
-  if (status === 'partial') return 'paid';
   if (status === 'paid') return 'archived';
-  return null;
+  return undefined;
 }
 
-export function getNextStatusActionLabel(status: SummaryStatus): string | null {
+export function getNextStatusActionLabel(status: SummaryStatus): string | undefined {
   if (status === 'draft') return 'Marcar enviado';
-  if (status === 'sent' || status === 'partial') return 'Marcar abonado';
   if (status === 'paid') return 'Archivar';
-  return null;
+  return undefined;
 }
 
 export function canDeleteSummary(status: SummaryStatus): boolean {

@@ -12,6 +12,7 @@ import type {
   Summary,
   BillingPreview,
   CreateSummaryManualDto,
+  RegisterPaymentDto,
   UpdateSummaryStatusDto,
 } from './types';
 
@@ -83,6 +84,16 @@ export const summariesService = {
   /** PATCH /summaries/:id/status */
   updateStatus(id: string, body: UpdateSummaryStatusDto): Promise<Summary> {
     return api.patch<Summary>(`/summaries/${id}/status`, body);
+  },
+
+  /** POST /summaries/:id/report-payment — no body */
+  reportPayment(id: string): Promise<Summary> {
+    return api.post<Summary>(`/summaries/${id}/report-payment`, undefined);
+  },
+
+  /** POST /summaries/:id/pay — registra un pago real */
+  pay(id: string, body: RegisterPaymentDto): Promise<Summary> {
+    return api.post<Summary>(`/summaries/${id}/pay`, body);
   },
 
   /** DELETE /summaries/:id — desvincula trips antes de borrar */

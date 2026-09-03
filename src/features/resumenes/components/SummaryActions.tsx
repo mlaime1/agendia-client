@@ -23,10 +23,12 @@ type SummaryActionsProps = {
   updating: boolean;
   deleting: boolean;
   reportingPayment: boolean;
+  paying: boolean;
   readOnly?: boolean;
   onUpdateStatus: (summaryId: string, status: SummaryStatus) => Promise<unknown>;
   onDelete: (summaryId: string) => Promise<unknown>;
   onReportPayment?: (summary: Summary) => Promise<boolean>;
+  onMarkPaid?: (summary: Summary) => Promise<void>;
 };
 
 export function SummaryActions({
@@ -34,10 +36,12 @@ export function SummaryActions({
   updating,
   deleting,
   reportingPayment,
+  paying,
   readOnly = false,
   onUpdateStatus,
   onDelete,
   onReportPayment,
+  onMarkPaid,
 }: SummaryActionsProps) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
@@ -46,11 +50,13 @@ export function SummaryActions({
   const permissions = usePermissions(userProfile);
   const nextStatus = getNextSummaryStatus(summary.status);
   const actionLabel = getNextStatusActionLabel(summary.status);
+  const canMarkPaid =
+    summary.status === 'sent' || summary.status === 'payment_reported' || summary.status === 'partial';
 
   const handleDownloadPdf = async () => {
     try {
       await summariesService.downloadPdf(summary);
-       showFeedback({ type: 'success', message: 'PDF guardado en la carpeta Descargas de Android' });
+      showFeedback({ type: 'success', message: 'PDF guardado en la carpeta Descargas de Android' });
     } catch (err) {
       showFeedback({
         type: 'error',
@@ -90,16 +96,11 @@ export function SummaryActions({
   };
 
   const handleReportPayment = () => {
-    if (!onReportPayment || reportingPayment) return;
-    const pendingTrips = (summary.trips ?? []).filter((trip) => trip.payment_status === 'pending');
-    if (pendingTrips.length === 0) {
-      void onReportPayment(summary);
-      return;
-    }
+    if (!onReportPayment || reportingPayment || summary.status !== 'sent') return;
 
     confirmAction(
       'Informar pago',
-      `Se informará el pago de ${pendingTrips.length} ${pendingTrips.length === 1 ? 'viaje' : 'viajes'} pendientes. ¿Querés continuar?`,
+      'Se informará que pagaste este resumen. ¿Querés continuar?',
       async () => {
         await onReportPayment(summary);
       },
@@ -132,7 +133,7 @@ export function SummaryActions({
             <Text style={styles.downloadText}>Compartir</Text>
           </Pressable>
         </View>
-        {onReportPayment && (
+        {onReportPayment && summary.status === 'sent' && (
           <Pressable
             style={({ pressed }) => [
               styles.statusButton,
@@ -149,6 +150,11 @@ export function SummaryActions({
               <Text style={styles.statusButtonText}>Informar pago</Text>
             )}
           </Pressable>
+        )}
+        {onReportPayment && summary.status === 'payment_reported' && (
+          <View style={[styles.statusButton, styles.statusButtonDisabled, styles.statusButtonFull]}>
+            <Text style={styles.statusButtonText}>Pago informado</Text>
+          </View>
         )}
       </View>
     );
@@ -173,7 +179,23 @@ export function SummaryActions({
           <Text style={styles.downloadText}>Compartir</Text>
         </Pressable>
 
-        {nextStatus ? (
+        {canMarkPaid && onMarkPaid ? (
+          <Pressable
+            style={({ pressed }) => [
+              styles.statusButton,
+              pressed && styles.statusButtonPressed,
+              paying && styles.statusButtonDisabled,
+            ]}
+            onPress={() => onMarkPaid(summary)}
+            disabled={paying}
+          >
+            {paying ? (
+              <ActivityIndicator color={styles.statusButtonText.color} size="small" />
+            ) : (
+              <Text style={styles.statusButtonText}>Marcar abonado</Text>
+            )}
+          </Pressable>
+        ) : nextStatus ? (
           <Pressable
             style={({ pressed }) => [
               styles.statusButton,
@@ -189,11 +211,11 @@ export function SummaryActions({
               <Text style={styles.statusButtonText}>{actionLabel}</Text>
             )}
           </Pressable>
-        ) : (
+        ) : summary.status === 'archived' ? (
           <View style={[styles.statusButton, styles.statusButtonDisabled]}>
             <Text style={styles.statusButtonText}>Archivado</Text>
           </View>
-        )}
+        ) : null}
       </View>
 
       {canDeleteSummary(summary.status) && (
