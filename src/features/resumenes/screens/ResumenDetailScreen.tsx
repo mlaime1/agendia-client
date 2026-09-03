@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import type { SummaryStatus } from '../../../services/types';
 
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
@@ -33,7 +34,7 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
   const permissions = usePermissions(userProfile);
   const styles = useStyles();
   const { summary, loading, error, refetch } = useSummary(summaryId);
-  const { updating, deleting, updateStatus, deleteSummary } = useSummaryActions();
+  const { updating, deleting, reportingPayment, updateStatus, deleteSummary, reportPayment } = useSummaryActions();
 
   const handleUpdateStatus = useCallback(
     async (id: string, status: SummaryStatus) => {
@@ -49,6 +50,17 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
       onBack();
     },
     [deleteSummary, onBack],
+  );
+
+  const handleReportPayment = useCallback(
+    async (currentSummary: NonNullable<typeof summary>): Promise<boolean> => {
+      const reported = await reportPayment(currentSummary);
+      if (reported) {
+        refetch();
+      }
+      return reported;
+    },
+    [refetch, reportPayment],
   );
 
   const renderStatusBadge = () => {
@@ -88,7 +100,6 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
   }
 
   const clientName = summary.clients?.nombre || 'Cliente';
-  const driverName = summary.users?.name || 'Chofer';
   const clientTimezone = safeClientTimezone;
   const periodLabel = formatClientPeriod(summary.period_start, summary.period_end, clientTimezone);
   const totalAmount = parseFloat(summary.total_amount);
@@ -100,17 +111,32 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
     <ScreenWrapper title="Detalle" onBackPress={onBack} rightSlot={renderStatusBadge()}>
       <View style={styles.container}>
         <View style={styles.topCard}>
-          <Text style={styles.clientName}>{clientName}</Text>
-          <Text style={styles.driverName}>{driverName}</Text>
-          <Text style={styles.periodLabel}>{periodLabel}</Text>
+          <View style={styles.identityRow}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{clientName.charAt(0).toUpperCase()}</Text>
+            </View>
+            <View style={styles.identityContent}>
+              <Text style={styles.clientName} numberOfLines={1}>{clientName}</Text>
+              <View style={styles.dateChip}>
+                <Ionicons name="calendar-outline" size={13} color={styles.dateChipText.color} />
+                <Text style={styles.dateChipText}>{periodLabel}</Text>
+              </View>
+            </View>
+          </View>
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
+              <View style={styles.statIcon}>
+                <Ionicons name="paper-plane-outline" size={20} color={styles.statIcon.color} />
+              </View>
               <Text style={styles.statValue}>{summary.total_trips}</Text>
               <Text style={styles.statLabel}>Viajes</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
+              <View style={styles.statIcon}>
+                <Ionicons name="calendar-outline" size={20} color={styles.statIcon.color} />
+              </View>
               <Text style={styles.statValue}>{uniqueDays}</Text>
               <Text style={styles.statLabel}>Días</Text>
             </View>
@@ -149,9 +175,11 @@ export function ResumenDetailScreen({ summaryId, role = 'driver', onBack }: Resu
           summary={summary}
           updating={updating}
           deleting={deleting}
+          reportingPayment={reportingPayment}
           readOnly={isClientView}
           onUpdateStatus={handleUpdateStatus}
           onDelete={handleDelete}
+          onReportPayment={isClientView ? handleReportPayment : undefined}
         />
       </View>
     </ScreenWrapper>
@@ -204,11 +232,6 @@ const useStyles = () => {
           fontWeight: theme.typography.weight.bold,
           marginBottom: 2,
         },
-        driverName: {
-          color: theme.colors.textMuted,
-          fontSize: theme.typography.size.sm,
-          marginBottom: 2,
-        },
         periodLabel: {
           color: theme.colors.textSubtle,
           fontSize: theme.typography.size.xs,
@@ -217,6 +240,10 @@ const useStyles = () => {
         statsRow: {
           flexDirection: 'row',
           alignItems: 'center',
+          backgroundColor: theme.colors.surfaceMuted,
+          borderRadius: theme.radii.medium,
+          paddingVertical: 14,
+          paddingHorizontal: 8,
         },
         statItem: {
           flex: 1,
@@ -268,6 +295,49 @@ const useStyles = () => {
         },
         activityColor: {
           color: theme.colors.primary,
+        },
+        identityRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 14,
+          marginBottom: 18,
+        },
+        avatar: {
+          width: 52,
+          height: 52,
+          borderRadius: theme.radii.medium,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: theme.colors.primary,
+        },
+        avatarText: {
+          color: theme.colors.textInverse,
+          fontSize: theme.typography.size.xl,
+          fontWeight: theme.typography.weight.bold,
+        },
+        identityContent: {
+          flex: 1,
+          minWidth: 0,
+        },
+        dateChip: {
+          alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          marginTop: 7,
+          paddingHorizontal: 10,
+          paddingVertical: 5,
+          borderRadius: theme.radii.small,
+          backgroundColor: theme.colors.surfaceMuted,
+        },
+        dateChipText: {
+          color: theme.colors.textMuted,
+          fontSize: theme.typography.size.xs,
+          fontWeight: theme.typography.weight.semibold,
+        },
+        statIcon: {
+          color: theme.colors.primary,
+          marginBottom: 2,
         },
       }),
     [theme],

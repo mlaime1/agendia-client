@@ -134,7 +134,9 @@ export interface CreateTripDto {
   notes?: string;
 }
 
-export type UpdateTripDto = Partial<CreateTripDto>;
+export type UpdateTripDto = Partial<CreateTripDto> & {
+  payment_status?: PaymentStatus;
+};
 
 export interface CreateClientDto {
   nombre: string;

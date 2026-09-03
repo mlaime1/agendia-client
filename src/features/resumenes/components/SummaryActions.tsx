@@ -22,18 +22,22 @@ type SummaryActionsProps = {
   summary: Summary;
   updating: boolean;
   deleting: boolean;
+  reportingPayment: boolean;
   readOnly?: boolean;
   onUpdateStatus: (summaryId: string, status: SummaryStatus) => Promise<unknown>;
   onDelete: (summaryId: string) => Promise<unknown>;
+  onReportPayment?: (summary: Summary) => Promise<boolean>;
 };
 
 export function SummaryActions({
   summary,
   updating,
   deleting,
+  reportingPayment,
   readOnly = false,
   onUpdateStatus,
   onDelete,
+  onReportPayment,
 }: SummaryActionsProps) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
@@ -85,31 +89,67 @@ export function SummaryActions({
     );
   };
 
+  const handleReportPayment = () => {
+    if (!onReportPayment || reportingPayment) return;
+    const pendingTrips = (summary.trips ?? []).filter((trip) => trip.payment_status === 'pending');
+    if (pendingTrips.length === 0) {
+      void onReportPayment(summary);
+      return;
+    }
+
+    confirmAction(
+      'Informar pago',
+      `Se informará el pago de ${pendingTrips.length} ${pendingTrips.length === 1 ? 'viaje' : 'viajes'} pendientes. ¿Querés continuar?`,
+      async () => {
+        await onReportPayment(summary);
+      },
+      'Informar pago',
+    );
+  };
+
   if (readOnly || !permissions.can.summaryManagement) {
     return (
       <View style={[styles.container, { paddingBottom: insets.bottom + 12 }]}>
-        <Pressable
-          style={({ pressed }) => [
-            styles.downloadButton,
-            styles.downloadButtonFull,
-            pressed && styles.downloadButtonPressed,
-          ]}
-          onPress={handleDownloadPdf}
-        >
-          <Ionicons name="download-outline" size={18} color={styles.downloadText.color} />
-          <Text style={styles.downloadText}>Descargar PDF</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [
-            styles.downloadButton,
-            styles.downloadButtonFull,
-            pressed && styles.downloadButtonPressed,
-          ]}
-          onPress={handleSharePdf}
-        >
-          <Ionicons name="share-outline" size={18} color={styles.downloadText.color} />
-          <Text style={styles.downloadText}>Compartir</Text>
-        </Pressable>
+        <View style={styles.actionBar}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.downloadButton,
+              pressed && styles.downloadButtonPressed,
+            ]}
+            onPress={handleDownloadPdf}
+          >
+            <Ionicons name="download-outline" size={18} color={styles.downloadText.color} />
+            <Text style={styles.downloadText}>Descargar</Text>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.downloadButton,
+              pressed && styles.downloadButtonPressed,
+            ]}
+            onPress={handleSharePdf}
+          >
+            <Ionicons name="share-outline" size={18} color={styles.downloadText.color} />
+            <Text style={styles.downloadText}>Compartir</Text>
+          </Pressable>
+        </View>
+        {onReportPayment && (
+          <Pressable
+            style={({ pressed }) => [
+              styles.statusButton,
+              styles.statusButtonFull,
+              pressed && styles.statusButtonPressed,
+              reportingPayment && styles.statusButtonDisabled,
+            ]}
+            onPress={handleReportPayment}
+            disabled={reportingPayment}
+          >
+            {reportingPayment ? (
+              <ActivityIndicator color={styles.statusButtonText.color} size="small" />
+            ) : (
+              <Text style={styles.statusButtonText}>Informar pago</Text>
+            )}
+          </Pressable>
+        )}
       </View>
     );
   }
@@ -122,7 +162,7 @@ export function SummaryActions({
           onPress={handleDownloadPdf}
         >
           <Ionicons name="download-outline" size={18} color={styles.downloadText.color} />
-          <Text style={styles.downloadText}>Descargar PDF</Text>
+          <Text style={styles.downloadText}>Descargar</Text>
         </Pressable>
 
         <Pressable
@@ -202,11 +242,12 @@ const useStyles = () => {
         },
         downloadButton: {
           flex: 1,
+          minWidth: 0,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
           gap: 8,
-          paddingVertical: 14,
+          paddingVertical: 10,
           backgroundColor: theme.colors.surface,
           borderWidth: 1,
           borderColor: theme.colors.border,
@@ -218,11 +259,14 @@ const useStyles = () => {
         downloadButtonFull: {
           flex: 0,
           width: '100%',
+          minWidth: 0,
         },
         downloadText: {
+          flexShrink: 1,
           color: theme.colors.text,
           fontSize: theme.typography.size.md,
           fontWeight: theme.typography.weight.semibold,
+          textAlign: 'center',
         },
         statusButton: {
           flex: 1,
@@ -230,9 +274,16 @@ const useStyles = () => {
           alignItems: 'center',
           justifyContent: 'center',
           gap: 8,
-          paddingVertical: 14,
-          backgroundColor: theme.colors.primary,
+          paddingVertical: 10,
+          backgroundColor: theme.colors.accent,
           borderRadius: theme.radii.medium,
+        },
+        statusButtonFull: {
+          flex: 0,
+          alignSelf: 'stretch',
+          minHeight: 48,
+          marginHorizontal: 16,
+          marginTop: 8,
         },
         statusButtonPressed: {
           opacity: 0.9,
