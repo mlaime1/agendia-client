@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,6 +17,7 @@ import { AuthTextField } from '../components/AuthTextField';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
 import { AppIcon } from '../../../components/AppIcon';
 import { api } from '../../../services/backendApi';
+import Logo from '../../../../assets/icon/logo.svg';
 
 type AuthMode = 'login' | 'register';
 type InvitationStatus = 'idle' | 'loading' | 'valid' | 'invalid';
@@ -127,7 +127,7 @@ export function AuthScreen() {
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.header}>
-            <Image source={require('../../../../assets/icon/isotipo.png')} style={styles.icon} />
+            <Logo color={theme.colors.primary} height={150} width={150} />
             <Text style={styles.appName}>Agendia</Text>
             {isRegisterMode ? (
               <>
@@ -265,25 +265,20 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   content: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     paddingHorizontal: 18,
-    paddingVertical: 28,
+    paddingVertical: 24,
     gap: 26,
   },
   header: {
-    gap: 8,
+    gap: 4,
     alignItems: 'center',
   },
-  icon: {
-    width: 80,
-    height: 80,
-    marginBottom: 8,
-  },
   appName: {
-    color: theme.colors.text,
-    fontSize: 32,
-    fontWeight: '900',
-    letterSpacing: 0,
+    color: theme.colors.primary,
+    fontSize: 26,
+    fontWeight: '700',
+    letterSpacing: -0.5,
   },
   title: {
     color: theme.colors.textMuted,
