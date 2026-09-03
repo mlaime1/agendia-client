@@ -1,3 +1,5 @@
+import type { UserRole } from '../auth/types/user';
+
 export type ProfileSection = 'personal' | 'workingDays' | 'preferences' | 'stats';
 
 export interface ProfileScreenProps {
@@ -6,9 +8,13 @@ export interface ProfileScreenProps {
     name: string;
     email: string;
     alias: string | null;
-    role: 'driver' | 'admin' | 'client';
+    role: UserRole;
+    phone?: string | null;
   };
   onMenuPress: () => void;
+  onEditProfile?: () => void;
+  onChangePassword?: () => void;
+  onLogout?: () => void;
 }
 
 export interface WorkingDaysData {

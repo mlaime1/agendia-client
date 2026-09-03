@@ -15,6 +15,7 @@ type FormFieldProps = {
   maxLength?: number;
   autoCapitalize?: TextInputProps['autoCapitalize'];
   editable?: boolean;
+  secureTextEntry?: boolean;
 };
 
 export function FormField({
@@ -28,6 +29,7 @@ export function FormField({
   maxLength,
   autoCapitalize,
   editable = true,
+  secureTextEntry,
 }: FormFieldProps) {
   const styles = useThemedStyles(createStyles);
 
@@ -46,6 +48,7 @@ export function FormField({
         maxLength={maxLength}
         autoCapitalize={autoCapitalize}
         editable={editable}
+        secureTextEntry={secureTextEntry}
         textAlignVertical={multiline ? 'top' : 'auto'}
       />
     </View>

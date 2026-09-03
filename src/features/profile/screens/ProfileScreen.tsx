@@ -1,18 +1,15 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { ScreenWrapper } from '../../../components/ScreenWrapper';
 import { Theme, ThemePreference } from '../../../theme';
 import { useTheme } from '../../../theme/ThemeContext';
 import { useThemedStyles } from '../../../theme/useThemedStyles';
+import { useProfileDriverStats } from '../hooks/useProfileDriverStats';
 import type { ProfileScreenProps } from '../types';
 
-const DRIVER_STATS = [
-  { value: '8', label: 'Clientes activos' },
-  { value: '214', label: 'Viajes este mes' },
-  { value: '98%', label: 'Puntualidad' },
-];
+const PUNCTUALITY_STAT = { value: '98%', label: 'Puntualidad' };
 
 const AGREED_DAYS = [
   { label: 'L', enabled: true },
@@ -55,13 +52,14 @@ type InfoRowProps = {
   value: string;
   readonly?: boolean;
   showChevron?: boolean;
+  onPress?: () => void;
 };
 
-function InfoRow({ icon, label, value, readonly, showChevron }: InfoRowProps) {
+function InfoRow({ icon, label, value, readonly, showChevron, onPress }: InfoRowProps) {
   const styles = useThemedStyles(createStyles);
 
-  return (
-    <View style={styles.row}>
+  const content = (
+    <>
       <View style={styles.rowIconWrap}>
         <AppIcon name={icon} size={17} color={styles.iconColor.color} />
       </View>
@@ -71,8 +69,21 @@ function InfoRow({ icon, label, value, readonly, showChevron }: InfoRowProps) {
       </View>
       {readonly ? <Text style={styles.readonlyBadge}>Solo lectura</Text> : null}
       {showChevron ? <AppIcon name="chevronRight" size={16} color={styles.chevronColor.color} /> : null}
-    </View>
+    </>
   );
+
+  if (onPress) {
+    return (
+      <Pressable
+        style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+        onPress={onPress}
+      >
+        {content}
+      </Pressable>
+    );
+  }
+
+  return <View style={styles.row}>{content}</View>;
 }
 
 type ThemeOptionProps = {
@@ -105,13 +116,23 @@ function ThemeOption({ value, label, leftColor, rightColor, selected, onPress }:
   );
 }
 
-export function ProfileScreen({ userProfile, onMenuPress }: ProfileScreenProps) {
+export function ProfileScreen({ userProfile, onMenuPress, onEditProfile, onChangePassword, onLogout }: ProfileScreenProps) {
   const { themePreference, setThemePreference } = useTheme();
   const styles = useThemedStyles(createStyles);
 
   const isDriver = userProfile.role === 'driver' || userProfile.role === 'admin';
+  const canEditProfile = userProfile.role !== 'client' && Boolean(onEditProfile);
+  const { activeClients, tripsThisMonth, loading, refetch } = useProfileDriverStats(isDriver);
 
-  const phone = isDriver ? '+54 9 11 6734-2210' : '+54 9 11 4523-0987';
+  const driverStats = isDriver
+    ? [
+        { value: activeClients != null ? String(activeClients) : '—', label: 'Clientes activos' },
+        { value: tripsThisMonth != null ? String(tripsThisMonth) : '—', label: 'Viajes este mes' },
+        PUNCTUALITY_STAT,
+      ]
+    : [];
+
+  const phone = userProfile.phone ?? 'No cargado';
   const address = isDriver ? 'Av. Corrientes 1847, CABA' : 'Av. Rivadavia 4521, CABA';
 
   return (
@@ -120,6 +141,11 @@ export function ProfileScreen({ userProfile, onMenuPress }: ProfileScreenProps) 
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          isDriver ? (
+            <RefreshControl refreshing={loading} onRefresh={refetch} tintColor={styles.iconColor.color} />
+          ) : undefined
+        }
       >
         <View style={styles.hero}>
           <View style={styles.avatar}>
@@ -131,7 +157,7 @@ export function ProfileScreen({ userProfile, onMenuPress }: ProfileScreenProps) 
 
         {isDriver ? (
           <View style={styles.statsRow}>
-            {DRIVER_STATS.map((stat) => (
+            {driverStats.map((stat) => (
               <View key={stat.label} style={styles.statCard}>
                 <Text style={styles.statValue}>{stat.value}</Text>
                 <Text style={styles.statLabel}>{stat.label}</Text>
@@ -142,15 +168,32 @@ export function ProfileScreen({ userProfile, onMenuPress }: ProfileScreenProps) 
 
         <View style={[styles.section, isDriver && styles.sectionAfterStats]}>
           <Text style={styles.sectionTitle}>Datos personales</Text>
-          <InfoRow icon="user" label="Nombre completo" value={userProfile.name} />
-          <InfoRow icon="message" label="Telefono" value={phone} />
+          <InfoRow
+            icon="user"
+            label="Nombre completo"
+            value={userProfile.name}
+            showChevron={canEditProfile}
+            onPress={canEditProfile ? onEditProfile : undefined}
+          />
+          <InfoRow
+            icon="message"
+            label="Telefono"
+            value={phone}
+            showChevron={canEditProfile}
+            onPress={canEditProfile ? onEditProfile : undefined}
+          />
           <InfoRow icon="mail" label="Email" value={userProfile.email} />
           <InfoRow icon="map" label="Direccion" value={address} />
         </View>
 
-        <Pressable style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>Editar perfil</Text>
-        </Pressable>
+        {canEditProfile ? (
+          <Pressable
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.buttonPressed]}
+            onPress={onEditProfile}
+          >
+            <Text style={styles.primaryButtonText}>Editar perfil</Text>
+          </Pressable>
+        ) : null}
 
         {!isDriver ? (
           <>
@@ -217,12 +260,21 @@ export function ProfileScreen({ userProfile, onMenuPress }: ProfileScreenProps) 
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Seguridad</Text>
-          <InfoRow icon="fileText" label="Contrasena" value="Cambiar contrasena" showChevron />
+          <InfoRow
+            icon="fileText"
+            label="Contrasena"
+            value="Cambiar contrasena"
+            showChevron
+            onPress={onChangePassword}
+          />
         </View>
 
         <View style={styles.spacer} />
 
-        <Pressable style={styles.secondaryButton}>
+        <Pressable
+          style={({ pressed }) => [styles.secondaryButton, pressed && styles.buttonPressed]}
+          onPress={onLogout}
+        >
           <Text style={styles.secondaryButtonText}>Cerrar sesion</Text>
         </Pressable>
       </ScrollView>
@@ -401,6 +453,12 @@ const createStyles = (theme: Theme) =>
     },
     chevronColor: {
       color: theme.colors.disabled,
+    },
+    rowPressed: {
+      opacity: 0.7,
+    },
+    buttonPressed: {
+      opacity: 0.85,
     },
     primaryButton: {
       backgroundColor: theme.colors.primary,

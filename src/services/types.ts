@@ -167,6 +167,12 @@ export interface UpdateSummaryStatusDto {
   status: SummaryStatus;
 }
 
+export interface ConfirmSummaryPaymentDto {
+  amount: number;
+  method: PaymentMethod;
+  notes?: string;
+}
+
 export interface RegisterPaymentDto {
   amount: number;
   method: PaymentMethod;
@@ -306,4 +312,14 @@ export interface ItineraryMatchResult {
   name: string;
   distance_km: number;
   rate: ItineraryRate | null;
+}
+
+// --- Users ---
+
+// PATCH /users/me: solo acepta estos campos. El telefono se guarda en Supabase
+// Auth (auth.users.phone); no disponible para el rol 'client'.
+export interface UpdateUserDto {
+  name?: string;
+  alias?: string;
+  phone?: string;
 }

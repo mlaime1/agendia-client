@@ -70,7 +70,7 @@ export function SummaryCard({
             <ActionButton icon="eye-outline" label="Ver resumen" onPress={() => onPress(summary.id)} />
             <ActionButton icon="download-outline" label="Descargar resumen" onPress={() => onDownload(summary)} />
             <ActionButton icon="share-outline" label="Compartir resumen" onPress={() => onShare(summary)} />
-            {role !== "client" && nextStatus && (
+            {role !== "client" && summary.status !== "payment_reported" && nextStatus && (
               <ActionButton
                 icon={nextStatus === "sent" ? "send-outline" : nextStatus === "paid" ? "checkmark-circle-outline" : "archive-outline"}
                 label="Cambiar estado"

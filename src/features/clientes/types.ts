@@ -37,4 +37,5 @@ export type ClientNavigationState =
   | { screen: 'detail'; clientId: string }
   | { screen: 'edit'; clientId: string }
   | { screen: 'editContract'; clientId: string }
-  | { screen: 'addResponsible'; clientId: string };
+  | { screen: 'addResponsible'; clientId: string }
+  | { screen: 'invite' };
