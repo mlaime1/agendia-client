@@ -73,5 +73,11 @@ export const toCalendarTrip = (records: TripRecord[], _clientTimezone?: string):
     specialType,
     note: firstRecord.notes ?? undefined,
     finalPrice: firstRecord.final_price,
+    paymentStatus: records.every((record) => record.payment_status === 'paid')
+      ? 'paid'
+      : records.some((record) => record.payment_status !== 'pending')
+        ? 'partial'
+        : 'pending',
+    paidAmount: records.reduce((sum, record) => sum + (record.paid_amount ?? 0), 0),
   };
 };

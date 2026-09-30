@@ -71,6 +71,7 @@ export function CalendarScreen({
     addSpecialTrip,
     addTrip,
     deleteTrip,
+    markTripAsPaid,
     trips,
     tripsByDate,
     updateTrip,
@@ -87,6 +88,7 @@ export function CalendarScreen({
     canCreateSpecialTrips: permissions.canCreateSpecialTrips,
     canEdit: permissions.canEdit,
     canDeleteTrips: permissions.canDeleteTrips,
+    canMarkTripPaid: permissions.canMarkTripPaid,
   });
   const {
     periods: closedPeriods,
@@ -115,12 +117,14 @@ export function CalendarScreen({
   const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
   const [detailDateKey, setDetailDateKey] = useState<string | null>(null);
+  const [markAsPaid, setMarkAsPaid] = useState(false);
 
   const defaultRouteId = availableRoutes.find((route) => route.is_active !== false)?.id || '';
 
   const resetAddPanel = () => {
     setIsAddPanelOpen(false);
     setSelectedMode(null);
+    setMarkAsPaid(false);
     setRouteId(defaultRouteId || routeId);
   };
 
@@ -195,7 +199,7 @@ export function CalendarScreen({
       return;
     }
 
-    addTrip(dateKey, selectedMode);
+    addTrip(dateKey, selectedMode, markAsPaid);
   };
 
   const handleSpecialConfirm = (specialType: string, note: string, price?: string) => {
@@ -215,7 +219,8 @@ export function CalendarScreen({
       return;
     }
 
-    addSpecialTrip({ dateKey: specialDateKey, specialType, note, price });
+    addSpecialTrip({ dateKey: specialDateKey, specialType, note, price, markAsPaid: markAsPaid });
+    setMarkAsPaid(false);
     setSpecialDateKey(null);
   };
 
@@ -281,6 +286,9 @@ export function CalendarScreen({
       onSelectRoute={setRouteId}
       canCreateRegularTrips={permissions.canCreateRegularTrips}
       canCreateSpecialTrips={permissions.canCreateSpecialTrips}
+      canMarkPaid={permissions.canMarkTripPaid}
+      markAsPaid={markAsPaid}
+      onToggleMarkAsPaid={() => setMarkAsPaid((cur) => !cur)}
     />
   );
 
@@ -372,6 +380,9 @@ export function CalendarScreen({
         onConfirm={handleSpecialConfirm}
         visible={specialDateKey !== null}
         canSetPrice={permissions.canSetPrice}
+        canMarkPaid={permissions.canMarkTripPaid}
+        markAsPaid={markAsPaid}
+        onToggleMarkAsPaid={() => setMarkAsPaid((cur) => !cur)}
       />
 
       <DayDetailsModal
@@ -383,6 +394,8 @@ export function CalendarScreen({
         onUpdateTrip={updateTrip}
         visible={detailDateKey !== null}
         readOnly={!permissions.canEdit}
+        canMarkPaid={permissions.canMarkTripPaid}
+        onMarkTripPaid={markTripAsPaid}
       />
     </SafeAreaView>
   );

@@ -57,6 +57,8 @@ const createTripRecord = (payload: CreateTripPayload, userId: string): TripRecor
   special_type: payload.special_type ?? null,
   notes: payload.notes ?? null,
   created_at: new Date().toISOString(),
+  payment_status: 'pending',
+  paid_amount: 0,
 });
 
 const mapServiceTripToRecord = (s: ServiceTrip, clientTimezone?: string): TripRecord => {
@@ -78,6 +80,8 @@ const mapServiceTripToRecord = (s: ServiceTrip, clientTimezone?: string): TripRe
     special_type: s.special_type ?? null,
     notes: s.notes ?? null,
     created_at: s.created_at || new Date().toISOString(),
+    payment_status: s.payment_status ?? 'pending',
+    paid_amount: Number(s.paid_amount) || 0,
   };
 };
 
@@ -134,7 +138,7 @@ export const tripRepository = {
       clientTimezone,
     ),
 
-  createTrips: async (payloads: CreateTripPayload[], userId: string, clientTimezone?: string): Promise<Trip> => {
+  createTrips: async (payloads: CreateTripPayload[], userId: string, clientTimezone?: string): Promise<{ trip: Trip; records: TripRecord[] }> => {
     const created: ServiceTrip[] = await Promise.all(
       payloads.map((p) => {
         const body: any = {
@@ -163,7 +167,7 @@ export const tripRepository = {
 
     const records = created.map((s) => mapServiceTripToRecord(s, clientTimezone));
     tripRecords = [...tripRecords, ...records];
-    return toCalendarTrip(records, clientTimezone);
+    return { trip: toCalendarTrip(records, clientTimezone), records };
   },
 
   createLocalTrips: (payloads: CreateTripPayload[], userId: string, clientTimezone?: string): Trip => {
@@ -259,4 +263,7 @@ export const tripRepository = {
   deleteLocalCalendarTrip: (trip: Trip): void => {
     tripRecords = tripRecords.filter((record) => !trip.recordIds.includes(record.id));
   },
+
+  getRecordsByIds: (recordIds: string[]): TripRecord[] =>
+    tripRecords.filter((record) => recordIds.includes(record.id)),
 };

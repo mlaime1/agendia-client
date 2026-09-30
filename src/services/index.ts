@@ -9,5 +9,6 @@ export { ratesService } from './rates';
 export { itinerariesService } from './itineraries';
 export { defaultsService } from './defaults';
 export { usersService } from './users';
+export { paymentsService } from './payments';
 export { ApiError, api, getBackendApiBaseUrl } from './backendApi';
 export type * from './types';

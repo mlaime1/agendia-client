@@ -29,6 +29,8 @@ const createMockTrip = (
   special_type,
   notes: null,
   created_at: new Date().toISOString(),
+  payment_status: 'pending',
+  paid_amount: 0,
 });
 
 export const mockTripRecords: TripRecord[] = [

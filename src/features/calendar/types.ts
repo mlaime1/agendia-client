@@ -1,3 +1,5 @@
+import type { PaymentStatus } from '../../services/types';
+
 export type TripMode = 'outbound' | 'roundTrip' | 'special';
 export type TripType = 'outbound' | 'return' | 'roundTrip' | 'special';
 
@@ -17,6 +19,8 @@ export type TripRecord = {
   special_type: string | null;
   notes: string | null;
   created_at: string;
+  payment_status: PaymentStatus;
+  paid_amount?: number;
 };
 
 export type CreateTripPayload = {
@@ -49,6 +53,8 @@ export type Trip = {
   specialType?: string;
   note?: string;
   finalPrice?: number;
+  paymentStatus?: PaymentStatus;
+  paidAmount?: number;
 };
 
 export type TripUpdates = Partial<Pick<Trip, 'time' | 'mode' | 'note' | 'specialType'>> & {

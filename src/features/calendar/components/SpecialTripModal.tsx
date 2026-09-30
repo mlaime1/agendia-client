@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
@@ -8,9 +8,12 @@ type SpecialTripModalProps = {
   onClose: () => void;
   onConfirm: (specialType: string, note: string, price?: string) => void;
   canSetPrice?: boolean;
+  canMarkPaid?: boolean;
+  markAsPaid?: boolean;
+  onToggleMarkAsPaid?: () => void;
 };
 
-export function SpecialTripModal({ visible, onClose, onConfirm, canSetPrice = false }: SpecialTripModalProps) {
+export function SpecialTripModal({ visible, onClose, onConfirm, canSetPrice = false, canMarkPaid = false, markAsPaid = false, onToggleMarkAsPaid }: SpecialTripModalProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
   const [specialType, setSpecialType] = useState('Parada extra');
@@ -66,6 +69,18 @@ export function SpecialTripModal({ visible, onClose, onConfirm, canSetPrice = fa
                 value={price}
               />
             </>
+          )}
+
+          {canMarkPaid && (
+            <View style={styles.paidRow}>
+              <Text style={styles.paidLabel}>Marcar como pagado</Text>
+              <Switch
+                accessibilityLabel="Marcar como pagado"
+                value={markAsPaid}
+                onValueChange={onToggleMarkAsPaid}
+                trackColor={{ true: theme.colors.primary, false: theme.colors.borderStrong }}
+              />
+            </View>
           )}
 
           <View style={styles.actions}>
@@ -126,6 +141,23 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     minHeight: 76,
     paddingTop: 10,
     textAlignVertical: 'top',
+  },
+  paidRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    backgroundColor: theme.colors.surfaceSubtle,
+    marginBottom: 14,
+  },
+  paidLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
   },
   actions: {
     flexDirection: 'row',

@@ -9,6 +9,7 @@ type CalendarPermissions = {
   canCreateAnyTrip: boolean;
   canSetPrice: boolean;
   canDeleteTrips: boolean;
+  canMarkTripPaid: boolean;
   showClientSelector: boolean;
   resolvedClientId: string | undefined;
 };
@@ -42,6 +43,7 @@ export const useCalendarPermissions = (
       canCreateAnyTrip,
       canSetPrice: isDriver,
       canDeleteTrips: isDriver,
+      canMarkTripPaid: isDriver,
       showClientSelector: isDriver,
       resolvedClientId,
     };

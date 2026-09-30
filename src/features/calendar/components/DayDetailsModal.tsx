@@ -24,6 +24,8 @@ type DayDetailsModalProps = {
   onClose: () => void;
   onUpdateTrip: (tripId: string, updates: TripUpdates) => void;
   onDeleteTrip: (tripId: string) => void;
+  canMarkPaid?: boolean;
+  onMarkTripPaid?: (tripId: string) => void;
   readOnly?: boolean;
 };
 
@@ -46,6 +48,8 @@ export function DayDetailsModal({
   onClose,
   onUpdateTrip,
   onDeleteTrip,
+  canMarkPaid = false,
+  onMarkTripPaid,
   readOnly = false,
 }: DayDetailsModalProps) {
   const { theme } = useTheme();
@@ -207,6 +211,11 @@ export function DayDetailsModal({
                     <View style={styles.tripTitleGroup}>
                       <Text style={styles.tripTitle}>{getRouteLabel(trip)}</Text>
                       <Text style={styles.tripType}>{tripLabels[trip.mode]}</Text>
+                      {trip.paymentStatus === 'paid' ? (
+                        <View style={styles.paidBadge}>
+                          <Text style={styles.paidBadgeText}>Pagado</Text>
+                        </View>
+                      ) : null}
                     </View>
 
                     {readOnly ? (
@@ -315,6 +324,26 @@ export function DayDetailsModal({
 
                   {!readOnly && (
                     <View style={styles.actionsRow}>
+                      {canMarkPaid && trip.paymentStatus !== 'paid' ? (
+                        <Pressable
+                          accessibilityLabel="Marcar como pagado"
+                          accessibilityRole="button"
+                          accessibilityState={{ disabled: (trip.finalPrice ?? 0) <= 0 }}
+                          disabled={(trip.finalPrice ?? 0) <= 0}
+                          onPress={() => onMarkTripPaid?.(trip.id)}
+                          style={({ pressed }) => [
+                            styles.noteActionButton,
+                            (trip.finalPrice ?? 0) > 0 && styles.noteActionPrimary,
+                            (trip.finalPrice ?? 0) <= 0 && styles.markPaidButtonDisabled,
+                            pressed && (trip.finalPrice ?? 0) > 0 && styles.iconActionButtonPressed,
+                          ]}
+                        >
+                          <Text style={[styles.noteActionText, (trip.finalPrice ?? 0) > 0 && styles.noteActionPrimaryText]}>
+                            Marcar pagado
+                          </Text>
+                        </Pressable>
+                      ) : null}
+
                       <Pressable
                         accessibilityLabel="Agregar nota"
                         accessibilityRole="button"
@@ -437,6 +466,21 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0,
   },
+  paidBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: theme.colors.trip.outbound.bg,
+    borderWidth: 1,
+    borderColor: theme.colors.trip.outbound.border,
+  },
+  paidBadgeText: {
+    color: theme.colors.trip.outbound.text,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0,
+  },
   tripTime: {
     color: theme.colors.primary,
     fontSize: 14,
@@ -544,6 +588,9 @@ const createStyles = (theme: Theme) => StyleSheet.create({
   },
   noteActionPrimaryText: {
     color: theme.colors.primary,
+  },
+  markPaidButtonDisabled: {
+    opacity: 0.55,
   },
   actionsRow: {
     flexDirection: 'row',

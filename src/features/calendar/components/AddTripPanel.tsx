@@ -4,6 +4,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -27,6 +28,9 @@ type AddTripPanelProps = {
   onSelectRoute: (routeId: string) => void;
   canCreateRegularTrips?: boolean;
   canCreateSpecialTrips?: boolean;
+  canMarkPaid?: boolean;
+  markAsPaid?: boolean;
+  onToggleMarkAsPaid?: () => void;
 };
 
 const allTripTypeOptions: TripTypeOption[] = [
@@ -44,6 +48,9 @@ export function AddTripPanel({
   onSelectRoute,
   canCreateRegularTrips = true,
   canCreateSpecialTrips = true,
+  canMarkPaid = false,
+  markAsPaid = false,
+  onToggleMarkAsPaid,
 }: AddTripPanelProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
@@ -167,6 +174,18 @@ export function AddTripPanel({
         </Pressable>
 
         <Text style={styles.hint}>{hintText}</Text>
+
+        {canMarkPaid && (
+          <View style={styles.paidRow}>
+            <Text style={styles.paidLabel}>Marcar como pagado</Text>
+            <Switch
+              accessibilityLabel="Marcar como pagado"
+              value={markAsPaid}
+              onValueChange={onToggleMarkAsPaid}
+              trackColor={{ true: theme.colors.primary, false: theme.colors.borderStrong }}
+            />
+          </View>
+        )}
       </View>
 
       <Modal
@@ -287,6 +306,22 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     color: theme.colors.textSubtle,
+  },
+  paidRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 8,
+    backgroundColor: theme.colors.surfaceSubtle,
+  },
+  paidLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: theme.colors.textMuted,
   },
   modalOverlay: {
     flex: 1,

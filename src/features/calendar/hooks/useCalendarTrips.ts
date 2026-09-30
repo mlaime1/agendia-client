@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { clientsService } from '../../../services/clients';
 import { defaultsService } from '../../../services/defaults';
 import { itinerariesService } from '../../../services/itineraries';
+import { paymentsService } from '../../../services';
 import { useAuth } from '../../../state/AuthContext';
 import type { ItineraryRate, Route } from '../../../services/types';
-import { PendingSpecialTrip, Trip, TripMode, TripUpdates } from '../types';
+import { PendingSpecialTrip, Trip, TripMode, TripRecord, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
 import { getClientTimezone } from '../../../utils/dateTime';
@@ -14,8 +15,9 @@ import { isNetworkError } from '../../../utils/isNetworkError';
 type UseCalendarTripsResult = {
   trips: Trip[];
   tripsByDate: Record<string, Trip[]>;
-  addTrip: (dateKey: string, mode: TripMode) => void;
-  addSpecialTrip: (input: PendingSpecialTrip) => void;
+  addTrip: (dateKey: string, mode: TripMode, markAsPaid?: boolean) => void;
+  addSpecialTrip: (input: PendingSpecialTrip & { markAsPaid?: boolean }) => void;
+  markTripAsPaid: (tripId: string) => void;
   updateTrip: (tripId: string, updates: TripUpdates) => void;
   deleteTrip: (tripId: string) => void;
   isLoadingTrips: boolean;
@@ -33,6 +35,7 @@ type UseCalendarTripsOptions = {
   canCreateSpecialTrips?: boolean;
   canEdit?: boolean;
   canDeleteTrips?: boolean;
+  canMarkTripPaid?: boolean;
 };
 
 export const useCalendarTrips = ({
@@ -41,6 +44,7 @@ export const useCalendarTrips = ({
   canCreateSpecialTrips = false,
   canEdit = false,
   canDeleteTrips = false,
+  canMarkTripPaid = false,
 }: UseCalendarTripsOptions = {}): UseCalendarTripsResult => {
   const { userProfile } = useAuth();
   const userRole = userProfile?.role;
@@ -168,7 +172,7 @@ export const useCalendarTrips = ({
         if (mounted) {
           setAvailableRates(rates);
         }
-      } catch {
+      } catch (error) {
         if (mounted) {
           setAvailableRates([]);
         }
@@ -215,8 +219,24 @@ export const useCalendarTrips = ({
     }
   };
 
+  const payTripRecordsAsPaid = async (records: TripRecord[]): Promise<boolean> => {
+    for (const record of records) {
+      const amount = record.final_price;
+      if (amount <= 0) {
+        return false;
+      }
+      try {
+        await paymentsService.payTrip(record.id, { amount, method: 'transfer' });
+      } catch {
+        setError('El viaje se creó pero no se pudo registrar como pagado.');
+        return false;
+      }
+    }
+    return true;
+  };
+
   const addTrip = userId && canCreateRegularTrips
-    ? (dateKey: string, mode: TripMode) => {
+    ? (dateKey: string, mode: TripMode, markAsPaid = false) => {
         let tripContext;
 
         try {
@@ -231,12 +251,18 @@ export const useCalendarTrips = ({
 
         (async () => {
           try {
-            const createdTrip = await tripRepository.createTrips(
+            const { trip: createdTrip, records } = await tripRepository.createTrips(
               payload,
               userId,
               clientTimezone,
             );
-            mergeTripIntoState(createdTrip);
+
+            if (markAsPaid) {
+              const paid = await payTripRecordsAsPaid(records);
+              mergeTripIntoState(paid ? { ...createdTrip, paymentStatus: 'paid' } : createdTrip);
+            } else {
+              mergeTripIntoState(createdTrip);
+            }
             warnIfZeroPrice(createdTrip);
           } catch (err: any) {
             if (isNetworkError(err)) {
@@ -260,8 +286,8 @@ export const useCalendarTrips = ({
       : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
 
   const addSpecialTrip = userId && canCreateSpecialTrips
-    ? (input: PendingSpecialTrip) => {
-        const { dateKey, specialType, note, price } = input;
+    ? (input: PendingSpecialTrip & { markAsPaid?: boolean }) => {
+        const { dateKey, specialType, note, price, markAsPaid } = input;
 
         let tripContext;
 
@@ -280,15 +306,20 @@ export const useCalendarTrips = ({
           price,
           clientId: tripContext.clientId,
         });
-
         (async () => {
           try {
-            const createdTrip = await tripRepository.createTrips(
+            const { trip: createdTrip, records } = await tripRepository.createTrips(
               payload,
               userId,
               clientTimezone,
             );
-            mergeTripIntoState(createdTrip);
+
+            if (markAsPaid) {
+              const paid = await payTripRecordsAsPaid(records);
+              mergeTripIntoState(paid ? { ...createdTrip, paymentStatus: 'paid' } : createdTrip);
+            } else {
+              mergeTripIntoState(createdTrip);
+            }
             warnIfZeroPrice(createdTrip);
           } catch (err: any) {
             if (isNetworkError(err)) {
@@ -310,6 +341,24 @@ export const useCalendarTrips = ({
     : userId
       ? createUnauthenticatedHandler('No tienes permisos para crear viajes especiales en este calendario.')
       : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para crear viajes.');
+
+  const markTripAsPaid = userId && canMarkTripPaid
+    ? (tripId: string) => {
+        const trip = trips.find((currentTrip) => currentTrip.id === tripId);
+        if (!trip || trip.paymentStatus === 'paid') {
+          return;
+        }
+        const records = tripRepository.getRecordsByIds(trip.recordIds);
+        (async () => {
+          const paid = await payTripRecordsAsPaid(records);
+          if (paid) {
+            mergeTripIntoState({ ...trip, paymentStatus: 'paid' });
+          }
+        })();
+      }
+    : userId
+      ? createUnauthenticatedHandler('No tienes permisos para registrar pagos en este calendario.')
+      : createUnauthenticatedHandler('No estás autenticado. Inicia sesión para registrar pagos.');
 
   const updateTrip = userId && canEdit
     ? (tripId: string, updates: TripUpdates) => {
@@ -366,6 +415,7 @@ export const useCalendarTrips = ({
     tripsByDate,
     addTrip,
     addSpecialTrip,
+    markTripAsPaid,
     updateTrip,
     deleteTrip,
     isLoadingTrips,
