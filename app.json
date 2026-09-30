@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Agendia",
-    "slug": "agendia-client",
+    "slug": "agendia",
     "version": "0.1.5",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -32,11 +32,12 @@
     },
     "extra": {
       "eas": {
-        "projectId": "c9616bb2-90e4-4bac-b8e0-19fea893e357"
+        "projectId": "dd932571-df54-4f54-9a25-2f1c1047ff33"
       }
     },
     "plugins": [
       "expo-sharing"
-    ]
+    ],
+    "owner": "mauro-l"
   }
 }
