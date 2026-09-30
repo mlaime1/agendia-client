@@ -6,8 +6,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://kmezfkcxzmoupmrkdwas.supabase.co",
-        "EXPO_PUBLIC_API_URL": "https://agendia-production-06d5.up.railway.app"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://zogedlvrbdhgrzqmsbjj.supabase.co",
+        "EXPO_PUBLIC_API_URL": "https://site--agendia-server--wx9g2md7bzrl.code.run/"
       }
     },
 
@@ -16,8 +16,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "https://kmezfkcxzmoupmrkdwas.supabase.co",
-        "EXPO_PUBLIC_API_URL": "https://agendia-production-06d5.up.railway.app"
+        "EXPO_PUBLIC_SUPABASE_URL": "https://zogedlvrbdhgrzqmsbjj.supabase.co",
+        "EXPO_PUBLIC_API_URL": "https://site--agendia-server--wx9g2md7bzrl.code.run/"
       }
     }
   }
