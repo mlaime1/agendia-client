@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
 
@@ -16,6 +17,7 @@ type SpecialTripModalProps = {
 export function SpecialTripModal({ visible, onClose, onConfirm, canSetPrice = false, canMarkPaid = false, markAsPaid = false, onToggleMarkAsPaid }: SpecialTripModalProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const [specialType, setSpecialType] = useState('Parada extra');
   const [note, setNote] = useState('');
   const [price, setPrice] = useState('');
@@ -35,7 +37,7 @@ export function SpecialTripModal({ visible, onClose, onConfirm, canSetPrice = fa
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.panel}>
+        <View style={[styles.panel, { paddingBottom: insets.bottom + 20 }]}>
           <Text style={styles.title}>Viaje especial</Text>
 
           <Text style={styles.label}>Tipo de viaje</Text>

@@ -15,6 +15,7 @@ import { AppIcon } from '../../../components/AppIcon';
 import type { Route } from '../../../services/types';
 import { Trip, TripMode, TripUpdates } from '../types';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type DayDetailsModalProps = {
   visible: boolean;
@@ -54,6 +55,7 @@ export function DayDetailsModal({
 }: DayDetailsModalProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(0)).current;
   const [openNoteEditors, setOpenNoteEditors] = useState<Record<string, boolean>>({});
   const [noteDrafts, setNoteDrafts] = useState<Record<string, string>>({});
@@ -189,7 +191,7 @@ export function DayDetailsModal({
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
         <Animated.View
-          style={[styles.panel, { transform: [{ translateY }] }]}
+          style={[styles.panel, { paddingBottom: insets.bottom + 18, transform: [{ translateY }] }]}
         >
           <View style={styles.header} {...panResponder.panHandlers}>
             <View style={styles.headerText}>
