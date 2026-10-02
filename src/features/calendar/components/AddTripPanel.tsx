@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '../../../components/AppIcon';
 import type { Route } from '../../../services/types';
@@ -54,6 +55,7 @@ export function AddTripPanel({
 }: AddTripPanelProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const [routeModalVisible, setRouteModalVisible] = useState(false);
 
   const tripTypeOptions = useMemo(() => {
@@ -196,7 +198,7 @@ export function AddTripPanel({
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setRouteModalVisible(false)} />
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 18 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seleccionar ruta</Text>
               <Pressable

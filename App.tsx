@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Button, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, BackHandler, Button, StyleSheet, Text, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -24,7 +24,7 @@ import { RecorridoDetailScreen } from './src/features/recorridos/screens/Recorri
 import { CreateRecorridoScreen } from './src/features/recorridos/screens/CreateRecorridoScreen';
 import { CustomDrawer } from './src/components/CustomDrawer';
 import { UnauthorizedScreen } from './src/components/UnauthorizedScreen';
-import { FeedbackProvider } from './src/state/FeedbackContext';
+import { FeedbackProvider, useFeedback } from './src/state/FeedbackContext';
 import { AuthProvider, useAuth } from './src/state/AuthContext';
 import { usePermissions } from './src/permissions';
 import { clientsService } from './src/services/clients';
@@ -190,6 +190,66 @@ function AppContent() {
   const handleBackFromDetail = () => {
     setNavigation({ screen: 'Resumenes' });
   };
+
+  const { showFeedback } = useFeedback();
+  const lastBackPressRef = useRef(0);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const DOUBLE_PRESS_DELAY_MS = 2000;
+
+    const handleHardwareBackPress = () => {
+      if (drawerVisible) {
+        setDrawerVisible(false);
+        return true;
+      }
+
+      if (navigation.screen === 'ResumenDetail') {
+        setNavigation({ screen: 'Resumenes' });
+        return true;
+      }
+
+      if (navigation.screen === 'RecorridoDetail' || navigation.screen === 'RecorridoCreate') {
+        setNavigation({ screen: 'Recorridos' });
+        return true;
+      }
+
+      if (navigation.screen === 'Clientes' && clientsNav.screen !== 'list') {
+        if (
+          clientsNav.screen === 'edit' ||
+          clientsNav.screen === 'editContract' ||
+          clientsNav.screen === 'addResponsible'
+        ) {
+          setClientsNav({ screen: 'detail', clientId: clientsNav.clientId });
+        } else {
+          setClientsNav({ screen: 'list' });
+        }
+        return true;
+      }
+
+      if (navigation.screen === 'Perfil' && profileNav.screen !== 'view') {
+        setProfileNav({ screen: 'view' });
+        return true;
+      }
+
+      const now = Date.now();
+      if (now - lastBackPressRef.current < DOUBLE_PRESS_DELAY_MS) {
+        BackHandler.exitApp();
+        return true;
+      }
+
+      lastBackPressRef.current = now;
+      showFeedback({ type: 'info', message: 'Presioná de nuevo para salir' });
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', handleHardwareBackPress);
+
+    return () => subscription.remove();
+  }, [clientsNav, drawerVisible, isAuthenticated, navigation.screen, profileNav.screen, showFeedback]);
 
   const handleLogout = async () => {
     try {

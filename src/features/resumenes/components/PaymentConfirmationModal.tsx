@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ConfirmSummaryPaymentDto, PaymentMethod } from '../../../services/types';
 import { useFeedback } from '../../../state/FeedbackContext';
@@ -23,6 +24,7 @@ const methods: Array<{ value: PaymentMethod; label: string }> = [
 
 export function PaymentConfirmationModal({ visible, maxAmount, loading, onClose, onConfirm }: PaymentConfirmationModalProps) {
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const { showFeedback } = useFeedback();
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<PaymentMethod>('cash');
@@ -57,7 +59,7 @@ export function PaymentConfirmationModal({ visible, maxAmount, loading, onClose,
   return (
     <Modal animationType="fade" transparent visible={visible} onRequestClose={loading ? undefined : onClose}>
       <View style={styles.backdrop}>
-        <View style={styles.panel}>
+        <View style={[styles.panel, { paddingBottom: insets.bottom + 20 }]}>
           <Text style={styles.title}>Confirmar pago</Text>
           <Text style={styles.label}>Monto (saldo máximo ${maxAmount.toFixed(2)})</Text>
           <TextInput

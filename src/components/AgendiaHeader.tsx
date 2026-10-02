@@ -11,6 +11,7 @@ import {
 
 import { AppIcon } from './AppIcon';
 import { Theme, useTheme, useThemedStyles } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type ClientOption = {
   id: string;
@@ -46,6 +47,7 @@ export function AgendiaHeader({
 }: AgendiaHeaderProps) {
   const { theme } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const [clientModalVisible, setClientModalVisible] = useState(false);
   const selectedClient = useMemo(
     () => clients.find((client) => client.id === selectedClientId) ?? null,
@@ -147,7 +149,7 @@ export function AgendiaHeader({
       >
         <View style={styles.modalOverlay}>
           <Pressable style={styles.modalBackdrop} onPress={() => setClientModalVisible(false)} />
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: insets.bottom + 18 }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Seleccionar cliente</Text>
               <Pressable
