@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppIcon } from '../../../components/AppIcon';
 import { AgendiaHeader } from '../../../components/AgendiaHeader';
-import { AddTripPanel } from '../components/AddTripPanel';
 import { CalendarGrid } from '../components/CalendarGrid';
 import { DayDetailsModal } from '../components/DayDetailsModal';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -114,37 +113,11 @@ export function CalendarScreen({
   const monthLabel = useMemo(() => getMonthLabel(monthDate, clientTimezone), [monthDate, clientTimezone]);
 
   const [selectedMode, setSelectedMode] = useState<TripMode | null>(null);
-  const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
   const [specialDateKey, setSpecialDateKey] = useState<string | null>(null);
   const [detailDateKey, setDetailDateKey] = useState<string | null>(null);
   const [markAsPaid, setMarkAsPaid] = useState(false);
 
   const defaultRouteId = availableRoutes.find((route) => route.is_active !== false)?.id || '';
-
-  const resetAddPanel = () => {
-    setIsAddPanelOpen(false);
-    setSelectedMode(null);
-    setMarkAsPaid(false);
-    setRouteId(defaultRouteId || routeId);
-  };
-
-  const canOpenAddPanel = permissions.canCreateAnyTrip;
-
-  const toggleAddPanel = () => {
-    if (!canOpenAddPanel) {
-      return;
-    }
-
-    if (isAddPanelOpen) {
-      resetAddPanel();
-      return;
-    }
-
-    const initialMode = permissions.canCreateRegularTrips ? 'outbound' : 'special';
-    setIsAddPanelOpen(true);
-    setSelectedMode(initialMode);
-    setRouteId(defaultRouteId || routeId);
-  };
 
   const detailDay = days.find((day) => day.dateKey === detailDateKey);
   const detailDateLabel = detailDay ? getLongDateLabel(detailDay.date, clientTimezone) : '';
@@ -268,9 +241,6 @@ export function CalendarScreen({
     deleteTrip?.(tripId);
   };
 
-  const addTripLabel = isAddPanelOpen ? 'Cerrar' : 'Agregar viaje';
-  const addTripIcon = isAddPanelOpen ? 'close' : 'plus';
-
   const profileActionsSlot = (
     <React.Fragment>
       {permissions.showClientSelector && (
@@ -283,49 +253,7 @@ export function CalendarScreen({
           <AppIcon name="map" size={18} color={theme.colors.textMuted} />
         </Pressable>
       )}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={addTripLabel}
-        accessibilityState={{ disabled: !canOpenAddPanel }}
-        disabled={!canOpenAddPanel}
-        onPress={toggleAddPanel}
-        style={({ pressed }) => [
-          styles.iconAction,
-          isAddPanelOpen && styles.iconActionActive,
-          !canOpenAddPanel && styles.iconActionDisabled,
-          pressed && canOpenAddPanel && styles.iconActionPressed,
-        ]}
-      >
-        <AppIcon
-          name={addTripIcon}
-          size={18}
-          color={
-            isAddPanelOpen
-              ? theme.colors.textInverse
-              : canOpenAddPanel
-                ? theme.colors.textMuted
-                : theme.colors.textSubtle
-          }
-        />
-      </Pressable>
     </React.Fragment>
-  );
-
-  const headerExpandedPanel = (
-    <AddTripPanel
-      isOpen={isAddPanelOpen}
-      selectedMode={selectedMode ?? 'outbound'}
-      onSelectMode={setSelectedMode}
-      routeId={routeId}
-      routes={availableRoutes}
-      onSelectRoute={setRouteId}
-      canCreateRegularTrips={permissions.canCreateRegularTrips}
-      canCreateSpecialTrips={permissions.canCreateSpecialTrips}
-      canMarkPaid={permissions.canMarkTripPaid}
-      markAsPaid={markAsPaid}
-      onToggleMarkAsPaid={() => setMarkAsPaid((cur) => !cur)}
-    />
   );
 
   const monthSelector = (
@@ -374,7 +302,6 @@ export function CalendarScreen({
               hideClientSelector={!permissions.showClientSelector}
               profileActionsSlot={profileActionsSlot}
               bottomSlot={monthSelector}
-              expandedSlot={headerExpandedPanel}
             />
           </View>
 
@@ -405,8 +332,7 @@ export function CalendarScreen({
             onDayPress={handleDayPress}
             tripsByDate={tripsByDate}
             clientTimezone={clientTimezone}
-             isAddModeActive={isAddPanelOpen}
-             closedDateKeys={closedDateKeys}
+            closedDateKeys={closedDateKeys}
           />
         )}
       </ScrollView>
@@ -550,12 +476,6 @@ const createStyles = (theme: Theme) =>
       justifyContent: 'center',
       borderRadius: 999,
       backgroundColor: theme.colors.surfaceMuted,
-    },
-    iconActionActive: {
-      backgroundColor: theme.colors.primary,
-    },
-    iconActionDisabled: {
-      opacity: 0.45,
     },
     iconActionPressed: {
       opacity: 0.8,
