@@ -38,9 +38,11 @@ export type CreateTripPayload = {
 export type CreateCalendarTripInput = {
   dateKey: string;
   mode: TripMode;
+  time?: string;
   specialType?: string;
   note?: string;
   price?: string;
+  routeId?: string;
 };
 
 export type Trip = {
@@ -73,4 +75,15 @@ export type PendingSpecialTrip = {
   specialType: string;
   note: string;
   price?: string;
+  time?: string;
+};
+
+export type CreateDayTripInput = {
+  mode: TripMode;
+  time?: string;
+  specialType?: string;
+  note?: string;
+  price?: string;
+  routeId?: string;
+  markAsPaid?: boolean;
 };

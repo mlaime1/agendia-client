@@ -22,7 +22,7 @@ import { ErrorBanner } from '../components/ErrorBanner';
 import { SpecialTripModal } from '../components/SpecialTripModal';
 import { useCalendarTrips } from '../hooks/useCalendarTrips';
 import { useCalendarPermissions } from '../hooks/useCalendarPermissions';
-import { TripMode } from '../types';
+import { CreateDayTripInput, TripMode } from '../types';
 import { getLeadingEmptyCells, getLongDateLabel, getMonthDays, getMonthLabel } from '../utils/date';
 import { useAuth } from '../../../state/AuthContext';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
@@ -199,7 +199,43 @@ export function CalendarScreen({
       return;
     }
 
-    addTrip(dateKey, selectedMode, markAsPaid);
+    addTrip({ dateKey, mode: selectedMode, markAsPaid });
+  };
+
+  const handleCreateDayTrip = (input: CreateDayTripInput) => {
+    if (!detailDateKey) {
+      return;
+    }
+
+    if (closedPeriodsLoading || closedPeriodsError) {
+      showFeedback({ type: 'error', message: 'No se puede confirmar si esta fecha está disponible. Intentá nuevamente.' });
+      return;
+    }
+
+    if (isDateClosed(detailDateKey)) {
+      showFeedback({ type: 'error', message: 'No podés agregar viajes en esta fecha porque el período ya fue abonado.' });
+      return;
+    }
+
+    if (input.mode === 'special') {
+      addSpecialTrip({
+        dateKey: detailDateKey,
+        specialType: input.specialType ?? '',
+        note: input.note ?? '',
+        price: input.price,
+        time: input.time,
+        markAsPaid: input.markAsPaid,
+      });
+    } else {
+      addTrip({
+        dateKey: detailDateKey,
+        mode: input.mode,
+        time: input.time,
+        note: input.note,
+        routeId: input.routeId,
+        markAsPaid: input.markAsPaid,
+      });
+    }
   };
 
   const handleSpecialConfirm = (specialType: string, note: string, price?: string) => {
@@ -396,6 +432,13 @@ export function CalendarScreen({
         readOnly={!permissions.canEdit}
         canMarkPaid={permissions.canMarkTripPaid}
         onMarkTripPaid={markTripAsPaid}
+        defaultRouteName={availableRoutes.find((route) => route.id === routeId)?.name ?? ''}
+        defaultRouteId={routeId}
+        onCreateTrip={handleCreateDayTrip}
+        canCreateRegularTrips={permissions.canCreateRegularTrips}
+        canCreateSpecialTrips={permissions.canCreateSpecialTrips}
+        canSetPrice={permissions.canSetPrice}
+        canDeleteTrips={permissions.canDeleteTrips}
       />
     </SafeAreaView>
   );

@@ -5,6 +5,7 @@ const getCurrentTime = () => new Date().toTimeString().slice(0, 5);
 export const toCreateTripPayloads = ({
   dateKey,
   mode,
+  time,
   specialType,
   note,
   price,
@@ -16,7 +17,7 @@ export const toCreateTripPayloads = ({
     throw new Error('Falta el cliente para crear el viaje.');
   }
 
-  const tripTime = getCurrentTime();
+  const tripTime = time?.trim() || getCurrentTime();
   const tripDate = `${dateKey}T${tripTime}:00`;
 
   if (mode === 'special') {
