@@ -6,7 +6,7 @@ import { itinerariesService } from '../../../services/itineraries';
 import { paymentsService } from '../../../services';
 import { useAuth } from '../../../state/AuthContext';
 import type { ItineraryRate, Route } from '../../../services/types';
-import { PendingSpecialTrip, Trip, TripMode, TripRecord, TripUpdates } from '../types';
+import { CreateCalendarTripInput, PendingSpecialTrip, Trip, TripMode, TripRecord, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
 import { getClientTimezone } from '../../../utils/dateTime';
@@ -15,7 +15,7 @@ import { isNetworkError } from '../../../utils/isNetworkError';
 type UseCalendarTripsResult = {
   trips: Trip[];
   tripsByDate: Record<string, Trip[]>;
-  addTrip: (dateKey: string, mode: TripMode, markAsPaid?: boolean) => void;
+  addTrip: (input: CreateCalendarTripInput & { markAsPaid?: boolean }) => void;
   addSpecialTrip: (input: PendingSpecialTrip & { markAsPaid?: boolean }) => void;
   markTripAsPaid: (tripId: string) => void;
   updateTrip: (tripId: string, updates: TripUpdates) => void;
@@ -236,7 +236,8 @@ export const useCalendarTrips = ({
   };
 
   const addTrip = userId && canCreateRegularTrips
-    ? (dateKey: string, mode: TripMode, markAsPaid = false) => {
+    ? (input: CreateCalendarTripInput & { markAsPaid?: boolean }) => {
+        const { dateKey, mode, time, note, routeId: requestedRouteId, markAsPaid = false } = input;
         let tripContext;
 
         try {
@@ -247,7 +248,15 @@ export const useCalendarTrips = ({
         }
 
         const rateId = resolveRateId(mode);
-        const payload = toCreateTripPayloads({ dateKey, mode, rateId: rateId ?? null, ...tripContext });
+        const payload = toCreateTripPayloads({
+          dateKey,
+          mode,
+          time,
+          note,
+          rateId: rateId ?? null,
+          ...tripContext,
+          routeId: requestedRouteId ?? tripContext.routeId,
+        });
 
         (async () => {
           try {
@@ -287,7 +296,7 @@ export const useCalendarTrips = ({
 
   const addSpecialTrip = userId && canCreateSpecialTrips
     ? (input: PendingSpecialTrip & { markAsPaid?: boolean }) => {
-        const { dateKey, specialType, note, price, markAsPaid } = input;
+        const { dateKey, specialType, note, price, time, markAsPaid } = input;
 
         let tripContext;
 
@@ -301,6 +310,7 @@ export const useCalendarTrips = ({
         const payload = toCreateTripPayloads({
           dateKey,
           mode: 'special',
+          time,
           specialType,
           note,
           price,

@@ -3,6 +3,7 @@ import {
   IconAlertCircle,
   IconArrowLeft,
   IconArrowRight,
+  IconArrowsLeftRight,
   IconCalendar,
   IconCheck,
   IconChevronDown,
@@ -11,6 +12,7 @@ import {
   IconCircleCheck,
   IconCircleX,
   IconClock,
+  IconCoin,
   IconCopy,
   IconDots,
   IconDownload,
@@ -31,6 +33,7 @@ import {
   IconRefresh,
   IconSearch,
   IconSend,
+  IconStar,
   IconTrash,
   IconUsers,
   IconUser,
@@ -42,6 +45,7 @@ import {
 export type AppIconName =
   | 'alert'
   | 'arrowRight'
+  | 'arrowsLeftRight'
   | 'back'
   | 'calendar'
   | 'check'
@@ -52,6 +56,7 @@ export type AppIconName =
   | 'clock'
   | 'close'
   | 'closeCircle'
+  | 'coin'
   | 'copy'
   | 'dots'
   | 'download'
@@ -72,6 +77,7 @@ export type AppIconName =
   | 'refresh'
   | 'search'
   | 'send'
+  | 'star'
   | 'trash'
   | 'user'
   | 'userOff'
@@ -84,6 +90,7 @@ type AppIconProps = Omit<IconProps, 'name'> & {
 const iconMap = {
   alert: IconAlertCircle,
   arrowRight: IconArrowRight,
+  arrowsLeftRight: IconArrowsLeftRight,
   back: IconArrowLeft,
   calendar: IconCalendar,
   check: IconCheck,
@@ -94,6 +101,7 @@ const iconMap = {
   clock: IconClock,
   close: IconX,
   closeCircle: IconCircleX,
+  coin: IconCoin,
   copy: IconCopy,
   dots: IconDots,
   download: IconDownload,
@@ -114,6 +122,7 @@ const iconMap = {
   refresh: IconRefresh,
   search: IconSearch,
   send: IconSend,
+  star: IconStar,
   trash: IconTrash,
   user: IconUser,
   userOff: IconUserOff,
