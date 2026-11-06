@@ -1,7 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Modal,
+  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,6 +29,11 @@ import {
 import { summariesService } from '../../../services/summaries';
 import { useCreateSummary } from '../hooks/useCreateSummary';
 import { useManualTripCount } from '../hooks/useManualTripCount';
+import { FEATURE_FLAGS } from '../../../permissions/features';
+
+const SHEET_CLOSE_DISTANCE = 120;
+const SHEET_CLOSE_VELOCITY = 1;
+const SHEET_EXIT_TRANSLATE_Y = 640;
 import { getErrorMessage } from '../../../utils/errorMessage';
 import { useFeedback } from '../../../state/FeedbackContext';
 import { ManualRangePicker } from './ManualRangePicker';
@@ -57,12 +64,64 @@ export function CreateSummaryModal({
 }: CreateSummaryModalProps) {
   const styles = useStyles();
   const insets = useSafeAreaInsets();
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const closeWithSwipe = useCallback(() => {
+    Animated.timing(translateY, {
+      toValue: SHEET_EXIT_TRANSLATE_Y,
+      duration: 170,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (finished) onClose();
+    });
+  }, [onClose, translateY]);
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          const vertical = Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+          return vertical && gestureState.dy > 4;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          translateY.setValue(Math.max(0, gestureState.dy));
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          const shouldClose =
+            gestureState.dy > SHEET_CLOSE_DISTANCE || gestureState.vy > SHEET_CLOSE_VELOCITY;
+
+          if (shouldClose) {
+            closeWithSwipe();
+            return;
+          }
+
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: false,
+            bounciness: 0,
+          }).start();
+        },
+        onPanResponderTerminate: () => {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: false,
+            bounciness: 0,
+          }).start();
+        },
+      }),
+    [closeWithSwipe, translateY],
+  );
   const { showFeedback } = useFeedback();
   const { userProfile } = useAuth();
   const permissions = usePermissions(userProfile);
   const { creating, createManual, createAuto } = useCreateSummary();
 
-  const [activeTab, setActiveTab] = useState<'auto' | 'manual'>('auto');
+  // Automatic summaries stay disabled until the period logic is rethought.
+  const autoSummariesEnabled = FEATURE_FLAGS.autoSummaries;
+  const [activeTab, setActiveTab] = useState<'auto' | 'manual'>(
+    autoSummariesEnabled ? 'auto' : 'manual',
+  );
   const [clients, setClients] = useState<Client[]>([]);
   const [numericDriverId, setNumericDriverId] = useState<string | null>(null);
   const [selectedClient, setSelectedClient] = useState(selectedClientId);
@@ -107,9 +166,11 @@ export function CreateSummaryModal({
   useEffect(() => {
     if (!visible) return;
 
+    translateY.setValue(0);
+
     const mountedRef = { current: true };
     setSelectedClient(selectedClientId);
-    setActiveTab('auto');
+    setActiveTab(autoSummariesEnabled ? 'auto' : 'manual');
     setManualMonthDate(getClientToday(effectiveTimezone));
     setManualStartDate(null);
     setManualEndDate(null);
@@ -237,6 +298,13 @@ export function CreateSummaryModal({
 
     try {
       if (activeTab === 'auto') {
+        if (!autoSummariesEnabled) {
+          showFeedback({
+            type: 'error',
+            message: 'Los resúmenes automáticos están deshabilitados. Usá el resumen manual.',
+          });
+          return;
+        }
         if (!preview || preview.available_trips === 0) {
           showFeedback({ type: 'error', message: 'No hay viajes disponibles para el período automático' });
           return;
@@ -303,27 +371,36 @@ export function CreateSummaryModal({
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
         <Pressable style={styles.modalBackdrop} onPress={onClose} />
-        <View style={[styles.modalContent, { paddingBottom: insets.bottom + 16 }]}>
-          <View style={styles.modalHandle} />
-
-          <View style={styles.tabsRow}>
-            <Pressable
-              style={[styles.tab, activeTab === 'auto' && styles.tabActive]}
-              onPress={() => setActiveTab('auto')}
-            >
-              <Text style={[styles.tabText, activeTab === 'auto' && styles.tabTextActive]}>
-                Automático
-              </Text>
-            </Pressable>
-            <Pressable
-              style={[styles.tab, activeTab === 'manual' && styles.tabActive]}
-              onPress={() => setActiveTab('manual')}
-            >
-              <Text style={[styles.tabText, activeTab === 'manual' && styles.tabTextActive]}>
-                Manual
-              </Text>
-            </Pressable>
+        <Animated.View
+          style={[
+            styles.modalContent,
+            { paddingBottom: insets.bottom + 16, transform: [{ translateY }] },
+          ]}
+        >
+          <View style={styles.sheetHandleZone} {...panResponder.panHandlers}>
+            <View style={styles.modalHandle} />
           </View>
+
+          {autoSummariesEnabled ? (
+            <View style={styles.tabsRow}>
+              <Pressable
+                style={[styles.tab, activeTab === 'auto' && styles.tabActive]}
+                onPress={() => setActiveTab('auto')}
+              >
+                <Text style={[styles.tabText, activeTab === 'auto' && styles.tabTextActive]}>
+                  Automático
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, activeTab === 'manual' && styles.tabActive]}
+                onPress={() => setActiveTab('manual')}
+              >
+                <Text style={[styles.tabText, activeTab === 'manual' && styles.tabTextActive]}>
+                  Manual
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
 
           <ScrollView showsVerticalScrollIndicator={false}>
             <Text style={styles.fieldLabel}>Cliente</Text>
@@ -427,7 +504,7 @@ export function CreateSummaryModal({
               )}
             </Pressable>
           </View>
-        </View>
+        </Animated.View>
       </View>
 
       <SummaryClientSelector
@@ -580,6 +657,12 @@ const useStyles = () => {
           borderRadius: 2,
           alignSelf: 'center',
           marginBottom: 16,
+        },
+        sheetHandleZone: {
+          alignItems: 'center',
+          alignSelf: 'stretch',
+          paddingVertical: 10,
+          marginTop: -10,
         },
         tabsRow: {
           flexDirection: 'row',
