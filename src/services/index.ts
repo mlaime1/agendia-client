@@ -10,5 +10,6 @@ export { itinerariesService } from './itineraries';
 export { defaultsService } from './defaults';
 export { usersService } from './users';
 export { paymentsService } from './payments';
+export { passwordRecoveryService } from './passwordRecovery';
 export { ApiError, api, getBackendApiBaseUrl } from './backendApi';
 export type * from './types';

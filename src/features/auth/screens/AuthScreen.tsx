@@ -17,10 +17,13 @@ import { AuthTextField } from '../components/AuthTextField';
 import { Theme, useTheme, useThemedStyles } from '../../../theme';
 import { AppIcon } from '../../../components/AppIcon';
 import { api } from '../../../services/backendApi';
+import { passwordRecoveryService } from '../../../services/passwordRecovery';
 import Logo from '../../../../assets/icon/logo.svg';
 
-type AuthMode = 'login' | 'register';
+type AuthMode = 'login' | 'register' | 'recovery';
 type InvitationStatus = 'idle' | 'loading' | 'valid' | 'invalid';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const getErrorMessage = (error: unknown) => (error instanceof Error ? error.message : 'Ocurrio un error inesperado');
 
@@ -38,15 +41,45 @@ export function AuthScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invitationStatus, setInvitationStatus] = useState<InvitationStatus>('idle');
   const [needsPhone, setNeedsPhone] = useState(false);
+  const [sentMessage, setSentMessage] = useState<string | null>(null);
 
   const isRegisterMode = mode === 'register';
-  const title = isRegisterMode ? 'Crear cuenta' : 'Iniciar sesion';
-  const submitLabel = isRegisterMode ? 'Registrarme' : 'Entrar';
-  const switchLabel = isRegisterMode ? 'Ya tengo cuenta' : 'Crear cuenta';
+  const isRecoveryMode = mode === 'recovery';
+  const isRecoverySent = isRecoveryMode && sentMessage !== null;
+
+  const title = isRecoveryMode
+    ? 'Recuperar contraseña'
+    : isRegisterMode
+      ? 'Crear cuenta'
+      : 'Iniciar sesion';
+
+  const subtitle = isRecoveryMode
+    ? 'Ingresa tu email y te enviamos una contraseña temporal.'
+    : isRegisterMode
+      ? 'Completa tus datos para empezar a registrar viajes.'
+      : null;
+
+  const submitLabel = isRecoveryMode
+    ? 'Enviar contraseña temporal'
+    : isRegisterMode
+      ? 'Registrarme'
+      : 'Entrar';
+
+  const switchLabel = isRecoveryMode
+    ? 'Volver al inicio de sesion'
+    : isRegisterMode
+      ? 'Ya tengo cuenta'
+      : 'Crear cuenta';
+
+  const switchTarget: AuthMode = isRecoveryMode || isRegisterMode ? 'login' : 'register';
 
   const isSubmitDisabled = useMemo(() => {
     if (isSubmitting) {
       return true;
+    }
+
+    if (isRecoveryMode) {
+      return !EMAIL_PATTERN.test(email.trim());
     }
 
     if (!email.trim() || password.length < 6) {
@@ -60,11 +93,12 @@ export function AuthScreen() {
     }
 
     return false;
-  }, [email, isRegisterMode, isSubmitting, name, password, invitationStatus, needsPhone, phone]);
+  }, [email, isRecoveryMode, isRegisterMode, isSubmitting, name, password, invitationStatus, needsPhone, phone]);
 
   const resetFormState = (nextMode: AuthMode) => {
     setMode(nextMode);
     setError(null);
+    setSentMessage(null);
     setInvitationCode('');
     setPhone('');
     setInvitationStatus('idle');
@@ -101,6 +135,12 @@ export function AuthScreen() {
     setError(null);
 
     try {
+      if (isRecoveryMode) {
+        const { message } = await passwordRecoveryService.request(email);
+        setSentMessage(message);
+        return;
+      }
+
       if (isRegisterMode) {
         await registerWithCode({
           email,
@@ -129,27 +169,46 @@ export function AuthScreen() {
           <View style={styles.header}>
             <Logo color={theme.colors.primary} height={150} width={150} />
             <Text style={styles.appName}>Agendia</Text>
-            {isRegisterMode ? (
+            {subtitle ? (
               <>
                 <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle}>Completa tus datos para empezar a registrar viajes.</Text>
+                <Text style={styles.subtitle}>{subtitle}</Text>
               </>
             ) : null}
           </View>
 
           <View style={styles.form}>
-            {isRegisterMode ? (
-              <AuthTextField
-                autoComplete="name"
-                label="Nombre"
-                onChangeText={setName}
-                placeholder="Tu nombre"
-                returnKeyType="next"
-                value={name}
-              />
-            ) : null}
+            {isRecoverySent ? (
+              <>
+                <Text style={styles.confirmation}>{sentMessage}</Text>
+
+                <Text style={styles.hint}>
+                  Cuando entres, cambia la contraseña desde Perfil → Cambiar contraseña.
+                </Text>
+
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => resetFormState('login')}
+                  style={({ pressed }) => [styles.switchButton, pressed && styles.pressedButton]}
+                >
+                  <Text style={styles.switchButtonText}>Volver al inicio de sesion</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                {isRegisterMode ? (
+                  <AuthTextField
+                    autoComplete="name"
+                    label="Nombre"
+                    onChangeText={setName}
+                    placeholder="Tu nombre"
+                    returnKeyType="next"
+                    value={name}
+                  />
+                ) : null}
 
             <AuthTextField
+              autoCorrect={false}
               autoComplete="email"
               inputMode="email"
               keyboardType="email-address"
@@ -161,16 +220,18 @@ export function AuthScreen() {
               value={email}
             />
 
-            <AuthTextField
-              autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
-              label="Contraseña"
-              onChangeText={setPassword}
-              placeholder="Minimo 6 caracteres"
-              returnKeyType="done"
-              secureTextEntry
-              textContentType={isRegisterMode ? 'newPassword' : 'password'}
-              value={password}
-            />
+            {!isRecoveryMode ? (
+              <AuthTextField
+                autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
+                label="Contraseña"
+                onChangeText={setPassword}
+                placeholder="Minimo 6 caracteres"
+                returnKeyType="done"
+                secureTextEntry
+                textContentType={isRegisterMode ? 'newPassword' : 'password'}
+                value={password}
+              />
+            ) : null}
 
             {isRegisterMode ? (
               <View>
@@ -242,11 +303,23 @@ export function AuthScreen() {
 
             <Pressable
               accessibilityRole="button"
-              onPress={() => resetFormState(isRegisterMode ? 'login' : 'register')}
+              onPress={() => resetFormState(switchTarget)}
               style={({ pressed }) => [styles.switchButton, pressed && styles.pressedButton]}
             >
               <Text style={styles.switchButtonText}>{switchLabel}</Text>
             </Pressable>
+
+                {mode === 'login' ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => resetFormState('recovery')}
+                    style={({ pressed }) => [styles.forgotLink, pressed && styles.pressedButton]}
+                  >
+                    <Text style={styles.forgotLinkText}>¿Olvidaste tu contraseña?</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -337,6 +410,34 @@ const createStyles = (theme: Theme) => StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0,
     lineHeight: 18,
+  },
+  confirmation: {
+    color: theme.colors.primary,
+    fontSize: 15,
+    fontWeight: '700',
+    letterSpacing: 0,
+    lineHeight: 21,
+    textAlign: 'center',
+  },
+  hint: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  forgotLink: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  forgotLinkText: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0,
+    textDecorationLine: 'underline',
   },
   field: {
     gap: 7,
