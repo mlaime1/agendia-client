@@ -1,5 +1,5 @@
 import { format, getDate, getDay, getMonth, getYear } from 'date-fns';
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { toZonedTime, fromZonedTime, formatInTimeZone } from 'date-fns-tz';
 
 const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires';
 
@@ -77,28 +77,30 @@ export const getClientMonthDays = (monthDate: Date, clientTimezone?: string): Ca
   const year = getYear(zonedMonth);
   const month = getMonth(zonedMonth);
   const lastDay = new Date(year, month + 1, 0).getDate();
-  const today = getClientToday(tz);
+  const todayKey = toDateKey(new Date(), tz);
+  const monthKey = String(month + 1).padStart(2, '0');
 
   return Array.from({ length: lastDay }, (_, index) => {
-    const date = new Date(year, month, index + 1);
-    const dateKey = formatInTimeZone(date, tz, 'yyyy-MM-dd');
-    const zonedDate = toZonedTime(date, tz);
+    const dayNumber = index + 1;
+    const dateKey = `${year}-${monthKey}-${String(dayNumber).padStart(2, '0')}`;
+    const date = fromZonedTime(`${dateKey}T00:00:00`, tz);
 
     return {
       date,
       dateKey,
-      dayNumber: index + 1,
-      isToday:
-        getYear(zonedDate) === getYear(today) &&
-        getMonth(zonedDate) === getMonth(today) &&
-        getDate(zonedDate) === getDate(today),
+      dayNumber,
+      isToday: dateKey === todayKey,
     };
   });
 };
 
 export const getClientLeadingEmptyCells = (monthDate: Date, clientTimezone?: string): number => {
-  const firstDay = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
-  return getDay(toZonedTime(firstDay, clientTimezone || DEFAULT_TIMEZONE));
+  const tz = clientTimezone || DEFAULT_TIMEZONE;
+  const zonedMonth = toZonedTime(monthDate, tz);
+  const monthKey = String(getMonth(zonedMonth) + 1).padStart(2, '0');
+  const firstOfMonthKey = `${getYear(zonedMonth)}-${monthKey}-01`;
+
+  return getDay(toZonedTime(fromZonedTime(`${firstOfMonthKey}T00:00:00`, tz), tz));
 };
 
 export const toDateKey = (date: Date, clientTimezone?: string): string =>

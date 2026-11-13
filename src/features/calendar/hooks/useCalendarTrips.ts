@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { clientsService } from '../../../services/clients';
 import { defaultsService } from '../../../services/defaults';
-import { itinerariesService } from '../../../services/itineraries';
 import { paymentsService } from '../../../services';
 import { useAuth } from '../../../state/AuthContext';
-import type { ItineraryRate, Route } from '../../../services/types';
+import type { Route } from '../../../services/types';
 import { CreateCalendarTripInput, PendingSpecialTrip, Trip, TripMode, TripRecord, TripUpdates } from '../types';
 import { toCreateTripPayloads } from '../data/tripMappers';
 import { tripRepository } from '../data/tripRepository';
@@ -55,7 +54,6 @@ export const useCalendarTrips = ({
   const [clientId, setClientId] = useState<string>('');
   const [routeId, setRouteId] = useState<string>('');
   const [availableRoutes, setAvailableRoutes] = useState<Route[]>([]);
-  const [availableRates, setAvailableRates] = useState<ItineraryRate[]>([]);
   const [clientTimezone, setClientTimezone] = useState<string>(getClientTimezone());
 
   const userId = userProfile?.id;
@@ -87,7 +85,6 @@ export const useCalendarTrips = ({
     (async () => {
       if (mounted) {
         setIsLoadingTrips(true);
-        setAvailableRates([]);
       }
 
       if (!userId) {
@@ -156,43 +153,6 @@ export const useCalendarTrips = ({
     };
   }, [selectedClientId, userId, linkedClientId]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    (async () => {
-      if (!routeId) {
-        if (mounted) {
-          setAvailableRates([]);
-        }
-        return;
-      }
-
-      try {
-        const rates = await itinerariesService.getRates(routeId);
-        if (mounted) {
-          setAvailableRates(rates);
-        }
-      } catch (error) {
-        if (mounted) {
-          setAvailableRates([]);
-        }
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [routeId]);
-
-  const resolveRateId = (mode: TripMode): string | null => {
-    if (mode === 'special') {
-      return null;
-    }
-
-    const tripType = mode === 'roundTrip' ? 'ida_y_vuelta' : 'ida';
-    return availableRates.find((rate) => rate.trip_type === tripType)?.id ?? null;
-  };
-
   const tripsByDate = useMemo(
     () =>
       trips.reduce<Record<string, Trip[]>>((groupedTrips, trip) => {
@@ -247,19 +207,21 @@ export const useCalendarTrips = ({
           return;
         }
 
-        const rateId = resolveRateId(mode);
-        const payload = toCreateTripPayloads({
-          dateKey,
-          mode,
-          time,
-          note,
-          rateId: rateId ?? null,
-          ...tripContext,
-          routeId: requestedRouteId ?? tripContext.routeId,
-        });
+        const effectiveRouteId = requestedRouteId ?? tripContext.routeId;
 
         (async () => {
+          let payload: ReturnType<typeof toCreateTripPayloads> | undefined;
+
           try {
+            payload = toCreateTripPayloads({
+              dateKey,
+              mode,
+              time,
+              note,
+              ...tripContext,
+              routeId: effectiveRouteId,
+            });
+
             const { trip: createdTrip, records } = await tripRepository.createTrips(
               payload,
               userId,
@@ -274,7 +236,7 @@ export const useCalendarTrips = ({
             }
             warnIfZeroPrice(createdTrip);
           } catch (err: any) {
-            if (isNetworkError(err)) {
+            if (isNetworkError(err) && payload) {
               try {
                 const fallback = tripRepository.createLocalTrips(
                   payload,

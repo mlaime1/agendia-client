@@ -3,6 +3,7 @@ import type {
   ItineraryStop,
   ItineraryRate,
   ItineraryRateType,
+  CreateItineraryRateType,
   CreateItineraryDto,
   CreateItineraryStopDto,
   CreateItineraryRateDto,
@@ -13,6 +14,7 @@ export type {
   ItineraryStop,
   ItineraryRate,
   ItineraryRateType,
+  CreateItineraryRateType,
   CreateItineraryDto,
   CreateItineraryStopDto,
   CreateItineraryRateDto,
@@ -41,6 +43,6 @@ export type FormStop = {
 };
 
 export type FormRate = {
-  type: ItineraryRateType;
+  type: CreateItineraryRateType;
   price: string;
 };
