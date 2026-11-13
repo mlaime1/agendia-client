@@ -1,7 +1,6 @@
 import { toCalendarTrip } from './tripMappers';
 import { CreateTripPayload, Trip, TripRecord, TripUpdates } from '../types';
 import { tripsService } from '../../../services';
-import { itinerariesService } from '../../../services/itineraries';
 import type { Trip as ServiceTrip } from '../../../services/types';
 import { getClientDateKey, formatClientTime } from '../../../utils/dateTime';
 
@@ -149,7 +148,6 @@ export const tripRepository = {
         };
 
         if (p.route_id) body.route_id = p.route_id;
-        if (p.rate_id) body.rate_id = p.rate_id;
         if (p.trip_time) body.trip_time = p.trip_time;
         if (p.special_type) body.special_type = p.special_type;
         if (p.notes) body.notes = p.notes;
@@ -181,20 +179,8 @@ export const tripRepository = {
     const record = tripRecords.find((r) => r.id === trip.recordIds[0]);
     const currentRouteId = record?.route_id || updates.routeId || '';
 
-    let rateId: string | null = null;
-
-    if (updates.mode && updates.mode !== 'special') {
-      if (!currentRouteId) {
-        throw new Error('Falta la ruta para cambiar el viaje a regular.');
-      }
-
-      const tripType = updates.mode === 'roundTrip' ? 'ida_y_vuelta' : 'ida';
-      const rates = await itinerariesService.getRates(currentRouteId);
-      rateId = rates.find((rate) => rate.trip_type === tripType)?.id ?? null;
-
-      if (!rateId) {
-        throw new Error('No hay tarifa configurada para este tipo de viaje.');
-      }
+    if (updates.mode && updates.mode !== 'special' && !currentRouteId) {
+      throw new Error('Falta la ruta para cambiar el viaje a regular.');
     }
 
     await Promise.all(
@@ -214,12 +200,10 @@ export const tripRepository = {
           body.trip_type = 'ida y vuelta';
           body.special_type = null;
           body.route_id = currentRouteId;
-          if (rateId) body.rate_id = rateId;
         } else if (updates.mode === 'outbound') {
           body.trip_type = 'ida';
           body.special_type = null;
           body.route_id = currentRouteId;
-          if (rateId) body.rate_id = rateId;
         }
 
         return tripsService.update(id, body);

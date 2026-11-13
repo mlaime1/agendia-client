@@ -258,7 +258,10 @@ export interface ItineraryStop {
   lng?: number | null;
 }
 
-export type ItineraryRateType = 'ida' | 'ida y vuelta' | 'especial';
+export type ItineraryRateType = 'ida' | 'ida_y_vuelta' | 'especial';
+
+// Trip type accepted when creating a rate: the API normalizes both spellings.
+export type CreateItineraryRateType = 'ida' | 'ida y vuelta' | 'especial';
 
 export interface ItineraryRate {
   id: string;
@@ -288,7 +291,7 @@ export interface CreateItineraryStopDto {
 export type UpdateItineraryStopDto = Partial<CreateItineraryStopDto>;
 
 export interface CreateItineraryRateDto {
-  trip_type: ItineraryRateType;
+  trip_type: CreateItineraryRateType;
   base_price: number;
   surcharge_price?: number;
   start_date?: string;
