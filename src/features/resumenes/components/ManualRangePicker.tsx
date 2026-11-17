@@ -3,6 +3,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../../../theme';
+import type { Trip } from '../../calendar/types';
+import { TripDots } from '../../calendar/components/TripDots';
 import { getLeadingEmptyCells, getMonthDays } from '../../calendar/utils/date';
 import {
   getClientLongDateLabelFromDate,
@@ -19,6 +21,7 @@ type ManualRangePickerProps = {
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onClear: () => void;
+  tripsByDate?: Record<string, Trip[]>;
   isDateClosed?: (dateKey: string) => boolean;
 };
 
@@ -31,6 +34,7 @@ export function ManualRangePicker({
   onPrevMonth,
   onNextMonth,
   onClear,
+  tripsByDate,
   isDateClosed,
 }: ManualRangePickerProps) {
   const styles = useStyles();
@@ -84,6 +88,7 @@ export function ManualRangePicker({
             const isEnd = endDate ? isSameDay(day.date, endDate, clientTimezone) : false;
             const isInRange = startDate && endDate ? isDateInRange(day.date, startDate, endDate) : false;
             const isClosed = isDateClosed?.(day.dateKey) ?? false;
+            const dayTrips = tripsByDate?.[day.dateKey] ?? [];
 
             return (
               <Pressable
@@ -99,16 +104,25 @@ export function ManualRangePicker({
                 onPress={() => onSelectDate(day.date)}
                 disabled={isClosed}
                 accessibilityState={{ disabled: isClosed }}
-                accessibilityLabel={`${day.dayNumber}${isClosed ? ', período cerrado' : ''}`}
+                accessibilityLabel={`${day.dayNumber}${
+                  dayTrips.length
+                    ? `, ${dayTrips.length} ${dayTrips.length === 1 ? 'viaje' : 'viajes'}`
+                    : ''
+                }${isClosed ? ', período cerrado' : ''}`}
               >
-                <Text
-                  style={[
-                    styles.cellText,
-                    (isStart || isEnd) && styles.cellTextSelected,
-                  ]}
-                >
-                  {day.dayNumber}
-                </Text>
+                <View style={styles.cellContent}>
+                  <Text
+                    style={[
+                      styles.cellText,
+                      (isStart || isEnd) && styles.cellTextSelected,
+                    ]}
+                  >
+                    {day.dayNumber}
+                  </Text>
+                  <View style={styles.dotsContainer}>
+                    {dayTrips.length > 0 ? <TripDots trips={dayTrips} /> : null}
+                  </View>
+                </View>
               </Pressable>
             );
           })}
@@ -247,6 +261,16 @@ const useStyles = () => {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: theme.radii.small,
+        },
+        cellContent: {
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+        },
+        dotsContainer: {
+          minHeight: 8,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         cellPressed: {
           opacity: 0.85,

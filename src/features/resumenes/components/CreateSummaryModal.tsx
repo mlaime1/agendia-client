@@ -29,6 +29,7 @@ import {
 import { summariesService } from '../../../services/summaries';
 import { useCreateSummary } from '../hooks/useCreateSummary';
 import { useManualTripCount } from '../hooks/useManualTripCount';
+import { useManualMonthTrips } from '../hooks/useManualMonthTrips';
 import { FEATURE_FLAGS } from '../../../permissions/features';
 
 const SHEET_CLOSE_DISTANCE = 120;
@@ -161,6 +162,12 @@ export function CreateSummaryModal({
     activeTab === 'manual' ? selectedClient : null,
     manualPeriodStart,
     manualPeriodEnd,
+  );
+
+  const { tripsByDate: manualTripsByDate } = useManualMonthTrips(
+    activeTab === 'manual' ? selectedClient : null,
+    manualMonthDate,
+    effectiveTimezone,
   );
 
   useEffect(() => {
@@ -421,6 +428,7 @@ export function CreateSummaryModal({
                   startDate={manualStartDate}
                   endDate={manualEndDate}
                   clientTimezone={effectiveTimezone}
+                  tripsByDate={manualTripsByDate}
                   onSelectDate={selectManualDate}
                   isDateClosed={isDateClosed}
                   onPrevMonth={() =>
